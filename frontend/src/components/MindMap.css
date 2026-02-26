@@ -1,0 +1,230 @@
+/* frontend/src/components/MindMap.css */
+
+.mindmap {
+  max-width: 1000px;
+}
+
+.mindmap__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #334155;
+}
+
+.mindmap__header h2 {
+  font-size: 1.5rem;
+}
+
+.mindmap__legend {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* ===== CATEGORY ===== */
+.mindmap__category {
+  margin-bottom: 1.5rem;
+}
+
+.mindmap__category-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #1e293b;
+  border-radius: 10px;
+  border-left: 4px solid;
+  margin-bottom: 0.5rem;
+}
+
+.mindmap__category-emoji {
+  font-size: 1.3rem;
+}
+
+.mindmap__category-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.mindmap__category-count {
+  margin-left: auto;
+  background: #334155;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.mindmap__category-children {
+  padding-left: 1.25rem;
+}
+
+/* ===== COMPETENCY NODE ===== */
+.mindmap__comp-node {
+  margin-bottom: 0.5rem;
+}
+
+.mindmap__comp-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #1e293b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mindmap__comp-header:hover {
+  background: #263248;
+}
+
+.mindmap__grip {
+  color: #475569;
+}
+
+.mindmap__comp-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.mindmap__comp-count {
+  margin-left: auto;
+  background: #334155;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.mindmap__comp-children {
+  padding-left: 1.5rem;
+  margin-top: 4px;
+}
+
+/* ===== SUB COMPETENCY NODE ===== */
+.mindmap__sub-node {
+  border-left: 3px solid;
+  margin-bottom: 4px;
+  border-radius: 0 8px 8px 0;
+  background: #1e293b;
+  transition: background 0.2s;
+}
+
+.mindmap__sub-node:hover {
+  background: #263248;
+}
+
+.mindmap__sub-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.mindmap__expand-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+}
+
+.mindmap__level-badge {
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mindmap__sub-name {
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.mindmap__sub-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.mindmap__sub-node:hover .mindmap__sub-actions {
+  opacity: 1;
+}
+
+.mindmap__sub-actions button {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  transition: all 0.2s;
+}
+
+.mindmap__sub-actions button:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.mindmap__sub-actions button:last-child:hover {
+  color: #ef4444;
+}
+
+.mindmap__sub-details {
+  padding: 0 10px 10px 30px;
+}
+
+.mindmap__sub-description {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.mindmap__sub-skills-list {
+  list-style: none;
+  padding: 0;
+}
+
+.mindmap__sub-skills-list li {
+  font-size: 0.8rem;
+  color: #64748b;
+  padding: 2px 0;
+}
+
+.mindmap__sub-skills-list li::before {
+  content: '•';
+  margin-right: 6px;
+  color: #475569;
+}
+
+/* ===== ADD BUTTON ===== */
+.mindmap__add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin: 4px 0;
+  background: none;
+  border: 2px dashed #334155;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.85rem;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.mindmap__add-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}

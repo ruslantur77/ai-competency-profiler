@@ -1,0 +1,104 @@
+/* frontend/src/components/VacancySidebar.css */
+
+.sidebar {
+    width: 400px;
+    min-width: 400px;
+    background: #1e293b;
+    border-right: 1px solid #334155;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+  
+  .sidebar--collapsed {
+    width: 40px;
+    min-width: 40px;
+  }
+  
+  .sidebar__toggle {
+    position: absolute;
+    right: 0;
+    top: 12px;
+    z-index: 10;
+    background: #334155;
+    border: none;
+    color: #94a3b8;
+    padding: 8px;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .sidebar__toggle:hover {
+    background: #475569;
+    color: white;
+  }
+  
+  .sidebar__content {
+    padding: 1.5rem;
+    overflow-y: auto;
+    height: 100%;
+  }
+  
+  .sidebar__title {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 40px;
+  }
+  
+  .sidebar__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+    color: #94a3b8;
+    font-size: 0.9rem;
+  }
+  
+  .sidebar__meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .sidebar__skills {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .sidebar__skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .sidebar__skill-tag {
+    background: #334155;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #93c5fd;
+  }
+  
+  .sidebar__text h3 {
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .sidebar__text pre {
+    font-family: inherit;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #cbd5e1;
+  }
