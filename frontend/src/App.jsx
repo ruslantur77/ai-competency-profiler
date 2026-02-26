@@ -69,14 +69,12 @@ export default function App() {
   }
 
   const handleDeleteSub = async (subId, competencyId) => {
-    if (!confirm('Удалить эту подкомпетенцию?')) return
-
     try {
       await deleteSubCompetency(sessionId, {
         competency_id: competencyId,
         sub_competency_id: subId,
       })
-
+  
       setCompetencies(prev => prev.map(comp => {
         if (comp.id !== competencyId) return comp
         return {
@@ -84,7 +82,7 @@ export default function App() {
           sub_competencies: comp.sub_competencies.filter(s => s.id !== subId)
         }
       }))
-
+  
       notify('🗑️ Подкомпетенция удалена')
     } catch (err) {
       notify('Ошибка удаления', 'error')
