@@ -174,7 +174,7 @@ export default function MindMap({
   return (
     <div className="mindmap">
       <div className="mindmap__header">
-        <h2>🧠 Граф компетенций</h2>
+        <h2>Граф компетенций</h2>
         <div className="mindmap__legend">
           <span>🟢 Beginner</span>
           <span>🟡 Intermediate</span>
