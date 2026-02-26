@@ -22,31 +22,6 @@ AI-система для автоматического формирования
 | AI/LLM | OpenRouter API (DeepSeek, Llama, GPT) |
 | Данные | hh.ru API |
 
-## 📁 Структура проекта
-ai-competency-profiler/
-├── backend/
-│ ├── main.py # FastAPI приложение
-│ ├── mock_data.py # Моковые данные для разработки
-│ └── requirements.txt # Python зависимости
-├── frontend/
-│ ├── src/
-│ │ ├── App.jsx # Главный компонент
-│ │ ├── App.css # Стили
-│ │ ├── main.jsx # Точка входа
-│ │ ├── components/
-│ │ │ ├── VacancyInput.jsx # Ввод ссылки на вакансию
-│ │ │ ├── VacancySidebar.jsx # Боковая панель с текстом вакансии
-│ │ │ ├── MindMap.jsx # Граф компетенций (mind-map)
-│ │ │ ├── NodeEditor.jsx # Модальное окно редактирования
-│ │ │ └── Notification.jsx # Уведомления
-│ │ └── api/
-│ │ └── client.js # API клиент
-│ ├── index.html
-│ ├── package.json
-│ └── vite.config.js
-└── README.md
-
-
 ## 🚀 Запуск
 
 ### Требования
