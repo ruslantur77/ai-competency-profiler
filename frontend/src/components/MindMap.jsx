@@ -5,6 +5,9 @@ import {
   Sparkles, Plus, GripVertical
 } from 'lucide-react'
 import NodeEditor from './NodeEditor'
+import ConfirmDialog from './ConfirmDialog'
+import AddSubDialog from './AddSubDialog'
+import AiFixDialog from './AiFixDialog'
 import './MindMap.css'
 
 const LEVEL_COLORS = {
@@ -44,7 +47,7 @@ function SubCompetencyNode({ sub, competencyId, onEdit, onDelete, onAiFix }) {
           <button title="AI исправление" onClick={() => onAiFix(sub, competencyId)}>
             <Sparkles size={14} />
           </button>
-          <button title="Удалить" onClick={() => onDelete(sub.id, competencyId)}>
+          <button title="Удалить" onClick={() => onDelete(sub, competencyId)}>
             <Trash2 size={14} />
           </button>
         </div>
@@ -90,7 +93,7 @@ function CompetencyNode({ comp, onEdit, onDelete, onAiFix, onAdd }) {
               onAiFix={onAiFix}
             />
           ))}
-          <button className="mindmap__add-btn" onClick={() => onAdd(comp.id)}>
+          <button className="mindmap__add-btn" onClick={() => onAdd(comp)}>
             <Plus size={14} /> Добавить подкомпетенцию
           </button>
         </div>
@@ -107,9 +110,22 @@ export default function MindMap({
   onAddSub,
   onAiFix,
 }) {
+  // Редактирование
   const [editing, setEditing] = useState(null)
   const [editingCompId, setEditingCompId] = useState(null)
 
+  // Удаление
+  const [deleting, setDeleting] = useState(null)
+  const [deletingCompId, setDeletingCompId] = useState(null)
+
+  // Добавление
+  const [adding, setAdding] = useState(null)
+
+  // AI Fix
+  const [aiFixing, setAiFixing] = useState(null)
+  const [aiFixingCompId, setAiFixingCompId] = useState(null)
+
+  // --- Редактирование ---
   const handleEdit = (sub, competencyId) => {
     setEditing(sub)
     setEditingCompId(competencyId)
@@ -121,29 +137,44 @@ export default function MindMap({
     setEditingCompId(null)
   }
 
-  const handleAiFix = (sub, competencyId) => {
-    const instruction = prompt(`🤖 Что изменить в "${sub.name}"?\nОпишите инструкцию для AI:`)
-    if (instruction) {
-      onAiFix(competencyId, sub.id, instruction)
-    }
+  // --- Удаление ---
+  const handleDeleteClick = (sub, competencyId) => {
+    setDeleting(sub)
+    setDeletingCompId(competencyId)
   }
 
-  const handleAdd = (competencyId) => {
-    const name = prompt('Название новой подкомпетенции:')
-    if (name) {
-      onAddSub(competencyId, {
-        name,
-        level: 'intermediate',
-        description: '',
-        sub_skills: [],
-      })
-    }
+  const handleDeleteConfirm = () => {
+    onDeleteSub(deleting.id, deletingCompId)
+    setDeleting(null)
+    setDeletingCompId(null)
+  }
+
+  // --- Добавление ---
+  const handleAddClick = (comp) => {
+    setAdding(comp)
+  }
+
+  const handleAddSubmit = (newSub) => {
+    onAddSub(adding.id, newSub)
+    setAdding(null)
+  }
+
+  // --- AI Fix ---
+  const handleAiFixClick = (sub, competencyId) => {
+    setAiFixing(sub)
+    setAiFixingCompId(competencyId)
+  }
+
+  const handleAiFixSubmit = (instruction) => {
+    onAiFix(aiFixingCompId, aiFixing.id, instruction)
+    setAiFixing(null)
+    setAiFixingCompId(null)
   }
 
   return (
     <div className="mindmap">
       <div className="mindmap__header">
-        <h2>Граф компетенций</h2>
+        <h2>🧠 Граф компетенций</h2>
         <div className="mindmap__legend">
           <span>🟢 Beginner</span>
           <span>🟡 Intermediate</span>
@@ -173,9 +204,9 @@ export default function MindMap({
                     key={comp.id}
                     comp={comp}
                     onEdit={handleEdit}
-                    onDelete={onDeleteSub}
-                    onAiFix={handleAiFix}
-                    onAdd={handleAdd}
+                    onDelete={handleDeleteClick}
+                    onAiFix={handleAiFixClick}
+                    onAdd={handleAddClick}
                   />
                 ))}
               </div>
@@ -184,11 +215,40 @@ export default function MindMap({
         })}
       </div>
 
+      {/* Модалка редактирования */}
       {editing && (
         <NodeEditor
           sub={editing}
           onSave={handleSave}
           onClose={() => { setEditing(null); setEditingCompId(null) }}
+        />
+      )}
+
+      {/* Модалка удаления */}
+      {deleting && (
+        <ConfirmDialog
+          title="Удаление подкомпетенции"
+          message={`Вы уверены, что хотите удалить "${deleting.name}"? Это действие нельзя отменить.`}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => { setDeleting(null); setDeletingCompId(null) }}
+        />
+      )}
+
+      {/* Модалка добавления */}
+      {adding && (
+        <AddSubDialog
+          competencyName={adding.skill}
+          onAdd={handleAddSubmit}
+          onClose={() => setAdding(null)}
+        />
+      )}
+
+      {/* Модалка AI */}
+      {aiFixing && (
+        <AiFixDialog
+          subName={aiFixing.name}
+          onSubmit={handleAiFixSubmit}
+          onClose={() => { setAiFixing(null); setAiFixingCompId(null) }}
         />
       )}
     </div>

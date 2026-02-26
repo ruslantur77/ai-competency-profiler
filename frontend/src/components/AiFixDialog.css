@@ -1,0 +1,116 @@
+/* frontend/src/components/AiFixDialog.css */
+
+.aifix-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  
+  .aifix {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    width: 500px;
+    max-width: 90vw;
+  }
+  
+  .aifix__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #334155;
+  }
+  
+  .aifix__header h3 {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #a78bfa;
+  }
+  
+  .aifix__header button {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+  }
+  
+  .aifix__context {
+    padding: 0.75rem 1.5rem;
+    background: #0f172a;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  
+  .aifix__context strong {
+    color: #e2e8f0;
+  }
+  
+  .aifix__body {
+    padding: 1.5rem;
+  }
+  
+  .aifix__body label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  
+  .aifix__body textarea {
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+  
+  .aifix__body textarea:focus {
+    outline: none;
+    border-color: #a78bfa;
+  }
+  
+  .aifix__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #334155;
+  }
+  
+  .aifix__footer button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .btn-ai {
+    padding: 8px 20px;
+    background: #7c3aed;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s;
+  }
+  
+  .btn-ai:hover {
+    background: #6d28d9;
+  }

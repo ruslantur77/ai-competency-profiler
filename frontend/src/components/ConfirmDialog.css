@@ -1,0 +1,78 @@
+/* frontend/src/components/ConfirmDialog.css */
+
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  
+  .confirm {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    width: 420px;
+    max-width: 90vw;
+  }
+  
+  .confirm__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #334155;
+  }
+  
+  .confirm__header h3 {
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f87171;
+  }
+  
+  .confirm__header button {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+  }
+  
+  .confirm__body {
+    padding: 1.5rem;
+  }
+  
+  .confirm__body p {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+  
+  .confirm__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #334155;
+  }
+  
+  .btn-danger {
+    padding: 8px 20px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .btn-danger:hover {
+    background: #b91c1c;
+  }

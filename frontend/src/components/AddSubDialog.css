@@ -1,0 +1,102 @@
+/* frontend/src/components/AddSubDialog.css */
+
+.add-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  
+  .add-dialog {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    width: 500px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  .add-dialog__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #334155;
+  }
+  
+  .add-dialog__header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .add-dialog__header button {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+  }
+  
+  .add-dialog__context {
+    padding: 0.75rem 1.5rem;
+    background: #0f172a;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  
+  .add-dialog__context strong {
+    color: #e2e8f0;
+  }
+  
+  .add-dialog__body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .add-dialog__body label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  
+  .add-dialog__body input,
+  .add-dialog__body select,
+  .add-dialog__body textarea {
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-family: inherit;
+  }
+  
+  .add-dialog__body input:focus,
+  .add-dialog__body select:focus,
+  .add-dialog__body textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+  
+  .add-dialog__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #334155;
+  }
+  
+  .add-dialog__footer button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
