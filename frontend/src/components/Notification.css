@@ -1,51 +1,57 @@
 /* frontend/src/components/Notification.css */
 
 .notification {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 20px;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    animation: notification-slide-in 0.3s ease;
-    max-width: 450px;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  animation: notification-slide-in 0.4s ease;
+  max-width: 450px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.notification--closing {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+.notification--success {
+  background: #166534;
+  color: #dcfce7;
+}
+
+.notification--error {
+  background: #991b1b;
+  color: #fee2e2;
+}
+
+.notification button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+}
+
+.notification button:hover {
+  opacity: 0.8;
+}
+
+@keyframes notification-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
   }
-  
-  .notification--success {
-    background: #166534;
-    color: #dcfce7;
-  }
-  
-  .notification--error {
-    background: #991b1b;
-    color: #fee2e2;
-  }
-  
-  .notification button {
-    background: none;
-    border: none;
-    color: inherit;
-    cursor: pointer;
-    padding: 2px;
-    display: flex;
-    opacity: 0.7;
-  }
-  
-  .notification button:hover {
+  to {
+    transform: translateX(0);
     opacity: 1;
   }
-  
-  @keyframes notification-slide-in {
-    from {
-      transform: translateX(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
-  }
+}
