@@ -228,3 +228,117 @@
   color: #3b82f6;
   background: rgba(59, 130, 246, 0.05);
 }
+
+/* ДОБАВИТЬ в конец frontend/src/components/MindMap.css */
+
+/* ===== HEADER RIGHT ===== */
+.mindmap__header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.mindmap__add-cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #334155;
+  border: none;
+  border-radius: 8px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.mindmap__add-cat-btn:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+/* ===== CATEGORY ACTIONS ===== */
+.mindmap__category-actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.mindmap__category-header:hover .mindmap__category-actions {
+  opacity: 1;
+}
+
+.mindmap__category-actions button {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  transition: all 0.2s;
+}
+
+.mindmap__category-actions button:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.mindmap__category-actions button:last-child:hover {
+  color: #ef4444;
+}
+
+/* ===== COMPETENCY HEADER SPLIT ===== */
+.mindmap__comp-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #1e293b;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.mindmap__comp-header:hover {
+  background: #263248;
+}
+
+.mindmap__comp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  cursor: pointer;
+}
+
+.mindmap__comp-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.mindmap__comp-header:hover .mindmap__comp-actions {
+  opacity: 1;
+}
+
+.mindmap__comp-actions button {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  transition: all 0.2s;
+}
+
+.mindmap__comp-actions button:hover {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+.mindmap__comp-actions button:last-child:hover {
+  color: #ef4444;
+}

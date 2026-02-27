@@ -1,0 +1,83 @@
+/* frontend/src/components/EditCompetencyDialog.css */
+
+.edit-comp-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  
+  .edit-comp {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    width: 500px;
+    max-width: 90vw;
+  }
+  
+  .edit-comp__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #334155;
+  }
+  
+  .edit-comp__header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .edit-comp__header button {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+  }
+  
+  .edit-comp__body {
+    padding: 1.5rem;
+  }
+  
+  .edit-comp__body label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  
+  .edit-comp__body textarea {
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+  
+  .edit-comp__body textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+  
+  .edit-comp__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #334155;
+  }
+  
+  .edit-comp__footer button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }

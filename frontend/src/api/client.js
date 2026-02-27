@@ -22,7 +22,7 @@ export const addCategory = (sessionId, data) =>
   api.post(`/graph/${sessionId}/category`, data)
 
 export const deleteCategory = (sessionId, data) =>
-  api.delete(`/graph/${sessionId}/category`, { data })
+  api.request({ method: 'DELETE', url: `/graph/${sessionId}/category`, data })
 
 export const aiFixCategory = (sessionId, data) =>
   api.post(`/graph/${sessionId}/ai-fix-category`, data)
@@ -35,7 +35,7 @@ export const addCompetency = (sessionId, data) =>
   api.post(`/graph/${sessionId}/competency`, data)
 
 export const deleteCompetency = (sessionId, data) =>
-  api.delete(`/graph/${sessionId}/competency`, { data })
+  api.request({ method: 'DELETE', url: `/graph/${sessionId}/competency`, data })
 
 export const aiFixCompetencyFull = (sessionId, data) =>
   api.post(`/graph/${sessionId}/ai-fix-competency`, data)
@@ -44,11 +44,11 @@ export const aiFixCompetencyFull = (sessionId, data) =>
 export const updateSubCompetency = (sessionId, data) =>
   api.put(`/graph/${sessionId}/sub-competency`, data)
 
-export const deleteSubCompetency = (sessionId, data) =>
-  api.delete(`/graph/${sessionId}/sub-competency`, { data })
-
 export const addSubCompetency = (sessionId, data) =>
   api.post(`/graph/${sessionId}/sub-competency`, data)
+
+export const deleteSubCompetency = (sessionId, data) =>
+  api.request({ method: 'DELETE', url: `/graph/${sessionId}/sub-competency`, data })
 
 export const aiFixCompetency = (sessionId, data) =>
   api.post(`/graph/${sessionId}/ai-fix`, data)

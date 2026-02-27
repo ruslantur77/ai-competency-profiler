@@ -1,0 +1,94 @@
+/* frontend/src/components/AddCompetencyDialog.css */
+
+.add-comp-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+  }
+  
+  .add-comp {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    width: 500px;
+    max-width: 90vw;
+  }
+  
+  .add-comp__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #334155;
+  }
+  
+  .add-comp__header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .add-comp__header button {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+  }
+  
+  .add-comp__context {
+    padding: 0.75rem 1.5rem;
+    background: #0f172a;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  
+  .add-comp__context strong {
+    color: #e2e8f0;
+  }
+  
+  .add-comp__body {
+    padding: 1.5rem;
+  }
+  
+  .add-comp__body label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  
+  .add-comp__body textarea {
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+  }
+  
+  .add-comp__body textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+  
+  .add-comp__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #334155;
+  }
+  
+  .add-comp__footer button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
