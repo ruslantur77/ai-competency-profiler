@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import {
   ChevronRight, ChevronDown, Edit3, Trash2,
-  Sparkles, Plus, GripVertical
+  Sparkles, Plus
 } from 'lucide-react'
 import NodeEditor from './NodeEditor'
 import ConfirmDialog from './ConfirmDialog'
@@ -82,7 +82,6 @@ function CompetencyNode({ comp, onEdit, onDelete, onAiFix, onAdd, onEditComp, on
       <div className="mindmap__comp-header">
         <div className="mindmap__comp-header-left" onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          <GripVertical size={14} className="mindmap__grip" />
           <span className="mindmap__comp-name">{comp.skill}</span>
           <span className="mindmap__comp-count">{comp.sub_competencies?.length || 0}</span>
         </div>
