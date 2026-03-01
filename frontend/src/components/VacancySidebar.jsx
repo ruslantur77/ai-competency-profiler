@@ -21,11 +21,13 @@ export default function VacancySidebar({ vacancy }) {
         <div className="sidebar__content">
           <h2 className="sidebar__title">
             <Briefcase size={18} />
-            {vacancy.vacancy_name}
+            {vacancy.name}
           </h2>
 
           <div className="sidebar__meta">
-            <span><Clock size={14} /> {vacancy.experience}</span>
+            {vacancy.experience && (
+              <span><Clock size={14} /> {vacancy.experience}</span>
+            )}
             {vacancy.key_skills?.length > 0 && (
               <div className="sidebar__skills">
                 <Tag size={14} />
@@ -40,7 +42,7 @@ export default function VacancySidebar({ vacancy }) {
 
           <div className="sidebar__text">
             <h3>Описание вакансии</h3>
-            <pre>{vacancy.vacancy_text}</pre>
+            <pre>{vacancy.description}</pre>
           </div>
         </div>
       )}

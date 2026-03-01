@@ -3,54 +3,72 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 3000000,
 })
 
-// Вакансия
-export const parseVacancy = (url) =>
-  api.post('/vacancy/parse', { url })
+// ===== Вакансии =====
+export const listVacancies = () =>
+  api.get('/vacancies')
 
-// Граф
-export const getGraph = (sessionId) =>
-  api.get(`/graph/${sessionId}`)
+export const createVacancy = (data) =>
+  api.post('/vacancies', data)
 
-// Категории
-export const updateCategory = (sessionId, data) =>
-  api.put(`/graph/${sessionId}/category`, data)
+export const importFromHH = (url) =>
+  api.post('/vacancies/import-hh', { url })
 
-export const addCategory = (sessionId, data) =>
-  api.post(`/graph/${sessionId}/category`, data)
+export const getVacancy = (id) =>
+  api.get(`/vacancies/${id}`)
 
-export const deleteCategory = (sessionId, data) =>
-  api.request({ method: 'DELETE', url: `/graph/${sessionId}/category`, data })
+export const updateVacancy = (id, data) =>
+  api.put(`/vacancies/${id}`, data)
 
-export const aiFixCategory = (sessionId, data) =>
-  api.post(`/graph/${sessionId}/ai-fix-category`, data)
+export const deleteVacancy = (id) =>
+  api.delete(`/vacancies/${id}`)
 
-// Компетенции
-export const updateCompetency = (sessionId, data) =>
-  api.put(`/graph/${sessionId}/competency`, data)
+export const getVacancyStatus = (id) =>
+  api.get(`/vacancies/${id}/status`)
 
-export const addCompetency = (sessionId, data) =>
-  api.post(`/graph/${sessionId}/competency`, data)
+// ===== Граф =====
+export const getGraph = (id) =>
+  api.get(`/vacancies/${id}/graph`)
 
-export const deleteCompetency = (sessionId, data) =>
-  api.request({ method: 'DELETE', url: `/graph/${sessionId}/competency`, data })
+// ===== Категории =====
+export const updateCategory = (id, data) =>
+  api.put(`/vacancies/${id}/category`, data)
 
-export const aiFixCompetencyFull = (sessionId, data) =>
-  api.post(`/graph/${sessionId}/ai-fix-competency`, data)
+export const addCategory = (id, data) =>
+  api.post(`/vacancies/${id}/category`, data)
 
-// Подкомпетенции
-export const updateSubCompetency = (sessionId, data) =>
-  api.put(`/graph/${sessionId}/sub-competency`, data)
+export const deleteCategory = (id, data) =>
+  api.request({ method: 'DELETE', url: `/vacancies/${id}/category`, data })
 
-export const addSubCompetency = (sessionId, data) =>
-  api.post(`/graph/${sessionId}/sub-competency`, data)
+export const aiFixCategory = (id, data) =>
+  api.post(`/vacancies/${id}/ai-fix-category`, data)
 
-export const deleteSubCompetency = (sessionId, data) =>
-  api.request({ method: 'DELETE', url: `/graph/${sessionId}/sub-competency`, data })
+// ===== Компетенции =====
+export const updateCompetency = (id, data) =>
+  api.put(`/vacancies/${id}/competency`, data)
 
-export const aiFixCompetency = (sessionId, data) =>
-  api.post(`/graph/${sessionId}/ai-fix`, data)
+export const addCompetency = (id, data) =>
+  api.post(`/vacancies/${id}/competency`, data)
+
+export const deleteCompetency = (id, data) =>
+  api.request({ method: 'DELETE', url: `/vacancies/${id}/competency`, data })
+
+export const aiFixCompetencyFull = (id, data) =>
+  api.post(`/vacancies/${id}/ai-fix-competency`, data)
+
+// ===== Подкомпетенции =====
+export const updateSubCompetency = (id, data) =>
+  api.put(`/vacancies/${id}/sub-competency`, data)
+
+export const addSubCompetency = (id, data) =>
+  api.post(`/vacancies/${id}/sub-competency`, data)
+
+export const deleteSubCompetency = (id, data) =>
+  api.request({ method: 'DELETE', url: `/vacancies/${id}/sub-competency`, data })
+
+export const aiFixCompetency = (id, data) =>
+  api.post(`/vacancies/${id}/ai-fix`, data)
 
 export default api

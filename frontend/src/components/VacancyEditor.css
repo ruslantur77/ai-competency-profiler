@@ -1,0 +1,35 @@
+/* frontend/src/components/VacancyEditor.css */
+
+.editor-topbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #334155;
+  }
+  
+  .editor-topbar__back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #334155;
+    border: none;
+    border-radius: 8px;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  
+  .editor-topbar__back:hover {
+    background: #475569;
+    color: white;
+  }
+  
+  .editor-topbar__title {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
