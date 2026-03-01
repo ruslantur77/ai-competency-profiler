@@ -27,10 +27,16 @@ export default function VacancyList({ notify }) {
 
   useEffect(() => {
     fetchVacancies()
-    // Поллинг статусов каждые 2 секунды
-    const interval = setInterval(fetchVacancies, 2000)
-    return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    const hasExtracting = vacancies.some(v => v.status === 'extracting')
+    
+    if (!hasExtracting) return
+
+    const interval = setInterval(fetchVacancies, 3000)
+    return () => clearInterval(interval)
+  }, [vacancies])
 
   const handleCreate = async (data) => {
     try {
