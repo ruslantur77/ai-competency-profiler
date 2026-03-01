@@ -9,8 +9,7 @@ export default defineConfig([
   globalIgnores(['dist']),
   {
     files: ['**/*.{js,jsx}'],
-    // Обрати внимание: в Flat Config мы разворачиваем конфиги через spread (...) 
-    // или передаем их как объекты. Но eslint-config-prettier лучше ставить в самый конец.
+
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
@@ -33,6 +32,5 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
-  // 2. Добавляем конфиг Prettier последним, чтобы он перекрыл правила форматирования
   eslintConfigPrettier,
 ])
