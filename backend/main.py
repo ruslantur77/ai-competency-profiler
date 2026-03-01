@@ -1,16 +1,31 @@
-# backend/main.py — ПОЛНЫЙ ФАЙЛ
-
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional
-import requests
-from bs4 import BeautifulSoup
 import copy
 import re
 import uuid
 
+import requests
+from bs4 import BeautifulSoup
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
 from mock_data import MOCK_GRAPH, MOCK_VACANCY_TEXT
+
+from .schemas import (
+    AddCategoryRequest,
+    AddCompetencyRequest,
+    AddSubCompetencyRequest,
+    AiFixCategoryRequest,
+    AiFixCompetencyRequest,
+    AiFixSubRequest,
+    DeleteCategoryRequest,
+    DeleteCompetencyRequest,
+    DeleteSubCompetencyRequest,
+    GraphResponse,
+    UpdateCategoryRequest,
+    UpdateCompetencyRequest,
+    UpdateSubCompetencyRequest,
+    VacancyRequest,
+    VacancyResponse,
+)
 
 app = FastAPI(title="Competency Profiler API")
 
@@ -26,164 +41,21 @@ app.add_middleware(
 vacancies_db = {}
 
 
-# ===================== МОДЕЛИ =====================
-
-# Вакансии
-class CreateVacancyRequest(BaseModel):
-    name: str
-    description: str
-
-class ImportHHRequest(BaseModel):
-    url: str
-
-class UpdateVacancyRequest(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-
-class VacancyListItem(BaseModel):
-    id: str
-    name: str
-    status: str
-    created_at: str
-
-class GraphResponse(BaseModel):
-    vacancy: dict
-    categories: list[dict]
-    competencies: list[dict]
-
-# Категории
-class UpdateCategoryRequest(BaseModel):
-    category_id: str
-    name: Optional[str] = None
-    emoji: Optional[str] = None
-    description: Optional[str] = None
-
-class AddCategoryRequest(BaseModel):
-    name: str
-    emoji: str = "📌"
-    description: str = ""
-
-class DeleteCategoryRequest(BaseModel):
-    category_id: str
-
-class AiFixCategoryRequest(BaseModel):
-    category_id: str
-    instruction: str
-
-# Компетенции
-class UpdateCompetencyRequest(BaseModel):
-    competency_id: str
-    skill: Optional[str] = None
-    category_id: Optional[str] = None
-
-class AddCompetencyRequest(BaseModel):
-    category_id: str
-    skill: str
-
-class DeleteCompetencyRequest(BaseModel):
-    competency_id: str
-
-class AiFixCompetencyRequest(BaseModel):
-    competency_id: str
-    instruction: str
-
-# Подкомпетенции
-class UpdateSubCompetencyRequest(BaseModel):
-    competency_id: str
-    sub_competency_id: str
-    name: Optional[str] = None
-    level: Optional[str] = None
-    description: Optional[str] = None
-    sub_skills: Optional[list[str]] = None
-
-class AddSubCompetencyRequest(BaseModel):
-    competency_id: str
-    name: str
-    level: str = "intermediate"
-    description: str = ""
-    sub_skills: list[str] = []
-
-class DeleteSubCompetencyRequest(BaseModel):
-    competency_id: str
-    sub_competency_id: str
-
-class AiFixSubRequest(BaseModel):
-    competency_id: str
-    sub_competency_id: Optional[str] = None
-    instruction: str
-
-
-# ===================== ВАКАНСИИ (CRUD) =====================
-
-@app.get("/api/vacancies")
-async def list_vacancies():
-    """Список всех вакансий."""
-    items = []
-    for vid, vdata in vacancies_db.items():
-        items.append({
-            "id": vid,
-            "name": vdata["name"],
-            "status": vdata["status"],
-            "created_at": vdata["created_at"],
-        })
-    return {"vacancies": items}
-
-
-@app.post("/api/vacancies")
-async def create_vacancy(req: CreateVacancyRequest):
-    """Создание вакансии вручную."""
-    from datetime import datetime
-
-    vacancy_id = uuid.uuid4().hex[:8]
-
-    vacancies_db[vacancy_id] = {
-        "name": req.name,
-        "description": req.description,
-        "status": "extracting",  # extracting → ready
-        "created_at": datetime.now().isoformat(),
-        "graph": copy.deepcopy(MOCK_GRAPH),
-        "hh_key_skills": [],
-        "experience": "",
-    }
-    vacancies_db[vacancy_id]["graph"]["vacancy"]["name"] = req.name
-
-    # Имитируем что через 3 секунды статус станет ready
-    # В реальном приложении тут будет вызов LLM
-    import threading
-    def set_ready():
-        if vacancy_id in vacancies_db:
-            vacancies_db[vacancy_id]["status"] = "ready"
-
-    threading.Timer(3.0, set_ready).start()
-
-    return {
-        "status": "ok",
-        "vacancy": {
-            "id": vacancy_id,
-            "name": req.name,
-            "status": "extracting",
-            "created_at": vacancies_db[vacancy_id]["created_at"],
-        },
-    }
-
-
-@app.post("/api/vacancies/import-hh")
-async def import_from_hh(req: ImportHHRequest):
-    """Импорт вакансии с hh.ru."""
-    from datetime import datetime
+@app.post("/api/vacancy/parse", response_model=VacancyResponse)
+async def parse_vacancy(req: VacancyRequest):
+    """Принимает ссылку на вакансию hh.ru, парсит и возвращает текст + метаданные."""
+    vacancy_data = None
 
     try:
-        match = re.search(r'vacancy/(\d+)', req.url)
+        match = re.search(r"vacancy/(\d+)", req.url)
         if not match:
-            match = re.search(r'(\d{6,})', req.url)
+            match = re.search(r"(\d{6,})", req.url)
 
-        if not match:
-            raise HTTPException(400, "Не удалось извлечь ID вакансии из ссылки")
-
-        hh_vacancy_id = match.group(1)
-        hh_url = f"https://api.hh.ru/vacancies/{hh_vacancy_id}"
-        headers = {"User-Agent": "CompetencyProfiler/1.0"}
-        resp = requests.get(hh_url, headers=headers, timeout=10)
+        if match:
+            vacancy_id = match.group(1)
+            hh_url = f"https://api.hh.ru/vacancies/{vacancy_id}"
+            headers = {"User-Agent": "CompetencyProfiler/1.0"}
+            resp = requests.get(hh_url, headers=headers, timeout=10)
 
         if resp.status_code != 200:
             raise HTTPException(400, f"hh.ru вернул ошибку: {resp.status_code}")
@@ -260,8 +132,9 @@ async def get_vacancy_status(vacancy_id: str):
 
 # ===================== ГРАФ =====================
 
-@app.get("/api/vacancies/{vacancy_id}/graph", response_model=GraphResponse)
-async def get_graph(vacancy_id: str):
+
+@app.get("/api/graph/{session_id}", response_model=GraphResponse)
+async def get_graph(session_id: str):
     """Возвращает граф компетенций."""
     if vacancy_id not in vacancies_db:
         raise HTTPException(404, "Вакансия не найдена")
@@ -276,12 +149,16 @@ async def get_graph(vacancy_id: str):
 
 # ===================== КАТЕГОРИИ =====================
 
-@app.put("/api/vacancies/{vacancy_id}/category")
-async def update_category(vacancy_id: str, req: UpdateCategoryRequest):
-    if vacancy_id not in vacancies_db:
-        raise HTTPException(404, "Вакансия не найдена")
 
-    for cat in vacancies_db[vacancy_id]["graph"]["categories"]:
+@app.put("/api/graph/{session_id}/category")
+async def update_category(session_id: str, req: UpdateCategoryRequest):
+    """Обновление категории."""
+    if session_id not in sessions:
+        raise HTTPException(404, "Сессия не найдена")
+
+    graph = sessions[session_id]["graph"]
+
+    for cat in graph["categories"]:
         if cat["id"] == req.category_id:
             if req.name is not None:
                 cat["name"] = req.name
@@ -332,16 +209,21 @@ async def ai_fix_category(vacancy_id: str, req: AiFixCategoryRequest):
 
     return {
         "status": "ok",
-        "message": f"🤖 AI получил инструкцию: '{req.instruction}'. (Моковый ответ)",
+        "message": f"🤖 AI получил инструкцию: '{req.instruction}'. "
+        f"Категория будет обновлена. (Моковый ответ — LLM пока не подключена)",
+        "ai_suggestion": {
+            "name": "[AI] Обновлённая категория",
+            "emoji": "🔮",
+            "description": f"Сгенерировано AI: {req.instruction}",
+        },
     }
 
 
-# ===================== КОМПЕТЕНЦИИ =====================
-
-@app.put("/api/vacancies/{vacancy_id}/competency")
-async def update_competency(vacancy_id: str, req: UpdateCompetencyRequest):
-    if vacancy_id not in vacancies_db:
-        raise HTTPException(404, "Вакансия не найдена")
+@app.put("/api/graph/{session_id}/competency")
+async def update_competency(session_id: str, req: UpdateCompetencyRequest):
+    """Обновление компетенции."""
+    if session_id not in sessions:
+        raise HTTPException(404, "Сессия не найдена")
 
     for comp in vacancies_db[vacancy_id]["graph"]["competencies"]:
         if comp["id"] == req.competency_id:
@@ -396,18 +278,35 @@ async def ai_fix_competency_full(vacancy_id: str, req: AiFixCompetencyRequest):
 
     return {
         "status": "ok",
-        "message": f"🤖 AI получил инструкцию: '{req.instruction}'. (Моковый ответ)",
+        "message": f"🤖 AI получил инструкцию: '{req.instruction}'. "
+        f"Компетенция будет обновлена. (Моковый ответ — LLM пока не подключена)",
+        "ai_suggestion": {
+            "skill": "[AI] Обновлённая компетенция",
+            "sub_competencies": [
+                {
+                    "id": f"sub_{uuid.uuid4().hex[:6]}",
+                    "name": "AI подкомпетенция 1",
+                    "level": "intermediate",
+                    "description": f"Сгенерировано AI: {req.instruction}",
+                    "sub_skills": ["AI навык 1", "AI навык 2"],
+                }
+            ],
+        },
     }
 
 
 # ===================== ПОДКОМПЕТЕНЦИИ =====================
 
-@app.put("/api/vacancies/{vacancy_id}/sub-competency")
-async def update_sub_competency(vacancy_id: str, req: UpdateSubCompetencyRequest):
-    if vacancy_id not in vacancies_db:
-        raise HTTPException(404, "Вакансия не найдена")
 
-    for comp in vacancies_db[vacancy_id]["graph"]["competencies"]:
+@app.put("/api/graph/{session_id}/sub-competency")
+async def update_sub_competency(session_id: str, req: UpdateSubCompetencyRequest):
+    """Обновление подкомпетенции."""
+    if session_id not in sessions:
+        raise HTTPException(404, "Сессия не найдена")
+
+    graph = sessions[session_id]["graph"]
+
+    for comp in graph["competencies"]:
         if comp["id"] == req.competency_id:
             for sub in comp["sub_competencies"]:
                 if sub["id"] == req.sub_competency_id:
@@ -452,7 +351,9 @@ async def delete_sub_competency(vacancy_id: str, req: DeleteSubCompetencyRequest
     for comp in vacancies_db[vacancy_id]["graph"]["competencies"]:
         if comp["id"] == req.competency_id:
             original_len = len(comp["sub_competencies"])
-            comp["sub_competencies"] = [s for s in comp["sub_competencies"] if s["id"] != req.sub_competency_id]
+            comp["sub_competencies"] = [
+                s for s in comp["sub_competencies"] if s["id"] != req.sub_competency_id
+            ]
             if len(comp["sub_competencies"]) < original_len:
                 return {"status": "ok", "message": "Подкомпетенция удалена"}
 
@@ -466,10 +367,19 @@ async def ai_fix_sub(vacancy_id: str, req: AiFixSubRequest):
 
     return {
         "status": "ok",
-        "message": f"🤖 AI получил инструкцию: '{req.instruction}'. (Моковый ответ)",
+        "message": f"🤖 AI получил инструкцию: '{req.instruction}'. "
+        f"Подкомпетенция будет обновлена. (Моковый ответ — LLM пока не подключена)",
+        "ai_suggestion": {
+            "id": req.sub_competency_id or f"sub_{uuid.uuid4().hex[:6]}",
+            "name": "[AI] Обновлённая подкомпетенция",
+            "level": "intermediate",
+            "description": f"Сгенерировано AI по инструкции: {req.instruction}",
+            "sub_skills": ["AI навык 1", "AI навык 2", "AI навык 3"],
+        },
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
