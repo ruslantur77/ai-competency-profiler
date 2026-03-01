@@ -1,11 +1,110 @@
-from typing import Optional
+from __future__ import annotations
 
-from pydantic import BaseModel
+from datetime import datetime
+from enum import StrEnum
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
 
 
-# --- Вакансия ---
+class VacancyStatus(StrEnum):
+    EXTRACTING = "extracting"
+    READY = "ready"
+
+
+class CompetencyLevel(StrEnum):
+    BEGINNER = "beginner"
+    INTERMEDIATE = "intermediate"
+    ADVANCED = "advanced"
+
+
+# ---------------------------------------------------------------------------
+# Graph primitives
+# ---------------------------------------------------------------------------
+
+
+class CategoryNode(BaseModel):
+    id: str
+    name: str
+    description: str
+    emoji: str
+
+
+class SubCompetency(BaseModel):
+    id: str
+    name: str
+    level: CompetencyLevel
+    description: str
+    sub_skills: list[str]
+
+
+class CompetencyNode(BaseModel):
+    id: str
+    category_id: str
+    skill: str
+    sub_competencies: list[SubCompetency]
+
+
+class VacancyNode(BaseModel):
+    name: str
+
+
+class GraphResponse(BaseModel):
+    vacancy: VacancyNode
+    categories: list[CategoryNode]
+    competencies: list[CompetencyNode]
+
+
+# ---------------------------------------------------------------------------
+# Vacancy
+# ---------------------------------------------------------------------------
+
+
+class CreateVacancyRequest(BaseModel):
+    name: str
+    description: str
+
+
+class UpdateVacancyRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class ImportHHRequest(BaseModel):
+    url: str
+
+
 class VacancyRequest(BaseModel):
     url: str
+
+
+class VacancyListItem(BaseModel):
+    id: str
+    name: str
+    status: VacancyStatus
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class VacancyList(BaseModel):
+    vacancies: list[VacancyListItem]
+
+
+class Vacancy(BaseModel):
+    id: str
+    name: str
+    description: str
+    status: VacancyStatus
+    created_at: datetime
+    graph: GraphResponse | None = None
+    hh_key_skills: list[str] = Field(default_factory=list)
+    experience: str = ""
 
 
 class VacancyResponse(BaseModel):
@@ -16,19 +115,24 @@ class VacancyResponse(BaseModel):
     key_skills: list[str]
 
 
-# --- Граф ---
-class GraphResponse(BaseModel):
-    vacancy: dict
-    categories: list[dict]
-    competencies: list[dict]
+class ImportHHResponse(BaseModel):
+    status: str
+    name: str
+    description: str
+    experience: str
+    key_skills: list[str]
 
 
-# --- Категории ---
+# ---------------------------------------------------------------------------
+# Categories
+# ---------------------------------------------------------------------------
+
+
 class UpdateCategoryRequest(BaseModel):
     category_id: str
-    name: Optional[str] = None
-    emoji: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    emoji: str | None = None
+    description: str | None = None
 
 
 class AddCategoryRequest(BaseModel):
@@ -46,11 +150,21 @@ class AiFixCategoryRequest(BaseModel):
     instruction: str
 
 
-# --- Компетенции ---
+class AiFixCategoryResponse(BaseModel):
+    status: str
+    message: str
+    ai_suggestion: dict[str, str]
+
+
+# ---------------------------------------------------------------------------
+# Competencies
+# ---------------------------------------------------------------------------
+
+
 class UpdateCompetencyRequest(BaseModel):
     competency_id: str
-    skill: Optional[str] = None
-    category_id: Optional[str] = None
+    skill: str | None = None
+    category_id: str | None = None
 
 
 class AddCompetencyRequest(BaseModel):
@@ -67,22 +181,26 @@ class AiFixCompetencyRequest(BaseModel):
     instruction: str
 
 
-# --- Подкомпетенции ---
+# ---------------------------------------------------------------------------
+# Sub-competencies
+# ---------------------------------------------------------------------------
+
+
 class UpdateSubCompetencyRequest(BaseModel):
     competency_id: str
     sub_competency_id: str
-    name: Optional[str] = None
-    level: Optional[str] = None
-    description: Optional[str] = None
-    sub_skills: Optional[list[str]] = None
+    name: str | None = None
+    level: CompetencyLevel | None = None
+    description: str | None = None
+    sub_skills: list[str] | None = None
 
 
 class AddSubCompetencyRequest(BaseModel):
     competency_id: str
     name: str
-    level: str = "intermediate"
+    level: CompetencyLevel = CompetencyLevel.INTERMEDIATE
     description: str = ""
-    sub_skills: list[str] = []
+    sub_skills: list[str] = Field(default_factory=list)
 
 
 class DeleteSubCompetencyRequest(BaseModel):
@@ -92,5 +210,27 @@ class DeleteSubCompetencyRequest(BaseModel):
 
 class AiFixSubRequest(BaseModel):
     competency_id: str
-    sub_competency_id: Optional[str] = None
+    sub_competency_id: str | None = None
     instruction: str
+
+
+# ---------------------------------------------------------------------------
+# Generic responses
+# ---------------------------------------------------------------------------
+
+
+class StatusResponse(BaseModel):
+    status: str
+    message: str
+
+
+class CreateResponse[T: BaseModel](BaseModel):
+    status: str
+    message: str
+    created: T
+
+
+class UpdateResponse[T: BaseModel](BaseModel):
+    status: str
+    message: str
+    updated: T
