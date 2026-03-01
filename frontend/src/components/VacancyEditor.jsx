@@ -11,6 +11,7 @@ import {
   updateCompetency, deleteCompetency, addCompetency, aiFixCompetencyFull,
 } from '../api/client'
 import './VacancyEditor.css'
+import EditCategoryDialog from './EditCategoryDialog'
 
 export default function VacancyEditor({ notify }) {
   const { vacancyId } = useParams()
@@ -111,15 +112,24 @@ export default function VacancyEditor({ notify }) {
     } catch { notify('Ошибка AI', 'error') }
   }
 
-  const handleAddCategory = async () => {
-    const name = prompt('Название новой категории:')
-    if (!name) return
-    try {
-      const { data } = await addCategory(vacancyId, { name, emoji: '📌', description: '' })
-      setCategories(prev => [...prev, data.created])
-      notify(`➕ Категория "${name}" добавлена`)
-    } catch { notify('Ошибка', 'error') }
-  }
+  const [addingCategory, setAddingCategory] = useState(false)
+
+  const handleAddCategory = () => {
+  setAddingCategory(true)
+}
+
+const handleAddCategorySubmit = async (newCat) => {
+  try {
+    const { data } = await addCategory(vacancyId, {
+      name: newCat.name,
+      emoji: newCat.emoji,
+      description: newCat.description,
+    })
+    setCategories(prev => [...prev, data.created])
+    setAddingCategory(false)
+    notify(`➕ Категория "${newCat.name}" добавлена`)
+  } catch { notify('Ошибка добавления', 'error') }
+}
 
   // ===== КОМПЕТЕНЦИИ =====
   const handleUpdateCompetency = async (updated) => {
@@ -189,6 +199,16 @@ export default function VacancyEditor({ notify }) {
           onAddCompetency={handleAddCompetency}
           onAiFixCompetency={handleAiFixCompetency}
         />
+
+        {addingCategory && (
+        <EditCategoryDialog
+            category={{ id: '', name: '', emoji: '📌', description: '' }}
+            onSave={handleAddCategorySubmit}
+            onClose={() => setAddingCategory(false)}
+            title="➕ Добавить категорию"
+        />
+        )}
+
       </main>
     </div>
   )

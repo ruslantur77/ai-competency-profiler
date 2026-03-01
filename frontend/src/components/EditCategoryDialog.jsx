@@ -5,7 +5,7 @@ import './EditCategoryDialog.css'
 
 const EMOJI_OPTIONS = ['🔧', '📊', '🏢', '🤝', '💡', '📱', '🎨', '📈', '🔬', '🛠️', '📋', '🎯', '🧠', '💻', '📚', '⚙️']
 
-export default function EditCategoryDialog({ category, onSave, onClose }) {
+export default function EditCategoryDialog({ category, onSave, onClose, title }) {
   const [form, setForm] = useState({
     name: '',
     emoji: '📌',
@@ -31,7 +31,7 @@ export default function EditCategoryDialog({ category, onSave, onClose }) {
     <div className="edit-cat-overlay" onClick={onClose}>
       <div className="edit-cat" onClick={e => e.stopPropagation()}>
         <div className="edit-cat__header">
-          <h3>✏️ Редактирование категории</h3>
+          <h3>{title || '✏️ Редактирование категории'}</h3>
           <button onClick={onClose}><X size={20} /></button>
         </div>
 
@@ -57,6 +57,7 @@ export default function EditCategoryDialog({ category, onSave, onClose }) {
             <input
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
+              autoFocus
             />
           </label>
 
