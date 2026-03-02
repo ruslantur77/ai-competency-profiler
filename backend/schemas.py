@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +13,7 @@ from pydantic import BaseModel, Field
 class VacancyStatus(StrEnum):
     EXTRACTING = "extracting"
     READY = "ready"
+    FAILED = "failed"
 
 
 class CompetencyLevel(StrEnum):
@@ -67,6 +67,8 @@ class GraphResponse(BaseModel):
 class CreateVacancyRequest(BaseModel):
     name: str
     description: str
+    experience: str = ""
+    hh_key_skills: list[str] = Field(default_factory=list)
 
 
 class UpdateVacancyRequest(BaseModel):
@@ -88,8 +90,7 @@ class VacancyListItem(BaseModel):
     status: VacancyStatus
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class VacancyList(BaseModel):
@@ -105,14 +106,20 @@ class Vacancy(BaseModel):
     graph: GraphResponse | None = None
     hh_key_skills: list[str] = Field(default_factory=list)
     experience: str = ""
+    error: str | None = None  # причина ошибки если status=FAILED
 
 
-class VacancyResponse(BaseModel):
-    session_id: str
-    vacancy_name: str
-    vacancy_text: str
+class VacancyDetail(BaseModel):
+    """Полные данные вакансии для GET /api/vacancies/{id}."""
+
+    id: str
+    name: str
+    description: str
+    status: VacancyStatus
+    created_at: datetime
     experience: str
     key_skills: list[str]
+    error: str | None
 
 
 class ImportHHResponse(BaseModel):
@@ -153,7 +160,7 @@ class AiFixCategoryRequest(BaseModel):
 class AiFixCategoryResponse(BaseModel):
     status: str
     message: str
-    ai_suggestion: dict[str, str]
+    updated: CategoryNode
 
 
 # ---------------------------------------------------------------------------
@@ -179,6 +186,12 @@ class DeleteCompetencyRequest(BaseModel):
 class AiFixCompetencyRequest(BaseModel):
     competency_id: str
     instruction: str
+
+
+class AiFixCompetencyResponse(BaseModel):
+    status: str
+    message: str
+    updated: CompetencyNode
 
 
 # ---------------------------------------------------------------------------
@@ -210,8 +223,14 @@ class DeleteSubCompetencyRequest(BaseModel):
 
 class AiFixSubRequest(BaseModel):
     competency_id: str
-    sub_competency_id: str | None = None
+    sub_competency_id: str
     instruction: str
+
+
+class AiFixSubResponse(BaseModel):
+    status: str
+    message: str
+    updated: SubCompetency
 
 
 # ---------------------------------------------------------------------------
@@ -222,15 +241,3 @@ class AiFixSubRequest(BaseModel):
 class StatusResponse(BaseModel):
     status: str
     message: str
-
-
-class CreateResponse[T: BaseModel](BaseModel):
-    status: str
-    message: str
-    created: T
-
-
-class UpdateResponse[T: BaseModel](BaseModel):
-    status: str
-    message: str
-    updated: T
