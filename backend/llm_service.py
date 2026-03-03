@@ -18,15 +18,19 @@ from schemas import (
     VacancyNode,
 )
 
+from config import get_config
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-_API_KEY = "api key"
-_BASE_URL = "https://openrouter.ai/api/v1"
-_MODEL = "openai/gpt-oss-20b"
+config = get_config()
+
+_API_KEY = config.api_key
+_BASE_URL = config.base_url
+_MODEL = config.model
 _SYSTEM_PROMPT = "Ты эксперт в HR компетенциях. Отвечай строго JSON."
 
 _LLM_RETRIES = 3
