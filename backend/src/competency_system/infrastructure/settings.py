@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class LogLevels(StrEnum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
 
 class Settings(BaseSettings):
@@ -17,7 +26,7 @@ class Settings(BaseSettings):
     app_name: str = "competency-system"
     debug: bool = False
     environment: str = "local"
-    log_level: str = "info"
+    log_level: LogLevels = LogLevels.INFO
     allowed_origins_raw: str = Field(default="", alias="ALLOWED_ORIGINS")
 
     llm_api_key: str = Field(default="", alias="API_KEY")
@@ -59,22 +68,33 @@ class Settings(BaseSettings):
     bootstrap_admin_email: str = Field(default="", alias="BOOTSTRAP_ADMIN_EMAIL")
     bootstrap_admin_password: str = Field(default="", alias="BOOTSTRAP_ADMIN_PASSWORD")
 
-    database_url: str = Field(
-        default="postgresql+asyncpg://app:app@localhost/app",
-        alias="DATABASE_URL",
-    )
-    database_url_sync: str | None = Field(
-        default=None,
-        alias="DATABASE_URL_SYNC",
-    )
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_NAME: str = "app"
+    DB_USER: str = "app"
+    DB_PASS: str = "app"
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def _normalize_log_level(cls, value: str | LogLevels) -> str | LogLevels:
+        if isinstance(value, str):
+            return value.upper()
+        return value
+
+    @property
+    def DB_URL(self) -> str:  # noqa: N802
+        return (
+            "postgresql+asyncpg://"
+            f"{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
+
+    @property
+    def database_url(self) -> str:
+        return self.DB_URL
 
     @property
     def resolved_database_url_sync(self) -> str:
-        if self.database_url_sync:
-            return self.database_url_sync
-        if "+asyncpg" in self.database_url:
-            return self.database_url.replace("+asyncpg", "+psycopg2")
-        return self.database_url
+        return self.DB_URL.replace("+asyncpg", "+psycopg2")
 
     @property
     def allowed_origins(self) -> list[str]:
