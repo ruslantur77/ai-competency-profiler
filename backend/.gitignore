@@ -1,12 +1,12 @@
-.vscode/
+__pycache__/
+*egg-info
+
+.env*
+!.env*.example
 
 .venv/
-venv/
-
-.mypy_cache/
-__pycache__/
-*.egg-info/
-
-.env
+.vscode/
 
 *.log
+
+*.db

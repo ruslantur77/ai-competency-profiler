@@ -1,0 +1,197 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: competency-system/api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://app:app@postgres/app
+      DATABASE_URL_SYNC: postgresql+psycopg2://app:app@postgres/app
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
+      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-false}
+      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
+      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:cached
+      - ./alembic:/app/alembic:cached
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      uvicorn competency_system.presentation.api.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level ${LOG_LEVEL:-info}
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: airflow
+    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://airflow:airflow@postgres/airflow
+      DATABASE_URL_SYNC: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
+      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-false}
+      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
+      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: DockerExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:cached
+      - ./alembic:/app/alembic:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -lc "airflow db migrate && (airflow users create
+      --username ${AIRFLOW_USERNAME:-admin}
+      --password ${AIRFLOW_PASSWORD:-admin}
+      --firstname Airflow
+      --lastname Admin
+      --role Admin
+      --email admin@example.com || true)"
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: airflow
+    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://airflow:airflow@postgres/airflow
+      DATABASE_URL_SYNC: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
+      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-false}
+      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
+      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: DockerExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:cached
+      - ./alembic:/app/alembic:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    command: airflow webserver
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: airflow
+    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://airflow:airflow@postgres/airflow
+      DATABASE_URL_SYNC: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
+      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-false}
+      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
+      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: DockerExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:cached
+      - ./alembic:/app/alembic:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    command: airflow scheduler
+
+  airflow-triggerer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: airflow
+    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://airflow:airflow@postgres/airflow
+      DATABASE_URL_SYNC: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
+      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-false}
+      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
+      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
+      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__EXECUTOR: DockerExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:cached
+      - ./alembic:/app/alembic:cached
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    command: airflow triggerer
+
+volumes:
+  postgres_data:
