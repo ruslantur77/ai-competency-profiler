@@ -4,7 +4,7 @@ import pytest
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from competency_system.infrastructure.settings import Settings
+from competency_system.infrastructure.settings import get_settings
 from competency_system.presentation.api import dependencies
 
 
@@ -22,20 +22,20 @@ def _build_app() -> FastAPI:
 
 
 def test_webhook_secret_verification(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        dependencies,
-        "get_settings",
-        lambda: Settings(testing_system_webhook_secret="shared-secret"),
-    )
+    monkeypatch.setenv("TESTING_SYSTEM_WEBHOOK_SECRET", "shared-secret")
+    get_settings.cache_clear()
 
     app = _build_app()
 
-    with TestClient(app) as client:
-        accepted = client.post(
-            "/webhook",
-            headers={"X-Webhook-Secret": "shared-secret"},
-        )
-        rejected = client.post("/webhook")
+    try:
+        with TestClient(app) as client:
+            accepted = client.post(
+                "/webhook",
+                headers={"X-Webhook-Secret": "shared-secret"},
+            )
+            rejected = client.post("/webhook")
+    finally:
+        get_settings.cache_clear()
 
     assert accepted.status_code == 200
     assert accepted.json() == {"ok": True}

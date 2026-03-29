@@ -29,7 +29,11 @@ class UserOrm(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role"),
+        Enum(
+            UserRole,
+            name="user_role",
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
         default=UserRole.HR,
         server_default=UserRole.HR.value,
     )

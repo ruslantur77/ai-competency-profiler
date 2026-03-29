@@ -372,7 +372,7 @@ def require_admin_or_system(
 
 
 def verify_testing_system_webhook_secret(
-    webhook_secret: Annotated[str | None, Header(alias="X-Webhook-Secret")],
+    webhook_secret: Annotated[str | None, Header(alias="X-Webhook-Secret")] = None,
 ) -> None:
     settings = get_settings()
     expected_secret = settings.testing_system_webhook_secret

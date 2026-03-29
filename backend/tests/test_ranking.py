@@ -196,8 +196,8 @@ def test_ranking_api_exposes_canonical_and_legacy_paths(tmp_path: Path) -> None:
 
     try:
         with TestClient(app) as client:
-            canonical_response = client.get(f"/vacancies/{vacancy.id}/rankings")
-            legacy_response = client.get(f"/vacancies/{vacancy.id}/ranking")
+            canonical_response = client.get(f"/api/v1/vacancies/{vacancy.id}/rankings")
+            legacy_response = client.get(f"/api/v1/vacancies/{vacancy.id}/ranking")
 
         assert canonical_response.status_code == 200
         assert legacy_response.status_code == 200

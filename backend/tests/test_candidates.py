@@ -231,7 +231,7 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
     try:
         with TestClient(app) as client:
             webhook_response = client.post(
-                "/webhook/task-completed",
+                "/api/v1/webhook/task-completed",
                 json={
                     "candidate_external_id": "candidate-1",
                     "task_external_id": "task-1",
@@ -255,7 +255,7 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
             ] == pytest.approx(0.8)
             assert payload["test_result"]["llm_assessment"] is not None
 
-            profile_response = client.get(f"/candidates/{candidate_id}/profile")
+            profile_response = client.get(f"/api/v1/candidates/{candidate_id}/profile")
             assert profile_response.status_code == 200
             profile = profile_response.json()
             assert profile["candidate_id"] == candidate_id

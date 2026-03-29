@@ -190,7 +190,7 @@ def test_task_sync_and_admin_mapping_flow(tmp_path: Path) -> None:
 
     try:
         with TestClient(app) as client:
-            sync_response = client.post("/tasks/sync")
+            sync_response = client.post("/api/v1/tasks/sync")
             assert sync_response.status_code == 200
             payload = sync_response.json()
             assert len(payload["synced_tasks"]) == 1
@@ -199,21 +199,25 @@ def test_task_sync_and_admin_mapping_flow(tmp_path: Path) -> None:
             assert synced_task["mapping_validated"] is False
             assert len(synced_task["competency_mappings"]) == 2
 
-            list_response = client.get("/admin/tasks")
+            list_response = client.get("/api/v1/admin/tasks")
             assert list_response.status_code == 200
             tasks = list_response.json()
             assert len(tasks) == 1
             task_id = tasks[0]["id"]
 
-            detail_response = client.get(f"/admin/tasks/{task_id}")
+            detail_response = client.get(f"/api/v1/admin/tasks/{task_id}")
             assert detail_response.status_code == 200
             assert detail_response.json()["external_id"] == task_external_id
 
-            validate_response = client.post(f"/admin/tasks/{task_id}/mapping/validate")
+            validate_response = client.post(
+                f"/api/v1/admin/tasks/{task_id}/mapping/validate"
+            )
             assert validate_response.status_code == 200
             assert validate_response.json()["mapping_validated"] is True
 
-            rebuild_response = client.post(f"/admin/tasks/{task_id}/mapping/rebuild")
+            rebuild_response = client.post(
+                f"/api/v1/admin/tasks/{task_id}/mapping/rebuild"
+            )
             assert rebuild_response.status_code == 200
             assert rebuild_response.json()["mapping_validated"] is False
             assert len(rebuild_response.json()["competency_mappings"]) == 2

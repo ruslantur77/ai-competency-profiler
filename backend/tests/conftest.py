@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,31 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from competency_system.infrastructure.persistence.models import Base
+from competency_system.infrastructure.settings import get_settings
+
+
+@pytest.fixture(autouse=True)
+def test_environment_guard() -> None:
+    tracked_keys = (
+        "BOOTSTRAP_ADMIN_EMAIL",
+        "BOOTSTRAP_ADMIN_PASSWORD",
+        "TESTING_SYSTEM_WEBHOOK_SECRET",
+    )
+    previous = {key: os.environ.get(key) for key in tracked_keys}
+
+    os.environ["BOOTSTRAP_ADMIN_EMAIL"] = ""
+    os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = ""
+    os.environ["TESTING_SYSTEM_WEBHOOK_SECRET"] = ""
+    get_settings.cache_clear()
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        get_settings.cache_clear()
 
 
 @pytest_asyncio.fixture()

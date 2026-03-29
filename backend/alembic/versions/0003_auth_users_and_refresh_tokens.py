@@ -8,6 +8,7 @@ Create Date: 2026-03-29 21:00:00
 from __future__ import annotations
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -18,7 +19,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    user_role = sa.Enum("admin", "expert", "hr", "system", name="user_role")
+    user_role = postgresql.ENUM(
+        "admin",
+        "expert",
+        "hr",
+        "system",
+        name="user_role",
+        create_type=False,
+    )
     user_role.create(op.get_bind(), checkfirst=True)
 
     op.create_table(

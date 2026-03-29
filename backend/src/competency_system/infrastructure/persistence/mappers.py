@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -58,6 +58,14 @@ def _json_loads(value: str | None) -> list[dict[str, Any]]:
     if not isinstance(data, list):
         raise ValueError("Expected a JSON array")
     return data
+
+
+def _normalize_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _serialize_subcompetency(subcompetency: SubCompetency) -> dict[str, Any]:
@@ -322,10 +330,10 @@ def refresh_token_from_orm(refresh_token: RefreshTokenOrm) -> RefreshToken:
         jti=refresh_token.jti,
         user_id=refresh_token.user_id,
         token_hash=refresh_token.token_hash,
-        expires_at=refresh_token.expires_at,
-        revoked_at=refresh_token.revoked_at,
-        created_at=refresh_token.created_at,
-        updated_at=refresh_token.created_at,
+        expires_at=_normalize_utc(refresh_token.expires_at) or refresh_token.expires_at,
+        revoked_at=_normalize_utc(refresh_token.revoked_at),
+        created_at=_normalize_utc(refresh_token.created_at) or refresh_token.created_at,
+        updated_at=_normalize_utc(refresh_token.created_at) or refresh_token.created_at,
     )
 
 

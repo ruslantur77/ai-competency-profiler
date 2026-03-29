@@ -21,7 +21,7 @@ async def test_health_endpoint_returns_ok(
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
-                "/health", headers={"X-Request-ID": "request-123"}
+                "/api/v1/health", headers={"X-Request-ID": "request-123"}
             )
     finally:
         app.dependency_overrides.clear()
