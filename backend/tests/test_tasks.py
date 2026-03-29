@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -15,9 +15,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from competency_system.application.dtos.auth import CurrentUserDTO
-from competency_system.application.dtos.task import (
-    TaskMappingExtractionResultDTO,
-)
 from competency_system.application.ports.external_testing_system import (
     ExternalTaskRecord,
     ExternalTestingSystemGateway,
@@ -40,19 +37,21 @@ from competency_system.presentation.api.main import app
 
 
 class FakeLLMGateway(LLMGateway):
-    def __init__(self, response: dict[str, object]) -> None:
-        self.response = response
+    def __init__(self, responses: list[dict[str, object]]) -> None:
+        self.responses = responses
         self.calls: list[list[LLMMessage]] = []
 
     async def generate(
         self,
         messages: list[LLMMessage],
-        response_model: type[TaskMappingExtractionResultDTO],
+        response_model: type[BaseModel],
         *,
         temperature: float = 0.2,
-    ) -> TaskMappingExtractionResultDTO:
+    ) -> BaseModel:
         self.calls.append(messages)
-        return response_model.model_validate(self.response)
+        if not self.responses:
+            raise RuntimeError("No fake responses left")
+        return response_model.model_validate(self.responses.pop(0))
 
 
 class FakeTestingGateway(ExternalTestingSystemGateway):
@@ -108,19 +107,36 @@ async def test_map_task_to_competencies_normalizes_response() -> None:
         description="Parse and store data",
         type=TaskType.CODE,
     )
+    category = Category(
+        name="Backend",
+        description="Backend systems",
+        competencies=[
+            Competency(
+                category_id=UUID(int=1),
+                name="APIs",
+                description="API design and implementation",
+                sub_competencies=[sub1, sub2],
+            )
+        ],
+    )
+    category.competencies[0].category_id = category.id
     fake_llm = FakeLLMGateway(
-        {
-            "mappings": [
-                {"sub_competency_id": str(sub1.id), "weight": 0.2},
-                {"sub_competency_id": str(sub1.id), "weight": 0.3},
-                {"sub_competency_id": str(sub2.id), "weight": 0.5},
-                {"sub_competency_id": str(uuid4()), "weight": 1.0},
-            ]
-        }
+        [
+            {"categories": [{"llm_id": 1}]},
+            {"competencies": [{"llm_id": 1}]},
+            {
+                "sub_competencies": [
+                    {"llm_id": 1, "weight": 0.2},
+                    {"llm_id": 1, "weight": 0.3},
+                    {"llm_id": 2, "weight": 0.5},
+                    {"id": str(uuid4()), "weight": 1.0},
+                ]
+            },
+        ]
     )
 
     use_case = MapTaskToCompetenciesUseCase(fake_llm)
-    mappings = await use_case.execute(task, [sub1, sub2], tags=["api", "sql"])
+    mappings = await use_case.execute(task, [category], tags=["api", "sql"])
 
     assert len(mappings) == 2
     assert {mapping.sub_competency_id for mapping in mappings} == {sub1.id, sub2.id}
@@ -137,17 +153,28 @@ async def test_map_task_to_competencies_normalizes_response() -> None:
 @pytest.mark.asyncio
 async def test_map_task_to_competencies_rejects_invalid_schema() -> None:
     sub1 = SubCompetency(name="Parsing JSON")
+    category = Category(
+        name="Backend",
+        competencies=[
+            Competency(
+                category_id=UUID(int=1),
+                name="APIs",
+                sub_competencies=[sub1],
+            )
+        ],
+    )
+    category.competencies[0].category_id = category.id
     task = Task(
         external_id="task-1",
         title="Build API",
         description="Parse and store data",
         type=TaskType.CODE,
     )
-    fake_llm = FakeLLMGateway({})
+    fake_llm = FakeLLMGateway([{}])
     use_case = MapTaskToCompetenciesUseCase(fake_llm)
 
     with pytest.raises(ValidationError):
-        await use_case.execute(task, [sub1], tags=[])
+        await use_case.execute(task, [category], tags=[])
 
 
 def test_task_sync_and_admin_mapping_flow(tmp_path: Path) -> None:
@@ -169,12 +196,24 @@ def test_task_sync_and_admin_mapping_flow(tmp_path: Path) -> None:
         ]
     )
     fake_llm = FakeLLMGateway(
-        {
-            "mappings": [
-                {"sub_competency_id": str(sub1.id), "weight": 0.7},
-                {"sub_competency_id": str(sub2.id), "weight": 0.3},
-            ]
-        }
+        [
+            {"categories": [{"llm_id": 1}]},
+            {"competencies": [{"llm_id": 1}]},
+            {
+                "sub_competencies": [
+                    {"llm_id": 1, "weight": 0.7},
+                    {"llm_id": 2, "weight": 0.3},
+                ]
+            },
+            {"categories": [{"llm_id": 1}]},
+            {"competencies": [{"llm_id": 1}]},
+            {
+                "sub_competencies": [
+                    {"llm_id": 1, "weight": 0.7},
+                    {"llm_id": 2, "weight": 0.3},
+                ]
+            },
+        ]
     )
 
     def override_uow() -> SQLAlchemyUnitOfWork:

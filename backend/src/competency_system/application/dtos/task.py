@@ -16,8 +16,36 @@ class TaskCompetencyMappingDTO(BaseDTO):
     weight: float
 
 
+class TaskCategorySelectionDTO(BaseDTO):
+    id: UUID | None = None
+    llm_id: int | None = None
+
+
+class TaskCategoryExtractionResultDTO(BaseDTO):
+    categories: list[TaskCategorySelectionDTO]
+
+
+class TaskCompetencySelectionDTO(BaseDTO):
+    id: UUID | None = None
+    llm_id: int | None = None
+
+
+class TaskCompetencyExtractionResultDTO(BaseDTO):
+    competencies: list[TaskCompetencySelectionDTO]
+
+
+class TaskSubCompetencySelectionDTO(BaseDTO):
+    id: UUID | None = None
+    llm_id: int | None = None
+    weight: float = 1.0
+
+
+class TaskSubCompetencyExtractionResultDTO(BaseDTO):
+    sub_competencies: list[TaskSubCompetencySelectionDTO]
+
+
 class TaskMappingExtractionResultDTO(BaseDTO):
-    """Structured response from the task mapping LLM pipeline."""
+    """Final normalized mapping output."""
 
     mappings: list[TaskCompetencyMappingDTO]
 
