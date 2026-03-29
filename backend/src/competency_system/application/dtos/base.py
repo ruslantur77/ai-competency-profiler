@@ -24,7 +24,7 @@ class BaseDTO(BaseModel):
         def serialize(o: Any) -> Any:
             insp = inspect(o)
             data = {}
-            for name in insp.attrs.keys():
+            for name in insp.attrs:
                 if name in insp.unloaded:
                     continue
                 val = getattr(o, name)

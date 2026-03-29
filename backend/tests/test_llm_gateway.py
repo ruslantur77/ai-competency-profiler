@@ -46,7 +46,9 @@ class _FakeClient:
 
 
 @pytest.mark.asyncio
-async def test_llm_gateway_retries_and_parses_json(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_llm_gateway_retries_and_parses_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     completions = _FakeCompletions('{"answer": "ok"}', failures_before_success=1)
     fake_client = _FakeClient(completions)
     monkeypatch.setattr(llm_module, "AsyncOpenAI", lambda **_: fake_client)

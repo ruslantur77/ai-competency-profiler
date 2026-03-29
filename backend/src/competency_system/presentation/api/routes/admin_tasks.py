@@ -42,7 +42,9 @@ async def get_task(
     try:
         return await use_case.execute(task_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.post("/{task_id}/mapping/rebuild", response_model=TaskDTO)
@@ -56,7 +58,9 @@ async def rebuild_task_mapping(
     try:
         return await use_case.execute(task_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.post("/{task_id}/mapping/validate", response_model=TaskDTO)
@@ -70,4 +74,6 @@ async def validate_task_mapping(
     try:
         return await use_case.execute(task_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc

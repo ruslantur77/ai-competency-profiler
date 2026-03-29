@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from competency_system.domain.entities import Vacancy
 from competency_system.domain.value_objects.enums import VacancyStatus
@@ -8,7 +9,9 @@ from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWor
 
 
 @pytest.mark.asyncio
-async def test_uow_round_trip_vacancy(sqlite_session_factory) -> None:
+async def test_uow_round_trip_vacancy(
+    sqlite_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
     vacancy = Vacancy(
         name="Backend Engineer",
         description="Build backend services.",

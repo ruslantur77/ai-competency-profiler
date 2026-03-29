@@ -54,7 +54,9 @@ class VacancyCreateDTO(BaseDTO):
 class VacancyGraphUpdateDTO(BaseDTO):
     categories: list[CategoryDTO]
     error_message: str | None = None
-    suggestion_decisions: list[VacancySuggestionDecisionDTO] = Field(default_factory=list)
+    suggestion_decisions: list[VacancySuggestionDecisionDTO] = Field(
+        default_factory=list
+    )
 
 
 class VacancyCategorySuggestionDTO(BaseDTO):

@@ -60,7 +60,9 @@ class TestResultRepository(Repository[TestResult], Protocol):
 
 
 class VacancySuggestionRepository(Repository[VacancyGraphSuggestion], Protocol):
-    async def list_by_vacancy(self, vacancy_id: UUID) -> Sequence[VacancyGraphSuggestion]: ...
+    async def list_by_vacancy(
+        self, vacancy_id: UUID
+    ) -> Sequence[VacancyGraphSuggestion]: ...
 
 
 class UserRepository(Repository[User], Protocol):

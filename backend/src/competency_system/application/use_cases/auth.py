@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from competency_system.application.dtos.auth import (
     AccessTokenDataDTO,
@@ -81,7 +80,9 @@ class RefreshTokenPairUseCase:
         self._user_repo = user_repo
         self._refresh_token_repo = refresh_token_repo
 
-    async def execute(self, *, refresh_token_raw: str, token_data: RefreshTokenDataDTO) -> TokenPairDTO | None:
+    async def execute(
+        self, *, refresh_token_raw: str, token_data: RefreshTokenDataDTO
+    ) -> TokenPairDTO | None:
         stored_token = await self._refresh_token_repo.get_by_jti(token_data.jti)
         if stored_token is None:
             return None

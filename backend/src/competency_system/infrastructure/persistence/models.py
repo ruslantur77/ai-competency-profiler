@@ -187,7 +187,9 @@ class VacancyCategoryNodeOrm(Base):
 class VacancyCompetencyNodeOrm(Base):
     __tablename__ = "vacancy_competency_nodes"
     __table_args__ = (
-        UniqueConstraint("vacancy_id", "position", name="uq_vacancy_competency_position"),
+        UniqueConstraint(
+            "vacancy_id", "position", name="uq_vacancy_competency_position"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -212,7 +214,9 @@ class VacancyCompetencyNodeOrm(Base):
 class VacancySubCompetencyNodeOrm(Base):
     __tablename__ = "vacancy_sub_competency_nodes"
     __table_args__ = (
-        UniqueConstraint("vacancy_id", "position", name="uq_vacancy_subcompetency_position"),
+        UniqueConstraint(
+            "vacancy_id", "position", name="uq_vacancy_subcompetency_position"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -315,9 +319,7 @@ class TestResultOrm(Base):
     candidate_id: Mapped[UUID] = mapped_column(
         ForeignKey("candidates.id", ondelete="CASCADE")
     )
-    task_id: Mapped[UUID] = mapped_column(
-        ForeignKey("tasks.id", ondelete="CASCADE")
-    )
+    task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
     passed: Mapped[bool] = mapped_column(default=False)
     score: Mapped[float] = mapped_column(default=0.0)
     attempts: Mapped[int] = mapped_column(default=1)

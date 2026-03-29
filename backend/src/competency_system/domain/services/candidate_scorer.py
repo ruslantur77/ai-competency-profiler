@@ -15,9 +15,7 @@ class CandidateScorer:
         pass_threshold: float = 0.5,
         mapping_coverage_threshold: float = 0.2,
     ) -> None:
-        """Args:
-            pass_threshold: Минимальный normalized score для засчитывания
-        """
+        """Инициализировать пороги расчета достижений."""
         self.pass_threshold = pass_threshold
         self.mapping_coverage_threshold = mapping_coverage_threshold
 

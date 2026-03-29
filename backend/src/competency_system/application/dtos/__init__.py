@@ -1,4 +1,3 @@
-from competency_system.application.dtos.candidate import CandidateAssessmentResultDTO
 from competency_system.application.dtos.auth import (
     AccessTokenDataDTO,
     CurrentUserDTO,
@@ -8,6 +7,7 @@ from competency_system.application.dtos.auth import (
     TokenPairDTO,
     TokenResponseDTO,
 )
+from competency_system.application.dtos.candidate import CandidateAssessmentResultDTO
 from competency_system.application.dtos.competency import (
     CategoryDTO,
     CompetencyDTO,
@@ -36,11 +36,11 @@ from competency_system.application.dtos.vacancy import (
     VacancyCompetencySuggestionDTO,
     VacancyCreateDTO,
     VacancyDTO,
+    VacancyGraphSuggestionDTO,
     VacancyGraphUpdateDTO,
     VacancyListItemDTO,
     VacancySubCompetencyExtractionResultDTO,
     VacancySubCompetencySuggestionDTO,
-    VacancyGraphSuggestionDTO,
     VacancySuggestionDecisionDTO,
 )
 

@@ -1,11 +1,17 @@
-from competency_system.presentation.api.routes.admin_tasks import router as admin_tasks_router
+from competency_system.presentation.api.routes.admin_tasks import (
+    router as admin_tasks_router,
+)
 from competency_system.presentation.api.routes.auth import router as auth_router
-from competency_system.presentation.api.routes.candidates import router as candidates_router
+from competency_system.presentation.api.routes.candidates import (
+    router as candidates_router,
+)
 from competency_system.presentation.api.routes.health import router as health_router
 from competency_system.presentation.api.routes.ranking import router as ranking_router
 from competency_system.presentation.api.routes.tasks import router as tasks_router
 from competency_system.presentation.api.routes.tasks import webhook_router
-from competency_system.presentation.api.routes.vacancies import router as vacancies_router
+from competency_system.presentation.api.routes.vacancies import (
+    router as vacancies_router,
+)
 
 __all__ = [
     "health_router",

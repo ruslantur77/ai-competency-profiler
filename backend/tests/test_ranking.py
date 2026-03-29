@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from competency_system.application.use_cases.ranking import RecalculateRankingUseCase
 from competency_system.application.dtos.auth import CurrentUserDTO
+from competency_system.application.use_cases.ranking import RecalculateRankingUseCase
 from competency_system.domain.entities import (
     Candidate,
     Competency,
@@ -102,12 +102,12 @@ def test_ranking_engine_separates_required_and_desired_groups() -> None:
     assert top.total_score == pytest.approx(79.0)
     assert len(top.breakdown) == 2
     assert {item.required for item in top.breakdown} == {True, False}
-    assert next(item.score_contribution for item in top.breakdown if item.required) == pytest.approx(
-        49.0
-    )
-    assert next(item.score_contribution for item in top.breakdown if not item.required) == pytest.approx(
-        30.0
-    )
+    assert next(
+        item.score_contribution for item in top.breakdown if item.required
+    ) == pytest.approx(49.0)
+    assert next(
+        item.score_contribution for item in top.breakdown if not item.required
+    ) == pytest.approx(30.0)
 
 
 def test_ranking_engine_handles_missing_required_group() -> None:
@@ -204,10 +204,13 @@ def test_ranking_api_exposes_canonical_and_legacy_paths(tmp_path: Path) -> None:
         canonical_payload = canonical_response.json()
         legacy_payload = legacy_response.json()
         assert canonical_payload == legacy_payload
-        assert canonical_payload["rankings"][0]["candidate_external_id"] == "candidate-full"
-        assert canonical_payload["rankings"][0]["breakdown"][0]["score_contribution"] == pytest.approx(
-            49.0
+        assert (
+            canonical_payload["rankings"][0]["candidate_external_id"]
+            == "candidate-full"
         )
+        assert canonical_payload["rankings"][0]["breakdown"][0][
+            "score_contribution"
+        ] == pytest.approx(49.0)
     finally:
         app.dependency_overrides.clear()
         asyncio.run(engine.dispose())

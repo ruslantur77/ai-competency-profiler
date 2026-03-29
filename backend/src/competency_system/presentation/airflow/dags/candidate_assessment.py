@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 from uuid import UUID
 
-from airflow.decorators import dag, task
+from airflow.decorators import dag as airflow_dag  # type: ignore[attr-defined]
+from airflow.decorators import task as airflow_task  # type: ignore[attr-defined]
 
 from competency_system.application.use_cases.candidate import AssessCandidateUseCase
 from competency_system.application.use_cases.ranking import RecalculateRankingUseCase
@@ -12,6 +14,9 @@ from competency_system.presentation.airflow.payloads import (
     CandidateAssessmentTriggerDTO,
 )
 from competency_system.presentation.airflow.runtime import run_logged_async
+
+dag = cast(Any, airflow_dag)
+task = cast(Any, airflow_task)
 
 DEFAULT_ARGS = {
     "owner": "competency-system",
@@ -36,7 +41,7 @@ def candidate_assessment_dag() -> None:
             lambda runtime: AssessCandidateUseCase(
                 runtime.uow(),
                 runtime.llm_gateway(),
-            ).execute(payload)
+            ).execute(payload),
         )
         return {
             "assessment": result.model_dump(mode="json"),
@@ -53,7 +58,7 @@ def candidate_assessment_dag() -> None:
             "candidate_assessment.recalculate_ranking",
             lambda runtime: RecalculateRankingUseCase(
                 runtime.uow(),
-            ).execute(UUID(str(vacancy_id)))
+            ).execute(UUID(str(vacancy_id))),
         )
         return ranking.model_dump(mode="json")
 

@@ -1,7 +1,36 @@
 from __future__ import annotations
 
-from competency_system.domain.entities.competency import Category, Competency
+from typing import Protocol
+
+from competency_system.domain.entities.competency import (
+    Category,
+    Competency,
+    SubCompetency,
+)
 from competency_system.domain.entities.vacancy import Vacancy
+
+
+class LLMCompetencyExtractor(Protocol):
+    async def extract_categories(
+        self,
+        vacancy_name: str,
+        vacancy_description: str,
+        existing_categories: list[Category],
+    ) -> list[Category]: ...
+
+    async def extract_competencies(
+        self,
+        vacancy_name: str,
+        vacancy_description: str,
+        category: Category,
+    ) -> list[Competency]: ...
+
+    async def extract_subcompetencies(
+        self,
+        vacancy_name: str,
+        vacancy_description: str,
+        competency: Competency,
+    ) -> list[SubCompetency]: ...
 
 
 class CompetencyGraphBuilder:
@@ -12,11 +41,11 @@ class CompetencyGraphBuilder:
 
     def __init__(
         self,
-        llm_extractor,  # Просто передаем объект, без Protocol
+        llm_extractor: LLMCompetencyExtractor,
         max_categories: int = 6,
         max_competencies: int = 10,
         max_subcompetencies: int = 6,
-    ):
+    ) -> None:
         self.llm_extractor = llm_extractor
         self.max_categories = max_categories
         self.max_competencies = max_competencies
@@ -31,6 +60,7 @@ class CompetencyGraphBuilder:
 
         Returns:
             (categories, competencies) - готовый граф
+
         """
         # Шаг 1: Извлечь категории
         categories = await self.llm_extractor.extract_categories(

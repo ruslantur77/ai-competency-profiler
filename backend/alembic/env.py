@@ -13,8 +13,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from competency_system.infrastructure.persistence.models import Base
-from competency_system.infrastructure.settings import get_settings
+from competency_system.infrastructure.persistence.models import Base  # noqa: E402
+from competency_system.infrastructure.settings import get_settings  # noqa: E402
 
 config = context.config
 

@@ -20,6 +20,7 @@ from competency_system.application.ports.external_testing_system import (
 )
 from competency_system.application.ports.health import HealthCheckPort
 from competency_system.application.ports.llm import LLMGateway
+from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
     IssueTokenPairUseCase,
@@ -47,7 +48,9 @@ from competency_system.application.use_cases.vacancy import (
     ListVacancySuggestionsUseCase,
 )
 from competency_system.domain.value_objects.enums import UserRole
-from competency_system.infrastructure.health.database_health import SQLAlchemyHealthCheckPort
+from competency_system.infrastructure.health.database_health import (
+    SQLAlchemyHealthCheckPort,
+)
 from competency_system.infrastructure.persistence.repositories import (
     RefreshTokenRepository,
     UserRepository,
@@ -85,7 +88,7 @@ def get_uow(
         async_sessionmaker[AsyncSession],
         Depends(get_session_factory),
     ],
-) -> SQLAlchemyUnitOfWork:
+) -> UnitOfWork:
     return SQLAlchemyUnitOfWork(session_factory)
 
 
@@ -102,7 +105,9 @@ def get_testing_system_gateway(request: Request) -> ExternalTestingSystemGateway
 
 
 def get_health_check_port(request: Request) -> HealthCheckPort:
-    session_factory = cast(async_sessionmaker[AsyncSession], request.app.state.session_factory)
+    session_factory = cast(
+        async_sessionmaker[AsyncSession], request.app.state.session_factory
+    )
     return SQLAlchemyHealthCheckPort(session_factory)
 
 
@@ -113,7 +118,7 @@ def get_health_check_use_case(
 
 
 def get_extract_vacancy_graph_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
     settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> ExtractVacancyGraphUseCase:
@@ -126,77 +131,79 @@ def get_extract_vacancy_graph_use_case(
 
 
 def get_get_vacancy_graph_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> GetVacancyGraphUseCase:
     return GetVacancyGraphUseCase(uow)
 
 
 def get_finalize_vacancy_graph_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> FinalizeVacancyGraphUseCase:
     return FinalizeVacancyGraphUseCase(uow)
 
 
 def get_list_vacancy_suggestions_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ListVacancySuggestionsUseCase:
     return ListVacancySuggestionsUseCase(uow)
 
 
 def get_decide_vacancy_suggestion_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> DecideVacancySuggestionUseCase:
     return DecideVacancySuggestionUseCase(uow)
 
 
 def get_sync_tasks_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
-    gateway: Annotated[ExternalTestingSystemGateway, Depends(get_testing_system_gateway)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    gateway: Annotated[
+        ExternalTestingSystemGateway, Depends(get_testing_system_gateway)
+    ],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
 ) -> SyncTasksUseCase:
     return SyncTasksUseCase(uow, gateway, llm_gateway)
 
 
 def get_get_task_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> GetTaskUseCase:
     return GetTaskUseCase(uow)
 
 
 def get_assess_candidate_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
 ) -> AssessCandidateUseCase:
     return AssessCandidateUseCase(uow, llm_gateway)
 
 
 def get_list_tasks_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ListTasksUseCase:
     return ListTasksUseCase(uow)
 
 
 def get_rebuild_task_mapping_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
 ) -> RebuildTaskMappingUseCase:
     return RebuildTaskMappingUseCase(uow, llm_gateway)
 
 
 def get_validate_task_mapping_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ValidateTaskMappingUseCase:
     return ValidateTaskMappingUseCase(uow)
 
 
 def get_get_candidate_profile_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> GetCandidateProfileUseCase:
     return GetCandidateProfileUseCase(uow)
 
 
 def get_recalculate_ranking_use_case(
-    uow: Annotated[SQLAlchemyUnitOfWork, Depends(get_uow)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> RecalculateRankingUseCase:
     return RecalculateRankingUseCase(uow)
 
@@ -224,20 +231,30 @@ def get_authenticate_user_use_case(
 
 def get_issue_token_pair_use_case(
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-    refresh_token_repo: Annotated[RefreshTokenRepository, Depends(get_refresh_token_repo)],
+    refresh_token_repo: Annotated[
+        RefreshTokenRepository, Depends(get_refresh_token_repo)
+    ],
 ) -> IssueTokenPairUseCase:
-    return IssueTokenPairUseCase(user_repo=user_repo, refresh_token_repo=refresh_token_repo)
+    return IssueTokenPairUseCase(
+        user_repo=user_repo, refresh_token_repo=refresh_token_repo
+    )
 
 
 def get_refresh_token_pair_use_case(
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-    refresh_token_repo: Annotated[RefreshTokenRepository, Depends(get_refresh_token_repo)],
+    refresh_token_repo: Annotated[
+        RefreshTokenRepository, Depends(get_refresh_token_repo)
+    ],
 ) -> RefreshTokenPairUseCase:
-    return RefreshTokenPairUseCase(user_repo=user_repo, refresh_token_repo=refresh_token_repo)
+    return RefreshTokenPairUseCase(
+        user_repo=user_repo, refresh_token_repo=refresh_token_repo
+    )
 
 
 def get_logout_use_case(
-    refresh_token_repo: Annotated[RefreshTokenRepository, Depends(get_refresh_token_repo)],
+    refresh_token_repo: Annotated[
+        RefreshTokenRepository, Depends(get_refresh_token_repo)
+    ],
 ) -> LogoutUseCase:
     return LogoutUseCase(refresh_token_repo)
 
@@ -323,7 +340,9 @@ def get_refresh_token_data(
 def get_current_user(
     access_token_data: Annotated[AccessTokenDataDTO, Depends(get_access_token_data)],
 ) -> CurrentUserDTO:
-    return CurrentUserDTO(user_id=access_token_data.user_id, role=access_token_data.role)
+    return CurrentUserDTO(
+        user_id=access_token_data.user_id, role=access_token_data.role
+    )
 
 
 def _verify_roles(current_user: CurrentUserDTO, allowed_roles: set[UserRole]) -> None:

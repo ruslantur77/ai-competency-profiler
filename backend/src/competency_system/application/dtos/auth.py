@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -15,7 +16,7 @@ class LoginDTO(BaseModel):
 
 class TokenResponseDTO(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: Literal["bearer"] = "bearer"  # noqa: S105
 
 
 class TokenPairDTO(BaseModel):

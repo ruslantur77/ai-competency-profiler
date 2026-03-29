@@ -4,12 +4,12 @@ from collections.abc import Mapping
 from typing import Any
 
 try:  # Airflow 2.x
-    from airflow.operators.python import get_current_context  # type: ignore[attr-defined]
+    from airflow.operators.python import get_current_context
 except Exception:  # pragma: no cover - import fallback
     try:
         from airflow.decorators import get_current_context  # type: ignore[attr-defined]
     except Exception:  # pragma: no cover - import fallback
-        from airflow.sdk import get_current_context  # type: ignore[attr-defined]
+        from airflow.sdk import get_current_context
 
 
 def get_dag_conf() -> dict[str, Any]:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any, Generic, TypeVar
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -54,18 +54,17 @@ from competency_system.infrastructure.persistence.models import (
     TaskOrm,
     TestResultOrm,
     UserOrm,
-    VacancyOrm,
     VacancyCategoryNodeOrm,
     VacancyCompetencyNodeOrm,
+    VacancyOrm,
     VacancySubCompetencyNodeOrm,
     VacancySuggestionOrm,
 )
 
-DomainT = TypeVar("DomainT")
-OrmT = TypeVar("OrmT")
+type CategoryGraph = tuple[list[Category], list[Competency]]
 
 
-class SQLAlchemyRepository(Generic[DomainT, OrmT], Repository[DomainT]):
+class SQLAlchemyRepository[DomainT, OrmT](Repository[DomainT]):
     model: type[OrmT]
 
     def __init__(self, session: AsyncSession) -> None:
@@ -208,10 +207,9 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
             )
         )
 
-        category_position = 0
         competency_position = 0
         sub_position = 0
-        for category in vacancy.categories:
+        for category_position, category in enumerate(vacancy.categories):
             self._session.add(
                 VacancyCategoryNodeOrm(
                     vacancy_id=vacancy.id,
@@ -222,7 +220,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                     position=category_position,
                 )
             )
-            category_position += 1
 
             for competency in category.competencies:
                 self._session.add(
@@ -257,7 +254,7 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
     async def _load_normalized_graph(
         self,
         vacancy_id: UUID,
-    ) -> tuple[list[Category], list[Competency]] | None:
+    ) -> CategoryGraph | None:
         category_rows = (
             await self._session.scalars(
                 select(VacancyCategoryNodeOrm)
@@ -284,46 +281,50 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
         ).all()
 
         subs_by_competency: dict[UUID, list[SubCompetency]] = {}
-        for row in sub_rows:
-            subs_by_competency.setdefault(row.competency_id, []).append(
+        for sub_row in sub_rows:
+            subs_by_competency.setdefault(sub_row.competency_id, []).append(
                 SubCompetency(
-                    id=row.sub_competency_id,
-                    name=row.name,
-                    description=row.description,
-                    target_level=CompetencyLevel(row.target_level),
-                    weight=row.weight,
-                    created_at=row.created_at,
-                    updated_at=row.updated_at,
+                    id=sub_row.sub_competency_id,
+                    name=sub_row.name,
+                    description=sub_row.description,
+                    target_level=CompetencyLevel(sub_row.target_level),
+                    weight=sub_row.weight,
+                    created_at=sub_row.created_at,
+                    updated_at=sub_row.updated_at,
                 )
             )
 
         competencies_by_category: dict[UUID, list[Competency]] = {}
         all_competencies: list[Competency] = []
-        for row in competency_rows:
+        for competency_row in competency_rows:
             competency = Competency(
-                id=row.competency_id,
-                category_id=row.category_id,
-                name=row.name,
-                description=row.description,
-                is_required=row.is_required,
-                sub_competencies=subs_by_competency.get(row.competency_id, []),
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                id=competency_row.competency_id,
+                category_id=competency_row.category_id,
+                name=competency_row.name,
+                description=competency_row.description,
+                is_required=competency_row.is_required,
+                sub_competencies=subs_by_competency.get(
+                    competency_row.competency_id, []
+                ),
+                created_at=competency_row.created_at,
+                updated_at=competency_row.updated_at,
             )
-            competencies_by_category.setdefault(row.category_id, []).append(competency)
+            competencies_by_category.setdefault(competency_row.category_id, []).append(
+                competency
+            )
             all_competencies.append(competency)
 
         categories = [
             Category(
-                id=row.category_id,
-                name=row.name,
-                description=row.description,
-                emoji=row.emoji,
-                competencies=competencies_by_category.get(row.category_id, []),
-                created_at=row.created_at,
-                updated_at=row.updated_at,
+                id=category_row.category_id,
+                name=category_row.name,
+                description=category_row.description,
+                emoji=category_row.emoji,
+                competencies=competencies_by_category.get(category_row.category_id, []),
+                created_at=category_row.created_at,
+                updated_at=category_row.updated_at,
             )
-            for row in category_rows
+            for category_row in category_rows
         ]
         return categories, all_competencies
 
@@ -381,7 +382,9 @@ class VacancySuggestionRepository(
 ):
     model = VacancySuggestionOrm
 
-    async def list_by_vacancy(self, vacancy_id: UUID) -> Sequence[VacancyGraphSuggestion]:
+    async def list_by_vacancy(
+        self, vacancy_id: UUID
+    ) -> Sequence[VacancyGraphSuggestion]:
         statement = (
             select(self.model)
             .where(VacancySuggestionOrm.vacancy_id == vacancy_id)

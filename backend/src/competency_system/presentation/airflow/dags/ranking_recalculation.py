@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
-from airflow.decorators import dag, task
+from airflow.decorators import dag as airflow_dag  # type: ignore[attr-defined]
+from airflow.decorators import task as airflow_task  # type: ignore[attr-defined]
 
 from competency_system.application.use_cases.ranking import RecalculateRankingUseCase
 from competency_system.presentation.airflow.context import get_dag_conf
@@ -10,6 +12,9 @@ from competency_system.presentation.airflow.payloads import (
     RankingRecalculationTriggerDTO,
 )
 from competency_system.presentation.airflow.runtime import run_logged_async
+
+dag = cast(Any, airflow_dag)
+task = cast(Any, airflow_task)
 
 DEFAULT_ARGS = {
     "owner": "competency-system",
@@ -31,7 +36,9 @@ def ranking_recalculation_dag() -> None:
         payload = RankingRecalculationTriggerDTO.model_validate(get_dag_conf())
         result = run_logged_async(
             "ranking_recalculation.recalculate_ranking",
-            lambda runtime: RecalculateRankingUseCase(runtime.uow()).execute(payload.vacancy_id)
+            lambda runtime: RecalculateRankingUseCase(runtime.uow()).execute(
+                payload.vacancy_id
+            ),
         )
         return result.model_dump(mode="json")
 

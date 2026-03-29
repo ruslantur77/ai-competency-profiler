@@ -21,7 +21,9 @@ from competency_system.presentation.api.dependencies import get_session_factory
 from competency_system.presentation.api.main import app
 
 
-def _make_session_factory(database_path: str) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
+def _make_session_factory(
+    database_path: str,
+) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
     async def _setup() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
         engine = create_async_engine(f"sqlite+aiosqlite:///{database_path}")
         async with engine.begin() as connection:

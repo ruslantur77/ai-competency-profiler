@@ -46,7 +46,9 @@ def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> N
 async def login(
     response: Response,
     credentials: Annotated[LoginDTO, Depends(get_login_data)],
-    auth_use_case: Annotated[AuthenticateUserUseCase, Depends(get_authenticate_user_use_case)],
+    auth_use_case: Annotated[
+        AuthenticateUserUseCase, Depends(get_authenticate_user_use_case)
+    ],
     issue_token_pair_use_case: Annotated[
         IssueTokenPairUseCase,
         Depends(get_issue_token_pair_use_case),
@@ -78,7 +80,9 @@ async def refresh_token(
     response: Response,
     refresh_token_raw: Annotated[str, Depends(get_refresh_token_from_cookie)],
     refresh_token_data: Annotated[RefreshTokenDataDTO, Depends(get_refresh_token_data)],
-    refresh_use_case: Annotated[RefreshTokenPairUseCase, Depends(get_refresh_token_pair_use_case)],
+    refresh_use_case: Annotated[
+        RefreshTokenPairUseCase, Depends(get_refresh_token_pair_use_case)
+    ],
     settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> TokenResponseDTO:
     token_pair = await refresh_use_case.execute(

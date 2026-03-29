@@ -44,7 +44,9 @@ async def create_vacancy(
     try:
         return await use_case.execute(payload)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
 
 
 @router.get("/{vacancy_id}", response_model=VacancyDTO)
@@ -59,7 +61,9 @@ async def get_vacancy(
     try:
         return await use_case.execute(vacancy_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.get("/{vacancy_id}/graph", response_model=VacancyDTO)
@@ -74,7 +78,9 @@ async def get_vacancy_graph(
     try:
         return await use_case.execute(vacancy_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.patch("/{vacancy_id}/graph", response_model=VacancyDTO)
@@ -90,7 +96,9 @@ async def finalize_vacancy_graph(
     try:
         return await use_case.execute(vacancy_id, payload)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.get("/{vacancy_id}/suggestions", response_model=list[VacancyGraphSuggestionDTO])
@@ -105,7 +113,9 @@ async def list_vacancy_suggestions(
     return await use_case.execute(vacancy_id)
 
 
-@router.post("/{vacancy_id}/suggestions/decision", response_model=VacancyGraphSuggestionDTO)
+@router.post(
+    "/{vacancy_id}/suggestions/decision", response_model=VacancyGraphSuggestionDTO
+)
 async def decide_vacancy_suggestion(
     vacancy_id: UUID,
     payload: VacancySuggestionDecisionDTO,
@@ -118,4 +128,6 @@ async def decide_vacancy_suggestion(
     try:
         return await use_case.execute(vacancy_id, payload)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc

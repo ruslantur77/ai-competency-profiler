@@ -19,7 +19,12 @@ from competency_system.application.use_cases.code_assessment_policy import (
     DEFAULT_CODE_ASSESSMENT_POLICY,
     CodeAssessmentPolicy,
 )
-from competency_system.domain.entities import Candidate, CompetencyScore, Task, TestResult
+from competency_system.domain.entities import (
+    Candidate,
+    CompetencyScore,
+    Task,
+    TestResult,
+)
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.enums import AssessmentStatus, TaskType
 
@@ -104,16 +109,20 @@ class AssessCandidateUseCase:
         candidate_id: UUID,
     ) -> TestResult:
         raw_test_score = self._raw_test_score(command.passed, command.total)
-        penalized_test_score = self._apply_attempt_penalty(raw_test_score, command.attempts)
+        penalized_test_score = self._apply_attempt_penalty(
+            raw_test_score, command.attempts
+        )
         score = penalized_test_score
         passed = (
-            command.passed > 0
-            and command.total > 0
-            and command.passed >= command.total
+            command.passed > 0 and command.total > 0 and command.passed >= command.total
         )
         llm_assessment: dict[str, object] | None = None
 
-        if command.type == TaskType.CODE and command.code and self._llm_gateway is not None:
+        if (
+            command.type == TaskType.CODE
+            and command.code
+            and self._llm_gateway is not None
+        ):
             assessment = await self._llm_gateway.generate(
                 [
                     LLMMessage(

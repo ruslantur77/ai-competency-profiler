@@ -137,8 +137,7 @@ def _deserialize_category(data: dict[str, Any]) -> Category:
         description=str(data.get("description", "")),
         emoji=str(data.get("emoji", "📋")),
         competencies=[
-            _deserialize_competency(item)
-            for item in data.get("competencies", [])
+            _deserialize_competency(item) for item in data.get("competencies", [])
         ],
         created_at=datetime.fromisoformat(str(data["created_at"])),
         updated_at=datetime.fromisoformat(str(data["updated_at"])),
@@ -415,11 +414,13 @@ def test_result_from_orm(test_result: TestResultOrm) -> TestResult:
             else None
         ),
         created_at=test_result.created_at,
-        updated_at=test_result.updated_at,
+        updated_at=test_result.created_at,
     )
 
 
-def vacancy_suggestion_to_orm(suggestion: VacancyGraphSuggestion) -> VacancySuggestionOrm:
+def vacancy_suggestion_to_orm(
+    suggestion: VacancyGraphSuggestion,
+) -> VacancySuggestionOrm:
     return VacancySuggestionOrm(
         id=suggestion.id,
         vacancy_id=suggestion.vacancy_id,
@@ -433,13 +434,17 @@ def vacancy_suggestion_to_orm(suggestion: VacancyGraphSuggestion) -> VacancySugg
         parent_competency_id=suggestion.parent_competency_id,
         is_required=suggestion.is_required,
         target_level=(
-            int(suggestion.target_level) if suggestion.target_level is not None else None
+            int(suggestion.target_level)
+            if suggestion.target_level is not None
+            else None
         ),
         weight=suggestion.weight,
     )
 
 
-def vacancy_suggestion_from_orm(suggestion: VacancySuggestionOrm) -> VacancyGraphSuggestion:
+def vacancy_suggestion_from_orm(
+    suggestion: VacancySuggestionOrm,
+) -> VacancyGraphSuggestion:
     return VacancyGraphSuggestion(
         id=suggestion.id,
         vacancy_id=suggestion.vacancy_id,

@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import re
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, cast
 
 from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from tenacity import (
     AsyncRetrying,
     retry_if_exception_type,
@@ -54,6 +55,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
                         response_model,
                         temperature=temperature,
                     )
+            raise RuntimeError("Retrying loop completed without returning a result")
         except Exception as exc:  # pragma: no cover - infra boundary
             self._logger.exception(
                 "llm_request_failed",
@@ -77,12 +79,16 @@ class OpenAICompatibleLLMGateway(LLMGateway):
             message_count=len(messages),
             temperature=temperature,
         )
+        messages_payload: list[ChatCompletionMessageParam] = [
+            cast(
+                ChatCompletionMessageParam,
+                {"role": message.role, "content": message.content},
+            )
+            for message in messages
+        ]
         response = await self._client.chat.completions.create(
             model=self._settings.llm_model,
-            messages=[
-                {"role": message.role, "content": message.content}
-                for message in messages
-            ],
+            messages=messages_payload,
             temperature=temperature,
             response_format={"type": "json_object"},
             extra_body=self._extra_body(),
@@ -104,7 +110,9 @@ class OpenAICompatibleLLMGateway(LLMGateway):
         except JSONDecodeError:
             match = re.search(r"\{.*\}", cleaned, re.DOTALL)
             if match is None:
-                raise ValueError("LLM response does not contain a JSON object") from None
+                raise ValueError(
+                    "LLM response does not contain a JSON object"
+                ) from None
             return json.loads(match.group())
 
     def _extra_body(self) -> dict[str, object] | None:

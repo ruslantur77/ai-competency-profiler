@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
-from airflow.decorators import dag, task
+from airflow.decorators import dag as airflow_dag  # type: ignore[attr-defined]
+from airflow.decorators import task as airflow_task  # type: ignore[attr-defined]
 
 from competency_system.application.use_cases.task import SyncTasksUseCase
 from competency_system.presentation.airflow.runtime import run_logged_async
+
+dag = cast(Any, airflow_dag)
+task = cast(Any, airflow_task)
 
 DEFAULT_ARGS = {
     "owner": "competency-system",
@@ -30,7 +35,7 @@ def task_sync_dag() -> None:
                 runtime.uow(),
                 runtime.testing_gateway(),
                 runtime.llm_gateway(),
-            ).execute()
+            ).execute(),
         )
         return result.model_dump(mode="json")
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Mapping, MutableMapping
 from typing import Any
 
 import structlog
@@ -8,6 +9,10 @@ import structlog
 from competency_system.infrastructure.settings import Settings, get_settings
 
 _LOGGING_CONFIGURED = False
+Processor = Callable[
+    [Any, str, MutableMapping[str, Any]],
+    Mapping[str, Any] | str | bytes | bytearray | tuple[Any, ...],
+]
 
 
 def configure_logging(settings: Settings | None = None) -> None:
@@ -18,7 +23,7 @@ def configure_logging(settings: Settings | None = None) -> None:
     resolved_settings = settings or get_settings()
     log_level = getattr(logging, resolved_settings.log_level.upper(), logging.INFO)
 
-    shared_processors = [
+    shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
@@ -28,7 +33,8 @@ def configure_logging(settings: Settings | None = None) -> None:
     ]
 
     structlog.configure(
-        processors=shared_processors + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
+        processors=shared_processors
+        + [structlog.stdlib.ProcessorFormatter.wrap_for_formatter],
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )

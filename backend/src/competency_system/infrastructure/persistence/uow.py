@@ -1,9 +1,40 @@
 from __future__ import annotations
 
-from typing import Self
+from types import TracebackType
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from competency_system.application.ports.repositories import (
+    CandidateRepository as CandidateRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    CategoryRepository as CategoryRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    CompetencyRepository as CompetencyRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    RefreshTokenRepository as RefreshTokenRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    SubCompetencyRepository as SubCompetencyRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    TaskRepository as TaskRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    TestResultRepository as TestResultRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    UserRepository as UserRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    VacancyRepository as VacancyRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
+    VacancySuggestionRepository as VacancySuggestionRepositoryPort,
+)
+from competency_system.application.ports.uow import UnitOfWork
 from competency_system.infrastructure.persistence.repositories import (
     CandidateRepository,
     CategoryRepository,
@@ -18,22 +49,22 @@ from competency_system.infrastructure.persistence.repositories import (
 )
 
 
-class SQLAlchemyUnitOfWork:
+class SQLAlchemyUnitOfWork(UnitOfWork):
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
         self.session: AsyncSession
-        self.categories: CategoryRepository
-        self.competencies: CompetencyRepository
-        self.sub_competencies: SubCompetencyRepository
-        self.vacancies: VacancyRepository
-        self.candidates: CandidateRepository
-        self.tasks: TaskRepository
-        self.test_results: TestResultRepository
-        self.vacancy_suggestions: VacancySuggestionRepository
-        self.users: UserRepository
-        self.refresh_tokens: RefreshTokenRepository
+        self.categories: CategoryRepositoryPort
+        self.competencies: CompetencyRepositoryPort
+        self.sub_competencies: SubCompetencyRepositoryPort
+        self.vacancies: VacancyRepositoryPort
+        self.candidates: CandidateRepositoryPort
+        self.tasks: TaskRepositoryPort
+        self.test_results: TestResultRepositoryPort
+        self.vacancy_suggestions: VacancySuggestionRepositoryPort
+        self.users: UserRepositoryPort
+        self.refresh_tokens: RefreshTokenRepositoryPort
 
-    async def __aenter__(self) -> Self:
+    async def __aenter__(self) -> UnitOfWork:
         self.session = self._session_factory()
         self.categories = CategoryRepository(self.session)
         self.competencies = CompetencyRepository(self.session)
@@ -47,7 +78,12 @@ class SQLAlchemyUnitOfWork:
         self.refresh_tokens = RefreshTokenRepository(self.session)
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         if exc_type is not None:
             await self.rollback()
         await self.session.close()

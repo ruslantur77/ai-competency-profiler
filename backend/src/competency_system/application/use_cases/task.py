@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from collections.abc import Sequence
 from uuid import UUID, uuid4
 
 from competency_system.application.dtos.task import (
@@ -195,12 +196,12 @@ class SyncTasksUseCase:
     async def _build_mappings(
         self,
         task: Task,
-        subcompetencies: list[SubCompetency],
+        subcompetencies: Sequence[SubCompetency],
         *,
         tags: list[str],
     ) -> list[TaskCompetencyMapping]:
         try:
-            return await self._mapper.execute(task, subcompetencies, tags=tags)
+            return await self._mapper.execute(task, list(subcompetencies), tags=tags)
         except Exception:
             return []
 

@@ -60,8 +60,12 @@ class _CatalogItem:
 
 class _IdMapper:
     def __init__(self, items: list[_CatalogItem]) -> None:
-        self._int_to_uuid = {index: item.id for index, item in enumerate(items, start=1)}
-        self._uuid_to_int = {item.id: index for index, item in enumerate(items, start=1)}
+        self._int_to_uuid = {
+            index: item.id for index, item in enumerate(items, start=1)
+        }
+        self._uuid_to_int = {
+            item.id: index for index, item in enumerate(items, start=1)
+        }
         self._uuid_to_item = {item.id: item for item in items}
         self._items = items
 
@@ -100,7 +104,9 @@ def _vacancy_to_dto(vacancy: Vacancy) -> VacancyDTO:
         experience=vacancy.experience,
         key_skills=vacancy.key_skills,
         categories=[_category_to_dto(category) for category in vacancy.categories],
-        competencies=[_competency_to_dto(competency) for competency in vacancy.competencies],
+        competencies=[
+            _competency_to_dto(competency) for competency in vacancy.competencies
+        ],
         error_message=vacancy.error_message,
         created_at=vacancy.created_at,
         updated_at=vacancy.updated_at,
@@ -131,7 +137,9 @@ def _category_to_dto(category: Category) -> CategoryDTO:
         name=category.name,
         description=category.description,
         emoji=category.emoji,
-        competencies=[_competency_to_dto(competency) for competency in category.competencies],
+        competencies=[
+            _competency_to_dto(competency) for competency in category.competencies
+        ],
     )
 
 
@@ -143,7 +151,8 @@ def _competency_to_dto(competency: Competency) -> CompetencyDTO:
         description=competency.description,
         is_required=competency.is_required,
         sub_competencies=[
-            _subcompetency_to_dto(subcompetency) for subcompetency in competency.sub_competencies
+            _subcompetency_to_dto(subcompetency)
+            for subcompetency in competency.sub_competencies
         ],
     )
 
@@ -220,7 +229,9 @@ class ExtractVacancyGraphUseCase:
         existing_categories: list[Category],
     ) -> _VacancyGraphPayload:
         category_catalog = [
-            _CatalogItem(id=category.id, name=category.name, description=category.description)
+            _CatalogItem(
+                id=category.id, name=category.name, description=category.description
+            )
             for category in existing_categories
         ]
         category_mapper = _IdMapper(category_catalog)
@@ -242,7 +253,9 @@ class ExtractVacancyGraphUseCase:
             categories,
             existing_categories,
         )
-        all_competencies = [comp for _, competencies, _ in extracted for comp in competencies]
+        all_competencies = [
+            comp for _, competencies, _ in extracted for comp in competencies
+        ]
         all_suggestions = list(category_result.suggested_new)
         suggestions: list[VacancyGraphSuggestion] = [
             self._category_suggestion_to_entity(vacancy.id, item)
@@ -265,7 +278,7 @@ class ExtractVacancyGraphUseCase:
     ) -> list[tuple[Category, list[Competency], list[VacancyGraphSuggestion]]]:
         catalog_by_id = {item.id: item for item in catalog_categories}
         specs: list[LLMCallSpec[VacancyCompetencyExtractionResultDTO]] = []
-        context: list[tuple[Category, _IdMapper]] = []
+        context: list[tuple[Category, _IdMapper, list[Competency]]] = []
         for category in categories:
             existing_competencies = (
                 list(catalog_by_id[category.id].competencies)
@@ -282,7 +295,7 @@ class ExtractVacancyGraphUseCase:
                     for competency in existing_competencies
                 ]
             )
-            context.append((category, competency_mapper))
+            context.append((category, competency_mapper, existing_competencies))
             specs.append(
                 LLMCallSpec(
                     stage="vacancy_competencies",
@@ -296,8 +309,12 @@ class ExtractVacancyGraphUseCase:
                 )
             )
         responses = await self._llm_orchestrator.run_many(specs)
-        output: list[tuple[Category, list[Competency], list[VacancyGraphSuggestion]]] = []
-        for (category, mapper), response in zip(context, responses, strict=False):
+        output: list[
+            tuple[Category, list[Competency], list[VacancyGraphSuggestion]]
+        ] = []
+        for (category, mapper, existing_competencies), response in zip(
+            context, responses, strict=False
+        ):
             competencies = self._materialize_competencies(
                 response.competencies[: self._max_competencies],
                 category.id,
@@ -387,7 +404,8 @@ class ExtractVacancyGraphUseCase:
                     "You extract competency categories for an IT vacancy.\n"
                     "Return JSON only with keys: categories, suggested_new.\n"
                     "For existing categories always return llm_id.\n"
-                    "For new categories omit llm_id and provide name/description/emoji/reason."
+                    "For new categories omit llm_id and provide "
+                    "name/description/emoji/reason."
                 ),
             ),
             LLMMessage(
@@ -421,7 +439,8 @@ class ExtractVacancyGraphUseCase:
                     "You extract competencies inside one category for an IT vacancy.\n"
                     "Return JSON only with keys: competencies, suggested_new.\n"
                     "For existing competencies always return llm_id.\n"
-                    "For new competencies omit llm_id and provide name/description/is_required/reason."
+                    "For new competencies omit llm_id and provide "
+                    "name/description/is_required/reason."
                 ),
             ),
             LLMMessage(
@@ -459,10 +478,12 @@ class ExtractVacancyGraphUseCase:
             LLMMessage(
                 role="system",
                 content=(
-                    "You extract subcompetencies inside one competency for an IT vacancy.\n"
+                    "You extract subcompetencies inside one competency for an IT "
+                    "vacancy.\n"
                     "Return JSON only with keys: sub_competencies, suggested_new.\n"
                     "For existing subcompetencies always return llm_id.\n"
-                    "For new subcompetencies omit llm_id and provide name/description/target_level/weight/reason."
+                    "For new subcompetencies omit llm_id and provide "
+                    "name/description/target_level/weight/reason."
                 ),
             ),
             LLMMessage(
@@ -501,13 +522,17 @@ class ExtractVacancyGraphUseCase:
     ) -> list[Category]:
         categories: list[Category] = []
         for suggestion in suggestions:
-            category_id = mapper.resolve_uuid(llm_id=suggestion.llm_id, direct_id=suggestion.id) or uuid4()
+            category_id = (
+                mapper.resolve_uuid(llm_id=suggestion.llm_id, direct_id=suggestion.id)
+                or uuid4()
+            )
             catalog_item = mapper.get_item(category_id)
             categories.append(
                 Category(
                     id=category_id,
                     name=suggestion.name or (catalog_item.name if catalog_item else ""),
-                    description=suggestion.description or (catalog_item.description if catalog_item else ""),
+                    description=suggestion.description
+                    or (catalog_item.description if catalog_item else ""),
                     emoji=suggestion.emoji,
                 )
             )
@@ -522,14 +547,18 @@ class ExtractVacancyGraphUseCase:
         suggestions = normalize_weighted_items(suggestions)
         competencies: list[Competency] = []
         for suggestion in suggestions:
-            competency_id = mapper.resolve_uuid(llm_id=suggestion.llm_id, direct_id=suggestion.id) or uuid4()
+            competency_id = (
+                mapper.resolve_uuid(llm_id=suggestion.llm_id, direct_id=suggestion.id)
+                or uuid4()
+            )
             catalog_item = mapper.get_item(competency_id)
             competencies.append(
                 Competency(
                     id=competency_id,
                     category_id=suggestion.category_id or category_id,
                     name=suggestion.name or (catalog_item.name if catalog_item else ""),
-                    description=suggestion.description or (catalog_item.description if catalog_item else ""),
+                    description=suggestion.description
+                    or (catalog_item.description if catalog_item else ""),
                     is_required=suggestion.is_required,
                 )
             )
@@ -545,13 +574,17 @@ class ExtractVacancyGraphUseCase:
         suggestions = normalize_weighted_items(suggestions)
         subcompetencies: list[SubCompetency] = []
         for suggestion in suggestions:
-            sub_id = mapper.resolve_uuid(llm_id=suggestion.llm_id, direct_id=suggestion.id) or uuid4()
+            sub_id = (
+                mapper.resolve_uuid(llm_id=suggestion.llm_id, direct_id=suggestion.id)
+                or uuid4()
+            )
             catalog_item = mapper.get_item(sub_id)
             subcompetencies.append(
                 SubCompetency(
                     id=sub_id,
                     name=suggestion.name or (catalog_item.name if catalog_item else ""),
-                    description=suggestion.description or (catalog_item.description if catalog_item else ""),
+                    description=suggestion.description
+                    or (catalog_item.description if catalog_item else ""),
                     target_level=suggestion.target_level,
                     weight=suggestion.weight,
                 )
@@ -720,7 +753,9 @@ class DecideVacancySuggestionUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self, vacancy_id: UUID, decision: VacancySuggestionDecisionDTO) -> VacancyGraphSuggestionDTO:
+    async def execute(
+        self, vacancy_id: UUID, decision: VacancySuggestionDecisionDTO
+    ) -> VacancyGraphSuggestionDTO:
         if decision.status == SuggestionStatus.PENDING:
             raise ValueError("Decision status must be approved or rejected")
         async with self._uow as uow:

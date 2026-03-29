@@ -1,12 +1,12 @@
-from competency_system.application.use_cases.candidate import (
-    AssessCandidateUseCase,
-    GetCandidateProfileUseCase,
-)
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
     IssueTokenPairUseCase,
     LogoutUseCase,
     RefreshTokenPairUseCase,
+)
+from competency_system.application.use_cases.candidate import (
+    AssessCandidateUseCase,
+    GetCandidateProfileUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
 from competency_system.application.use_cases.ranking import RecalculateRankingUseCase

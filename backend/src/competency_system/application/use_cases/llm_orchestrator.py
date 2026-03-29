@@ -4,7 +4,6 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Generic
 
 from pydantic import BaseModel
 from tenacity import (
@@ -20,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class LLMCallSpec(Generic[LLMResponseT]):
+class LLMCallSpec[ResponseT: BaseModel]:
     stage: str
     messages: list[LLMMessage]
-    response_model: type[LLMResponseT]
+    response_model: type[ResponseT]
     temperature: float = 0.2
 
 
@@ -43,7 +42,9 @@ class StructuredLLMOrchestrator:
         self._stage_retry_attempts = max(1, stage_retry_attempts)
         self._semaphore = asyncio.Semaphore(max(1, max_parallel_requests))
 
-    async def run(self, spec: LLMCallSpec[LLMResponseT]) -> LLMResponseT:
+    async def run[ResponseT: BaseModel](
+        self, spec: LLMCallSpec[ResponseT]
+    ) -> ResponseT:
         started = perf_counter()
         try:
             async for attempt in AsyncRetrying(
@@ -63,9 +64,13 @@ class StructuredLLMOrchestrator:
                             timeout=self._stage_timeout_seconds,
                         )
                         return result
+            raise RuntimeError("Retrying loop completed without returning a result")
         finally:
             duration_ms = round((perf_counter() - started) * 1000.0, 2)
-            logger.info("llm_stage_finished", extra={"stage": spec.stage, "duration_ms": duration_ms})
+            logger.info(
+                "llm_stage_finished",
+                extra={"stage": spec.stage, "duration_ms": duration_ms},
+            )
 
     async def run_many(
         self,

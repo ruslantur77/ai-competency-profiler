@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,15 +22,23 @@ from competency_system.presentation.api.exception_handlers import (
     application_exception_handler,
     unexpected_exception_handler,
 )
-from competency_system.presentation.api.middleware import request_observability_middleware
-from competency_system.presentation.api.routes.admin_tasks import router as admin_tasks_router
+from competency_system.presentation.api.middleware import (
+    request_observability_middleware,
+)
+from competency_system.presentation.api.routes.admin_tasks import (
+    router as admin_tasks_router,
+)
 from competency_system.presentation.api.routes.auth import router as auth_router
-from competency_system.presentation.api.routes.candidates import router as candidates_router
+from competency_system.presentation.api.routes.candidates import (
+    router as candidates_router,
+)
 from competency_system.presentation.api.routes.health import router as health_router
 from competency_system.presentation.api.routes.ranking import router as ranking_router
 from competency_system.presentation.api.routes.tasks import router as tasks_router
 from competency_system.presentation.api.routes.tasks import webhook_router
-from competency_system.presentation.api.routes.vacancies import router as vacancies_router
+from competency_system.presentation.api.routes.vacancies import (
+    router as vacancies_router,
+)
 
 API_PREFIX = "/api/v1"
 logger = get_logger(__name__)
@@ -84,7 +93,10 @@ def create_app() -> FastAPI:
     app.include_router(candidates_router, prefix=API_PREFIX)
     app.include_router(ranking_router, prefix=API_PREFIX)
 
-    app.add_exception_handler(ApplicationError, application_exception_handler)
+    app.add_exception_handler(
+        ApplicationError,
+        cast(Any, application_exception_handler),
+    )
     app.add_exception_handler(Exception, unexpected_exception_handler)
     return app
 

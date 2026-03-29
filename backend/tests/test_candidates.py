@@ -13,8 +13,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from competency_system.application.dtos.task import CandidateTaskAssessmentDTO
 from competency_system.application.dtos.auth import CurrentUserDTO
+from competency_system.application.dtos.task import CandidateTaskAssessmentDTO
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
 from competency_system.application.use_cases.candidate import AssessCandidateUseCase
 from competency_system.domain.entities import (
@@ -250,7 +250,9 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
             assert candidate_profile["external_id"] == "candidate-1"
             assert candidate_profile["total_score"] == pytest.approx(80.0)
             assert len(candidate_profile["competency_scores"]) == 1
-            assert candidate_profile["competency_scores"][0]["confidence"] == pytest.approx(0.8)
+            assert candidate_profile["competency_scores"][0][
+                "confidence"
+            ] == pytest.approx(0.8)
             assert payload["test_result"]["llm_assessment"] is not None
 
             profile_response = client.get(f"/candidates/{candidate_id}/profile")

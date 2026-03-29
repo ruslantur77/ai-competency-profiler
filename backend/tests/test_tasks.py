@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,10 +14,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from competency_system.application.dtos.auth import CurrentUserDTO
 from competency_system.application.dtos.task import (
     TaskMappingExtractionResultDTO,
 )
-from competency_system.application.dtos.auth import CurrentUserDTO
 from competency_system.application.ports.external_testing_system import (
     ExternalTaskRecord,
     ExternalTestingSystemGateway,
@@ -26,8 +27,7 @@ from competency_system.application.use_cases.task import (
     MapTaskToCompetenciesUseCase,
 )
 from competency_system.domain.entities import Category, Competency, SubCompetency, Task
-from competency_system.domain.value_objects.enums import UserRole
-from competency_system.domain.value_objects.enums import TaskType
+from competency_system.domain.value_objects.enums import TaskType, UserRole
 from competency_system.infrastructure.persistence.models import Base
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 from competency_system.presentation.api.dependencies import (
@@ -63,7 +63,10 @@ class FakeTestingGateway(ExternalTestingSystemGateway):
         return self._tasks
 
 
-async def _seed_competencies(session_factory, subcompetencies: list[SubCompetency]) -> None:
+async def _seed_competencies(
+    session_factory: async_sessionmaker[AsyncSession],
+    subcompetencies: list[SubCompetency],
+) -> None:
     category = Category(
         name="Backend",
         description="Backend systems",
@@ -83,7 +86,9 @@ async def _seed_competencies(session_factory, subcompetencies: list[SubCompetenc
         await uow.commit()
 
 
-def _make_session_factory(database_path: str) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
+def _make_session_factory(
+    database_path: str,
+) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
     async def _setup() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
         engine = create_async_engine(f"sqlite+aiosqlite:///{database_path}")
         async with engine.begin() as connection:
@@ -145,7 +150,7 @@ async def test_map_task_to_competencies_rejects_invalid_schema() -> None:
         await use_case.execute(task, [sub1], tags=[])
 
 
-def test_task_sync_and_admin_mapping_flow(tmp_path) -> None:
+def test_task_sync_and_admin_mapping_flow(tmp_path: Path) -> None:
     sub1 = SubCompetency(name="Parsing JSON")
     sub2 = SubCompetency(name="SQL access")
     engine, session_factory = _make_session_factory(str(tmp_path / "task_flow_test.db"))

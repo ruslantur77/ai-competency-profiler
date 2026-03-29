@@ -23,7 +23,9 @@ class RecalculateRankingUseCase:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
 
             candidates = await uow.candidates.list()
-            ranking_scores = self._ranking_engine.rank_candidates(vacancy, list(candidates))
+            ranking_scores = self._ranking_engine.rank_candidates(
+                vacancy, list(candidates)
+            )
             return VacancyRankingDTO(
                 vacancy_id=vacancy_id,
                 rankings=[

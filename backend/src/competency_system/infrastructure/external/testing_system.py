@@ -27,7 +27,9 @@ class HTTPTestingSystemGateway(ExternalTestingSystemGateway):
     def _build_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {}
         if self._settings.testing_system_api_token:
-            headers["Authorization"] = f"Bearer {self._settings.testing_system_api_token}"
+            headers["Authorization"] = (
+                f"Bearer {self._settings.testing_system_api_token}"
+            )
         return headers
 
     async def list_tasks(self) -> list[ExternalTaskRecord]:

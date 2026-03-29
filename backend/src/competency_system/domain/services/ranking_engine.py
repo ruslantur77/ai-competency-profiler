@@ -156,7 +156,9 @@ class RankingEngine:
             total_subcompetency_ids=total_subcompetency_ids,
         )
 
-    def _group_budgets(self, *, has_required: bool, has_desired: bool) -> tuple[float, float]:
+    def _group_budgets(
+        self, *, has_required: bool, has_desired: bool
+    ) -> tuple[float, float]:
         if has_required and has_desired:
             return 70.0, 30.0
         if has_required:
@@ -166,7 +168,9 @@ class RankingEngine:
         return 0.0, 0.0
 
     def _group_total_weight(self, competencies: list[Competency]) -> float:
-        return sum(self._competency_total_weight(competency) for competency in competencies)
+        return sum(
+            self._competency_total_weight(competency) for competency in competencies
+        )
 
     def _group_match_ratio(
         self,
@@ -184,7 +188,9 @@ class RankingEngine:
         return matched_weight / total_weight
 
     def _competency_total_weight(self, competency: Competency) -> float:
-        return sum(self._clamp_weight(sub.weight) for sub in competency.sub_competencies)
+        return sum(
+            self._clamp_weight(sub.weight) for sub in competency.sub_competencies
+        )
 
     def _clamp_weight(self, weight: float) -> float:
         return max(0.0, min(weight, 1.0))

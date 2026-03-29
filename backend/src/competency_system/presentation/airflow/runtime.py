@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Callable, Coroutine
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from time import perf_counter
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from competency_system.application.ports.uow import UnitOfWork
 from competency_system.infrastructure.database import create_engine_and_session_factory
 from competency_system.infrastructure.external.testing_system import (
     HTTPTestingSystemGateway,
@@ -31,7 +32,7 @@ class AirflowRuntime:
     llm_gateway_client: OpenAICompatibleLLMGateway
     testing_gateway_client: HTTPTestingSystemGateway
 
-    def uow(self) -> SQLAlchemyUnitOfWork:
+    def uow(self) -> UnitOfWork:
         return SQLAlchemyUnitOfWork(self.session_factory)
 
     def llm_gateway(self) -> OpenAICompatibleLLMGateway:
@@ -64,13 +65,13 @@ async def build_runtime() -> AsyncIterator[AirflowRuntime]:
         await runtime.close()
 
 
-def run_async[T](factory: Callable[[], Awaitable[T]]) -> T:
+def run_async[T](factory: Callable[[], Coroutine[Any, Any, T]]) -> T:
     return asyncio.run(factory())
 
 
 def run_logged_async[T](
     task_name: str,
-    factory: Callable[[AirflowRuntime], Awaitable[T]],
+    factory: Callable[[AirflowRuntime], Coroutine[Any, Any, T]],
 ) -> T:
     logger = get_logger(__name__).bind(component="airflow", task_name=task_name)
     started_at = perf_counter()
