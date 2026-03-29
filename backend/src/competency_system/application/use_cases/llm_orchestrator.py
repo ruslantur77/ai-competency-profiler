@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+from dataclasses import dataclass
+from time import perf_counter
+from typing import Generic
+
+from pydantic import BaseModel
+from tenacity import (
+    AsyncRetrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
+
+from competency_system.application.ports.llm import LLMGateway, LLMMessage, LLMResponseT
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class LLMCallSpec(Generic[LLMResponseT]):
+    stage: str
+    messages: list[LLMMessage]
+    response_model: type[LLMResponseT]
+    temperature: float = 0.2
+
+
+class StructuredLLMOrchestrator:
+    """Utility wrapper for structured, retriable and throttled LLM calls."""
+
+    def __init__(
+        self,
+        llm: LLMGateway,
+        *,
+        max_parallel_requests: int,
+        stage_timeout_seconds: float,
+        stage_retry_attempts: int = 2,
+    ) -> None:
+        self._llm = llm
+        self._stage_timeout_seconds = stage_timeout_seconds
+        self._stage_retry_attempts = max(1, stage_retry_attempts)
+        self._semaphore = asyncio.Semaphore(max(1, max_parallel_requests))
+
+    async def run(self, spec: LLMCallSpec[LLMResponseT]) -> LLMResponseT:
+        started = perf_counter()
+        try:
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(self._stage_retry_attempts),
+                wait=wait_exponential_jitter(initial=0.5, max=4.0),
+                retry=retry_if_exception_type(Exception),
+                reraise=True,
+            ):
+                with attempt:
+                    async with self._semaphore:
+                        result = await asyncio.wait_for(
+                            self._llm.generate(
+                                spec.messages,
+                                spec.response_model,
+                                temperature=spec.temperature,
+                            ),
+                            timeout=self._stage_timeout_seconds,
+                        )
+                        return result
+        finally:
+            duration_ms = round((perf_counter() - started) * 1000.0, 2)
+            logger.info("llm_stage_finished", extra={"stage": spec.stage, "duration_ms": duration_ms})
+
+    async def run_many(
+        self,
+        specs: list[LLMCallSpec[LLMResponseT]],
+    ) -> list[LLMResponseT]:
+        if not specs:
+            return []
+        async with asyncio.TaskGroup() as tg:
+            tasks = [tg.create_task(self.run(spec)) for spec in specs]
+        return [task.result() for task in tasks]
+
+
+def normalize_weighted_items[T: BaseModel](
+    items: list[T],
+    *,
+    weight_attr: str = "weight",
+) -> list[T]:
+    if not items:
+        return items
+    weights = [max(0.0, float(getattr(item, weight_attr, 0.0))) for item in items]
+    total = sum(weights)
+    if total <= 0.0:
+        equal = 1.0 / len(items)
+        for item in items:
+            setattr(item, weight_attr, equal)
+        return items
+    for item, weight in zip(items, weights, strict=False):
+        setattr(item, weight_attr, weight / total)
+    return items
