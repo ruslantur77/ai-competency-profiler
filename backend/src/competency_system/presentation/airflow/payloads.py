@@ -12,7 +12,7 @@ class VacancyExtractionPayloadDTO(VacancyCreateDTO):
 
 
 class CandidateAssessmentTriggerDTO(CandidateTaskAssessmentDTO):
-    vacancy_id: UUID | None = None
+    pass
 
 
 class RankingRecalculationTriggerDTO(BaseDTO):

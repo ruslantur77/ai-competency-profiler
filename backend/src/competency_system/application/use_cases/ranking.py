@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from uuid import UUID
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
 
 from competency_system.application.dtos.ranking import (
     RankingBreakdownItemDTO,
@@ -8,6 +9,7 @@ from competency_system.application.dtos.ranking import (
     VacancyRankingDTO,
 )
 from competency_system.application.ports.uow import UnitOfWork
+from competency_system.domain.entities import RankingSnapshot
 from competency_system.domain.services.ranking_engine import RankingEngine
 
 
@@ -22,11 +24,11 @@ class RecalculateRankingUseCase:
             if vacancy is None:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
 
-            candidates = await uow.candidates.list()
+            candidates = await uow.candidates.list_by_vacancy(vacancy_id)
             ranking_scores = self._ranking_engine.rank_candidates(
                 vacancy, list(candidates)
             )
-            return VacancyRankingDTO(
+            dto = VacancyRankingDTO(
                 vacancy_id=vacancy_id,
                 rankings=[
                     RankingItemDTO(
@@ -59,3 +61,36 @@ class RecalculateRankingUseCase:
                     for item in ranking_scores
                 ],
             )
+            snapshot = await uow.ranking_snapshots.get_by_vacancy(vacancy_id)
+            now = datetime.now(UTC)
+            if snapshot is None:
+                snapshot = RankingSnapshot(
+                    id=uuid4(),
+                    vacancy_id=vacancy_id,
+                    payload=dto.model_dump(mode="json"),
+                    calculated_at=now,
+                    created_at=now,
+                    updated_at=now,
+                )
+            else:
+                snapshot.payload = dto.model_dump(mode="json")
+                snapshot.calculated_at = now
+            await uow.ranking_snapshots.add(snapshot)
+            await uow.commit()
+            return dto
+
+
+class GetVacancyRankingUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+        self._recalculate = RecalculateRankingUseCase(uow)
+
+    async def execute(self, vacancy_id: UUID) -> VacancyRankingDTO:
+        async with self._uow as uow:
+            vacancy = await uow.vacancies.get(vacancy_id)
+            if vacancy is None:
+                raise ValueError(f"Vacancy {vacancy_id} not found")
+            snapshot = await uow.ranking_snapshots.get_by_vacancy(vacancy_id)
+            if snapshot is not None:
+                return VacancyRankingDTO.model_validate(snapshot.payload)
+        return await self._recalculate.execute(vacancy_id)

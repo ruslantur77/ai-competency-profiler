@@ -5,6 +5,7 @@ from competency_system.domain.entities.competency import (
     Competency,
     SubCompetency,
 )
+from competency_system.domain.entities.ingestion import RankingSnapshot, WebhookEvent
 from competency_system.domain.entities.suggestion import VacancyGraphSuggestion
 from competency_system.domain.entities.task import (
     Task,
@@ -26,6 +27,8 @@ __all__ = [
     "TaskCompetencyMapping",
     "TestResult",
     "VacancyGraphSuggestion",
+    "WebhookEvent",
+    "RankingSnapshot",
     "User",
     "RefreshToken",
 ]

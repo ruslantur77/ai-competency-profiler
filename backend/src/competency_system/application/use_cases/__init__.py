@@ -1,15 +1,22 @@
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
+    CreateUserUseCase,
     IssueTokenPairUseCase,
+    ListUsersUseCase,
     LogoutUseCase,
     RefreshTokenPairUseCase,
+    UpdateUserRoleUseCase,
+    UpdateUserStatusUseCase,
 )
 from competency_system.application.use_cases.candidate import (
     AssessCandidateUseCase,
     GetCandidateProfileUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
-from competency_system.application.use_cases.ranking import RecalculateRankingUseCase
+from competency_system.application.use_cases.ranking import (
+    GetVacancyRankingUseCase,
+    RecalculateRankingUseCase,
+)
 from competency_system.application.use_cases.task import (
     GetTaskUseCase,
     ListTasksUseCase,
@@ -23,7 +30,10 @@ from competency_system.application.use_cases.vacancy import (
     ExtractVacancyGraphUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
+    ListVacanciesForReviewUseCase,
+    ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    UpdateVacancyStatusUseCase,
 )
 
 __all__ = [
@@ -31,6 +41,9 @@ __all__ = [
     "FinalizeVacancyGraphUseCase",
     "GetVacancyGraphUseCase",
     "ListVacancySuggestionsUseCase",
+    "ListVacanciesUseCase",
+    "ListVacanciesForReviewUseCase",
+    "UpdateVacancyStatusUseCase",
     "DecideVacancySuggestionUseCase",
     "MapTaskToCompetenciesUseCase",
     "SyncTasksUseCase",
@@ -41,9 +54,14 @@ __all__ = [
     "AssessCandidateUseCase",
     "GetCandidateProfileUseCase",
     "AuthenticateUserUseCase",
+    "ListUsersUseCase",
+    "CreateUserUseCase",
+    "UpdateUserRoleUseCase",
+    "UpdateUserStatusUseCase",
     "IssueTokenPairUseCase",
     "RefreshTokenPairUseCase",
     "LogoutUseCase",
     "HealthCheckUseCase",
     "RecalculateRankingUseCase",
+    "GetVacancyRankingUseCase",
 ]

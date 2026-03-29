@@ -21,6 +21,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        populate_by_name=True,
     )
 
     app_name: str = "competency-system"
@@ -72,11 +73,11 @@ class Settings(BaseSettings):
     DB_PORT: int = 5432
     DB_NAME: str = "app"
     DB_USER: str = "app"
-    DB_PASS: str = "app"
+    DB_PASS: str = "app"  # noqa: S105
 
     @field_validator("log_level", mode="before")
     @classmethod
-    def _normalize_log_level(cls, value: str | LogLevels) -> str | LogLevels:
+    def _normalize_log_level(cls, value: object) -> object:
         if isinstance(value, str):
             return value.upper()
         return value

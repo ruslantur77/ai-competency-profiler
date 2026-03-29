@@ -44,7 +44,7 @@ def candidate_assessment_dag() -> None:
             ).execute(payload),
         )
         return {
-            "vacancy_id": str(payload.vacancy_id) if payload.vacancy_id else None,
+            "vacancy_id": str(payload.vacancy_id),
         }
 
     @task(task_id="recalculate_ranking")

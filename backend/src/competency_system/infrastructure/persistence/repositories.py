@@ -14,6 +14,7 @@ from competency_system.domain.entities import (
     Candidate,
     Category,
     Competency,
+    RankingSnapshot,
     RefreshToken,
     SubCompetency,
     Task,
@@ -21,6 +22,7 @@ from competency_system.domain.entities import (
     User,
     Vacancy,
     VacancyGraphSuggestion,
+    WebhookEvent,
 )
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.infrastructure.persistence.mappers import (
@@ -30,6 +32,8 @@ from competency_system.infrastructure.persistence.mappers import (
     category_to_orm,
     competency_from_orm,
     competency_to_orm,
+    ranking_snapshot_from_orm,
+    ranking_snapshot_to_orm,
     refresh_token_from_orm,
     refresh_token_to_orm,
     subcompetency_from_orm,
@@ -44,11 +48,15 @@ from competency_system.infrastructure.persistence.mappers import (
     vacancy_suggestion_from_orm,
     vacancy_suggestion_to_orm,
     vacancy_to_orm,
+    webhook_event_from_orm,
+    webhook_event_to_orm,
 )
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
+    CandidateVacancyLinkOrm,
     CategoryOrm,
     CompetencyOrm,
+    RankingSnapshotOrm,
     RefreshTokenOrm,
     SubCompetencyOrm,
     TaskOrm,
@@ -59,6 +67,7 @@ from competency_system.infrastructure.persistence.models import (
     VacancyOrm,
     VacancySubCompetencyNodeOrm,
     VacancySuggestionOrm,
+    WebhookEventOrm,
 )
 
 type CategoryGraph = tuple[list[Category], list[Competency]]
@@ -169,7 +178,21 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
         return vacancy
 
     async def list(self) -> Sequence[Vacancy]:
-        statement = select(self.model)
+        statement = select(self.model).order_by(VacancyOrm.created_at.desc())
+        result = await self._session.scalars(statement)
+        vacancies = [self.to_domain(model) for model in result.all()]
+        for vacancy in vacancies:
+            normalized = await self._load_normalized_graph(vacancy.id)
+            if normalized is not None:
+                vacancy.categories, vacancy.competencies = normalized
+        return vacancies
+
+    async def list_by_statuses(
+        self, statuses: set[str] | None = None
+    ) -> Sequence[Vacancy]:
+        statement = select(self.model).order_by(VacancyOrm.created_at.desc())
+        if statuses:
+            statement = statement.where(VacancyOrm.status.in_(statuses))
         result = await self._session.scalars(statement)
         vacancies = [self.to_domain(model) for model in result.all()]
         for vacancy in vacancies:
@@ -341,6 +364,32 @@ class CandidateRepository(
             return None
         return self.to_domain(model)
 
+    async def list_by_vacancy(self, vacancy_id: UUID) -> Sequence[Candidate]:
+        statement = (
+            select(CandidateOrm)
+            .join(
+                CandidateVacancyLinkOrm,
+                CandidateVacancyLinkOrm.candidate_id == CandidateOrm.id,
+            )
+            .where(CandidateVacancyLinkOrm.vacancy_id == vacancy_id)
+            .order_by(CandidateOrm.created_at.asc())
+        )
+        result = await self._session.scalars(statement)
+        return [self.to_domain(model) for model in result.all()]
+
+    async def attach_to_vacancy(self, candidate_id: UUID, vacancy_id: UUID) -> None:
+        statement = select(CandidateVacancyLinkOrm).where(
+            CandidateVacancyLinkOrm.candidate_id == candidate_id,
+            CandidateVacancyLinkOrm.vacancy_id == vacancy_id,
+        )
+        existing = await self._session.scalar(statement)
+        if existing is not None:
+            return
+        self._session.add(
+            CandidateVacancyLinkOrm(candidate_id=candidate_id, vacancy_id=vacancy_id)
+        )
+        await self._session.flush()
+
     def to_domain(self, model: CandidateOrm) -> Candidate:
         return candidate_from_orm(model)
 
@@ -462,3 +511,41 @@ class RefreshTokenRepository(SQLAlchemyRepository[RefreshToken, RefreshTokenOrm]
 
     def to_model(self, entity: RefreshToken) -> RefreshTokenOrm:
         return refresh_token_to_orm(entity)
+
+
+class WebhookEventRepository(SQLAlchemyRepository[WebhookEvent, WebhookEventOrm]):
+    model = WebhookEventOrm
+
+    async def get_by_event_id(self, event_id: str) -> WebhookEvent | None:
+        statement = select(WebhookEventOrm).where(WebhookEventOrm.event_id == event_id)
+        model = await self._session.scalar(statement)
+        if model is None:
+            return None
+        return self.to_domain(model)
+
+    def to_domain(self, model: WebhookEventOrm) -> WebhookEvent:
+        return webhook_event_from_orm(model)
+
+    def to_model(self, entity: WebhookEvent) -> WebhookEventOrm:
+        return webhook_event_to_orm(entity)
+
+
+class RankingSnapshotRepository(
+    SQLAlchemyRepository[RankingSnapshot, RankingSnapshotOrm]
+):
+    model = RankingSnapshotOrm
+
+    async def get_by_vacancy(self, vacancy_id: UUID) -> RankingSnapshot | None:
+        statement = select(RankingSnapshotOrm).where(
+            RankingSnapshotOrm.vacancy_id == vacancy_id
+        )
+        model = await self._session.scalar(statement)
+        if model is None:
+            return None
+        return self.to_domain(model)
+
+    def to_domain(self, model: RankingSnapshotOrm) -> RankingSnapshot:
+        return ranking_snapshot_from_orm(model)
+
+    def to_model(self, entity: RankingSnapshot) -> RankingSnapshotOrm:
+        return ranking_snapshot_to_orm(entity)

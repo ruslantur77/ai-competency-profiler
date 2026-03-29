@@ -304,6 +304,10 @@ class TaskOrm(Base):
     description: Mapped[str] = mapped_column(String(5000), default="")
     type: Mapped[str] = mapped_column(String(50), default="code")
     mapping_validated: Mapped[bool] = mapped_column(default=False)
+    mapping_status: Mapped[str] = mapped_column(String(50), default="pending")
+    mapping_error_message: Mapped[str | None] = mapped_column(
+        String(1000), nullable=True
+    )
 
     # JSON for flexibility
     competency_mappings: Mapped[str] = mapped_column(String(5000), default="[]")
@@ -328,10 +332,76 @@ class TestResultOrm(Base):
     score: Mapped[float] = mapped_column(default=0.0)
     attempts: Mapped[int] = mapped_column(default=1)
     code_submitted: Mapped[str | None] = mapped_column(String(50000), nullable=True)
+    question_answers: Mapped[str] = mapped_column(String(10000), default="[]")
     llm_assessment: Mapped[str | None] = mapped_column(
         String(5000), nullable=True
     )  # JSON
 
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class CandidateVacancyLinkOrm(Base):
+    __tablename__ = "candidate_vacancy_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "candidate_id", "vacancy_id", name="uq_candidate_vacancy_candidate_id"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    candidate_id: Mapped[UUID] = mapped_column(
+        ForeignKey("candidates.id", ondelete="CASCADE")
+    )
+    vacancy_id: Mapped[UUID] = mapped_column(
+        ForeignKey("vacancies.id", ondelete="CASCADE")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class WebhookEventOrm(Base):
+    __tablename__ = "webhook_events"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    event_id: Mapped[str] = mapped_column(String(200), unique=True)
+    vacancy_id: Mapped[UUID] = mapped_column(
+        ForeignKey("vacancies.id", ondelete="CASCADE")
+    )
+    candidate_external_id: Mapped[str] = mapped_column(String(100))
+    task_external_id: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(50), default="processing")
+    error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    candidate_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("candidates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    test_result_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("test_results.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    payload: Mapped[str] = mapped_column(String(10000), default="{}")
+    processed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class RankingSnapshotOrm(Base):
+    __tablename__ = "ranking_snapshots"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    vacancy_id: Mapped[UUID] = mapped_column(
+        ForeignKey("vacancies.id", ondelete="CASCADE"), unique=True
+    )
+    payload: Mapped[str] = mapped_column(String(100000), default="{}")
+    calculated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

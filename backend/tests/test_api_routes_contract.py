@@ -59,9 +59,11 @@ from competency_system.presentation.api.dependencies import (
     get_get_candidate_profile_use_case,
     get_get_task_use_case,
     get_get_vacancy_graph_use_case,
+    get_get_vacancy_ranking_use_case,
     get_issue_token_pair_use_case,
     get_list_tasks_use_case,
     get_list_vacancy_suggestions_use_case,
+    get_logout_use_case,
     get_rebuild_task_mapping_use_case,
     get_recalculate_ranking_use_case,
     get_refresh_token_data,
@@ -69,7 +71,6 @@ from competency_system.presentation.api.dependencies import (
     get_refresh_token_pair_use_case,
     get_sync_tasks_use_case,
     get_validate_task_mapping_use_case,
-    get_logout_use_case,
     verify_testing_system_webhook_secret,
 )
 from competency_system.presentation.api.main import app
@@ -150,6 +151,8 @@ def _sample_task() -> TaskDTO:
             TaskCompetencyMappingDTO(sub_competency_id=uuid4(), weight=1.0)
         ],
         mapping_validated=False,
+        mapping_status="completed",
+        mapping_error_message=None,
         created_at=now,
         updated_at=now,
     )
@@ -183,6 +186,7 @@ def _sample_candidate_result() -> CandidateAssessmentResultDTO:
             score=85.0,
             attempts=1,
             code_submitted="print('ok')",
+            question_answers=[],
             llm_assessment={"score": 85},
             created_at=now,
         ),
@@ -306,7 +310,9 @@ def test_vacancy_routes_contract() -> None:
             suggestion_decisions=[],
             error_message=None,
         ).model_dump(mode="json")
-        finalized = client.patch(f"/api/v1/vacancies/{vacancy.id}/graph", json=patch_payload)
+        finalized = client.patch(
+            f"/api/v1/vacancies/{vacancy.id}/graph", json=patch_payload
+        )
         assert finalized.status_code == 200
 
         suggestions = client.get(f"/api/v1/vacancies/{vacancy.id}/suggestions")
@@ -370,10 +376,13 @@ def test_tasks_admin_and_webhook_routes_contract() -> None:
         webhook = client.post(
             "/api/v1/webhook/task-completed",
             json={
+                "event_id": str(uuid4()),
+                "vacancy_id": str(uuid4()),
                 "candidate_external_id": "candidate-1",
                 "task_external_id": "task-1",
                 "type": "code",
                 "code": "print('ok')",
+                "question_answers": [],
                 "passed": 1,
                 "total": 1,
                 "attempts": 1,
@@ -397,9 +406,14 @@ def test_candidates_and_ranking_routes_contract() -> None:
     app.dependency_overrides[get_recalculate_ranking_use_case] = (
         lambda: _StaticUseCase(ranking)
     )
+    app.dependency_overrides[get_get_vacancy_ranking_use_case] = (
+        lambda: _StaticUseCase(ranking)
+    )
 
     with TestClient(app) as client:
-        profile_response = client.get(f"/api/v1/candidates/{profile.candidate_id}/profile")
+        profile_response = client.get(
+            f"/api/v1/candidates/{profile.candidate_id}/profile"
+        )
         assert profile_response.status_code == 200
 
         rankings = client.get(f"/api/v1/vacancies/{vacancy_id}/rankings")

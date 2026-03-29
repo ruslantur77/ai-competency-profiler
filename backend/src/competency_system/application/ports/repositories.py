@@ -9,6 +9,7 @@ from competency_system.domain.entities import (
     Candidate,
     Category,
     Competency,
+    RankingSnapshot,
     RefreshToken,
     SubCompetency,
     Task,
@@ -16,6 +17,7 @@ from competency_system.domain.entities import (
     User,
     Vacancy,
     VacancyGraphSuggestion,
+    WebhookEvent,
 )
 
 EntityT = TypeVar("EntityT")
@@ -44,11 +46,17 @@ class SubCompetencyRepository(Repository[SubCompetency], Protocol):
 
 
 class VacancyRepository(Repository[Vacancy], Protocol):
-    pass
+    async def list_by_statuses(
+        self, statuses: set[str] | None = None
+    ) -> Sequence[Vacancy]: ...
 
 
 class CandidateRepository(Repository[Candidate], Protocol):
     async def get_by_external_id(self, external_id: str) -> Candidate | None: ...
+
+    async def list_by_vacancy(self, vacancy_id: UUID) -> Sequence[Candidate]: ...
+
+    async def attach_to_vacancy(self, candidate_id: UUID, vacancy_id: UUID) -> None: ...
 
 
 class TaskRepository(Repository[Task], Protocol):
@@ -67,6 +75,14 @@ class VacancySuggestionRepository(Repository[VacancyGraphSuggestion], Protocol):
 
 class UserRepository(Repository[User], Protocol):
     async def get_by_email(self, email: str) -> User | None: ...
+
+
+class WebhookEventRepository(Repository[WebhookEvent], Protocol):
+    async def get_by_event_id(self, event_id: str) -> WebhookEvent | None: ...
+
+
+class RankingSnapshotRepository(Repository[RankingSnapshot], Protocol):
+    async def get_by_vacancy(self, vacancy_id: UUID) -> RankingSnapshot | None: ...
 
 
 class RefreshTokenRepository(Repository[RefreshToken], Protocol):

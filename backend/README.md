@@ -145,19 +145,27 @@ Entry points:
 - `POST /api/v1/auth/logout` - Revoke refresh token and clear cookie
 
 ### Vacancies
+- `GET /api/v1/vacancies` - List vacancies, supports `status_filter=draft,ready,...`
+- `GET /api/v1/vacancies/review-queue` - Expert queue (draft/extracting/failed)
 - `POST /api/v1/vacancies` - Create vacancy and start extraction
 - `GET /api/v1/vacancies/{id}` - Get vacancy details
 - `GET /api/v1/vacancies/{id}/graph` - Get competency graph
 - `PATCH /api/v1/vacancies/{id}/graph` - Update graph (expert validation)
-- `GET /api/v1/vacancies/{id}/status` - Check extraction status
-- `DELETE /api/v1/vacancies/{id}` - Delete vacancy
+- `PATCH /api/v1/vacancies/{id}/status` - Update vacancy status (`draft/extracting/ready/failed`)
 
 ### Candidates
-- `GET /api/v1/vacancies/{id}/candidates` - Get ranked candidates
-- `GET /api/v1/candidates/{id}` - Get candidate profile
+- `GET /api/v1/vacancies/{id}/rankings` - Get cached vacancy rankings
+- `GET /api/v1/vacancies/{id}/ranking` - Force ranking recalculation (legacy path)
+- `GET /api/v1/vacancies/{id}/candidates` - Legacy alias for recalculation path
 - `GET /api/v1/candidates/{id}/profile` - Get detailed competency profile
 
-Ranking model (MVP): weighted coverage with required/desired split and explainable per-competency breakdown.
+Ranking model (MVP): vector similarity (cosine-based) with required/desired budgets and explainable per-competency breakdown.
+
+### Admin Users
+- `GET /api/v1/admin/users` - List users
+- `POST /api/v1/admin/users` - Create user with role
+- `PATCH /api/v1/admin/users/{id}/role` - Change user role
+- `PATCH /api/v1/admin/users/{id}/status` - Enable/disable user
 
 ### Tasks
 - `POST /api/v1/webhook/task-completed` - Webhook from testing system, protected by `X-Webhook-Secret`
@@ -173,14 +181,15 @@ Content-Type: application/json
 X-Webhook-Secret: {shared-secret}
 
 {
+  "event_id": "string (idempotency key)",
+  "vacancy_id": "uuid",
   "candidate_external_id": "string",
   "task_external_id": "string",
   "type": "CODE|TEST",
   "code": "string (optional, for CODE type)",
-  "test_results": {
-    "passed": 5,
-    "total": 10
-  },
+  "question_answers": [{"question": "string", "answer": "string"}],
+  "passed": 5,
+  "total": 10,
   "attempts": 3,
   "duration_seconds": 600
 }

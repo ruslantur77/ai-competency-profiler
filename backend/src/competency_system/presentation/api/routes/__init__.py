@@ -1,6 +1,9 @@
 from competency_system.presentation.api.routes.admin_tasks import (
     router as admin_tasks_router,
 )
+from competency_system.presentation.api.routes.admin_users import (
+    router as admin_users_router,
+)
 from competency_system.presentation.api.routes.auth import router as auth_router
 from competency_system.presentation.api.routes.candidates import (
     router as candidates_router,
@@ -19,6 +22,7 @@ __all__ = [
     "vacancies_router",
     "tasks_router",
     "admin_tasks_router",
+    "admin_users_router",
     "webhook_router",
     "candidates_router",
     "ranking_router",

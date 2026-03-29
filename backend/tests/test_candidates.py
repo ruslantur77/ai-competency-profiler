@@ -162,10 +162,13 @@ async def test_assess_candidate_rejects_invalid_llm_schema(tmp_path: Path) -> No
         with pytest.raises(ValidationError):
             await use_case.execute(
                 CandidateTaskAssessmentDTO(
+                    event_id=str(uuid4()),
+                    vacancy_id=uuid4(),
                     candidate_external_id="candidate-1",
                     task_external_id="task-1",
                     type=TaskType.CODE,
                     code="print('hello')",
+                    question_answers=[],
                     passed=3,
                     total=5,
                     attempts=1,
@@ -233,10 +236,13 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
             webhook_response = client.post(
                 "/api/v1/webhook/task-completed",
                 json={
+                    "event_id": str(uuid4()),
+                    "vacancy_id": str(uuid4()),
                     "candidate_external_id": "candidate-1",
                     "task_external_id": "task-1",
                     "type": "code",
                     "code": "print('hello')",
+                    "question_answers": [],
                     "passed": 3,
                     "total": 5,
                     "attempts": 1,

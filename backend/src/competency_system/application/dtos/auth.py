@@ -42,3 +42,26 @@ class GeneratedTokenDTO(BaseModel):
 class CurrentUserDTO(BaseModel):
     user_id: UUID
     role: UserRole
+
+
+class UserAdminDTO(BaseModel):
+    id: UUID
+    email: str
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class UserCreateDTO(BaseModel):
+    email: str
+    password: str
+    role: UserRole = UserRole.HR
+
+
+class UserRoleUpdateDTO(BaseModel):
+    role: UserRole
+
+
+class UserStatusUpdateDTO(BaseModel):
+    is_active: bool

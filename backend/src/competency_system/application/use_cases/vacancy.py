@@ -18,6 +18,8 @@ from competency_system.application.dtos.vacancy import (
     VacancyDTO,
     VacancyGraphSuggestionDTO,
     VacancyGraphUpdateDTO,
+    VacancyListItemDTO,
+    VacancyStatusUpdateDTO,
     VacancySubCompetencyExtractionResultDTO,
     VacancySubCompetencySuggestionDTO,
     VacancySuggestionDecisionDTO,
@@ -128,6 +130,15 @@ def _suggestion_to_dto(suggestion: VacancyGraphSuggestion) -> VacancyGraphSugges
         is_required=suggestion.is_required,
         target_level=suggestion.target_level,
         weight=suggestion.weight,
+    )
+
+
+def _vacancy_to_list_item(vacancy: Vacancy) -> VacancyListItemDTO:
+    return VacancyListItemDTO(
+        id=vacancy.id,
+        name=vacancy.name,
+        status=vacancy.status,
+        created_at=vacancy.created_at,
     )
 
 
@@ -766,3 +777,67 @@ class DecideVacancySuggestionUseCase:
             await uow.vacancy_suggestions.add(suggestion)
             await uow.commit()
             return _suggestion_to_dto(suggestion)
+
+
+class ListVacanciesUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self,
+        *,
+        statuses: set[VacancyStatus] | None = None,
+    ) -> list[VacancyListItemDTO]:
+        async with self._uow as uow:
+            rows = await uow.vacancies.list_by_statuses(
+                {status.value for status in statuses} if statuses else None
+            )
+            return [_vacancy_to_list_item(vacancy) for vacancy in rows]
+
+
+class UpdateVacancyStatusUseCase:
+    _ALLOWED_TRANSITIONS: dict[VacancyStatus, set[VacancyStatus]] = {
+        VacancyStatus.DRAFT: {VacancyStatus.EXTRACTING, VacancyStatus.READY},
+        VacancyStatus.EXTRACTING: {VacancyStatus.DRAFT, VacancyStatus.FAILED},
+        VacancyStatus.READY: {VacancyStatus.DRAFT},
+        VacancyStatus.FAILED: {VacancyStatus.DRAFT, VacancyStatus.EXTRACTING},
+    }
+
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self,
+        vacancy_id: UUID,
+        command: VacancyStatusUpdateDTO,
+    ) -> VacancyDTO:
+        async with self._uow as uow:
+            vacancy = await uow.vacancies.get(vacancy_id)
+            if vacancy is None:
+                raise ValueError(f"Vacancy {vacancy_id} not found")
+            allowed = self._ALLOWED_TRANSITIONS.get(vacancy.status, set())
+            if command.status != vacancy.status and command.status not in allowed:
+                raise ValueError(
+                    "Invalid status transition: "
+                    f"{vacancy.status.value} -> {command.status.value}"
+                )
+            vacancy.status = command.status
+            if command.status != VacancyStatus.FAILED:
+                vacancy.error_message = None
+            await uow.vacancies.add(vacancy)
+            await uow.commit()
+            return _vacancy_to_dto(vacancy)
+
+
+class ListVacanciesForReviewUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self) -> list[VacancyListItemDTO]:
+        return await ListVacanciesUseCase(self._uow).execute(
+            statuses={
+                VacancyStatus.DRAFT,
+                VacancyStatus.EXTRACTING,
+                VacancyStatus.FAILED,
+            }
+        )

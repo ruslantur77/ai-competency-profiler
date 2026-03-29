@@ -44,6 +44,10 @@ class VacancyListItemDTO(BaseDTO):
     created_at: datetime
 
 
+class VacancyStatusUpdateDTO(BaseDTO):
+    status: VacancyStatus
+
+
 class VacancyCreateDTO(BaseDTO):
     name: str
     description: str

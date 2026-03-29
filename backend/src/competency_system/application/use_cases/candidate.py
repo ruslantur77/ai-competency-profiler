@@ -24,6 +24,7 @@ from competency_system.domain.entities import (
     CompetencyScore,
     Task,
     TestResult,
+    WebhookEvent,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.enums import AssessmentStatus, TaskType
@@ -67,6 +68,68 @@ class AssessCandidateUseCase:
         self,
         command: CandidateTaskAssessmentDTO,
     ) -> CandidateAssessmentResultDTO:
+        try:
+            await self._ensure_processing_event(command)
+        except _DuplicateWebhookEvent as duplicate:
+            return duplicate.result
+        try:
+            result = await self._process_assessment(command)
+            await self._mark_event_processed(
+                command,
+                candidate_id=result.candidate_profile.candidate_id,
+                test_result_id=result.test_result.id,
+            )
+            return result
+        except Exception as exc:
+            await self._mark_event_failed(command, str(exc))
+            raise
+
+    async def _ensure_processing_event(
+        self, command: CandidateTaskAssessmentDTO
+    ) -> None:
+        async with self._uow as uow:
+            existing = await uow.webhook_events.get_by_event_id(command.event_id)
+            if existing is not None:
+                if (
+                    existing.status == "processed"
+                    and existing.candidate_id is not None
+                    and existing.test_result_id is not None
+                ):
+                    candidate = await uow.candidates.get(existing.candidate_id)
+                    test_result = await uow.test_results.get(existing.test_result_id)
+                    if candidate is None or test_result is None:
+                        raise ValueError(
+                            "Stored webhook event references missing result"
+                        )
+                    competencies = await uow.competencies.list()
+                    scores = self._scorer.calculate_scores(
+                        candidate, list(competencies)
+                    )
+                    raise _DuplicateWebhookEvent(
+                        CandidateAssessmentResultDTO(
+                            candidate_profile=_build_profile(candidate, scores),
+                            test_result=self._to_test_result_dto(test_result),
+                        )
+                    )
+                if existing.status == "processing":
+                    raise ValueError(f"Webhook event {command.event_id} is processing")
+                raise ValueError(f"Webhook event {command.event_id} already handled")
+
+            event = WebhookEvent(
+                id=uuid4(),
+                event_id=command.event_id,
+                vacancy_id=command.vacancy_id,
+                candidate_external_id=command.candidate_external_id,
+                task_external_id=command.task_external_id,
+                status="processing",
+                payload=command.model_dump(mode="json"),
+            )
+            await uow.webhook_events.add(event)
+            await uow.commit()
+
+    async def _process_assessment(
+        self, command: CandidateTaskAssessmentDTO
+    ) -> CandidateAssessmentResultDTO:
         async with self._uow as uow:
             candidate = await uow.candidates.get_by_external_id(
                 command.candidate_external_id
@@ -92,6 +155,7 @@ class AssessCandidateUseCase:
             candidate.assessment_status = AssessmentStatus.COMPLETED
             candidate.last_assessment_at = datetime.now(UTC)
             await uow.candidates.add(candidate)
+            await uow.candidates.attach_to_vacancy(candidate.id, command.vacancy_id)
 
             competencies = await uow.competencies.list()
             scores = self._scorer.calculate_scores(candidate, list(competencies))
@@ -101,6 +165,40 @@ class AssessCandidateUseCase:
                 candidate_profile=_build_profile(candidate, scores),
                 test_result=self._to_test_result_dto(test_result),
             )
+
+    async def _mark_event_processed(
+        self,
+        command: CandidateTaskAssessmentDTO,
+        *,
+        candidate_id: UUID,
+        test_result_id: UUID,
+    ) -> None:
+        async with self._uow as uow:
+            event = await uow.webhook_events.get_by_event_id(command.event_id)
+            if event is None:
+                return
+            event.status = "processed"
+            event.error_message = None
+            event.candidate_id = candidate_id
+            event.test_result_id = test_result_id
+            event.processed_at = datetime.now(UTC)
+            await uow.webhook_events.add(event)
+            await uow.commit()
+
+    async def _mark_event_failed(
+        self,
+        command: CandidateTaskAssessmentDTO,
+        message: str,
+    ) -> None:
+        async with self._uow as uow:
+            event = await uow.webhook_events.get_by_event_id(command.event_id)
+            if event is None:
+                return
+            event.status = "failed"
+            event.error_message = message
+            event.processed_at = datetime.now(UTC)
+            await uow.webhook_events.add(event)
+            await uow.commit()
 
     async def _assess_task(
         self,
@@ -170,6 +268,7 @@ class AssessCandidateUseCase:
             score=score,
             attempts=command.attempts,
             code_submitted=command.code,
+            question_answers=list(command.question_answers),
             llm_assessment=llm_assessment,
         )
 
@@ -191,9 +290,16 @@ class AssessCandidateUseCase:
             score=result.score,
             attempts=result.attempts,
             code_submitted=result.code_submitted,
+            question_answers=list(result.question_answers),
             llm_assessment=result.llm_assessment,
             created_at=result.created_at,
         )
+
+
+class _DuplicateWebhookEvent(Exception):
+    def __init__(self, result: CandidateAssessmentResultDTO) -> None:
+        super().__init__("Duplicate webhook event")
+        self.result = result
 
 
 class GetCandidateProfileUseCase:

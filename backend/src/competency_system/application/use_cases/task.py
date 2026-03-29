@@ -38,6 +38,8 @@ def _task_to_dto(task: Task) -> TaskDTO:
             for mapping in task.competency_mappings
         ],
         mapping_validated=task.mapping_validated,
+        mapping_status=task.mapping_status,
+        mapping_error_message=task.mapping_error_message,
         created_at=task.created_at,
         updated_at=task.updated_at,
     )
@@ -181,11 +183,18 @@ class SyncTasksUseCase:
                     task.description = record.description
                     task.type = record.type
 
-                task.competency_mappings = await self._build_mappings(
-                    task,
-                    subcompetencies,
-                    tags=record.tags,
-                )
+                try:
+                    task.competency_mappings = await self._build_mappings(
+                        task,
+                        subcompetencies,
+                        tags=record.tags,
+                    )
+                    task.mapping_status = "completed"
+                    task.mapping_error_message = None
+                except Exception as exc:
+                    task.competency_mappings = []
+                    task.mapping_status = "failed"
+                    task.mapping_error_message = str(exc)
                 task.mapping_validated = False
                 await uow.tasks.add(task)
                 synced.append(_task_to_dto(task))
@@ -200,10 +209,7 @@ class SyncTasksUseCase:
         *,
         tags: list[str],
     ) -> list[TaskCompetencyMapping]:
-        try:
-            return await self._mapper.execute(task, list(subcompetencies), tags=tags)
-        except Exception:
-            return []
+        return await self._mapper.execute(task, list(subcompetencies), tags=tags)
 
 
 class RebuildTaskMappingUseCase:
@@ -222,6 +228,8 @@ class RebuildTaskMappingUseCase:
                 list(subcompetencies),
                 tags=[],
             )
+            task.mapping_status = "completed"
+            task.mapping_error_message = None
             task.mapping_validated = False
             await uow.tasks.add(task)
             await uow.commit()

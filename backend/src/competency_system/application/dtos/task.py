@@ -32,6 +32,8 @@ class TaskDTO(BaseDTO):
     type: TaskType
     competency_mappings: list[TaskCompetencyMappingDTO]
     mapping_validated: bool
+    mapping_status: str = "pending"
+    mapping_error_message: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -60,10 +62,13 @@ class TaskSyncCommandDTO(BaseDTO):
 
 
 class CandidateTaskAssessmentDTO(BaseDTO):
+    event_id: str
+    vacancy_id: UUID
     candidate_external_id: str
     task_external_id: str
     type: TaskType
     code: str | None = None
+    question_answers: list[dict[str, str]] = Field(default_factory=list)
     passed: int = 0
     total: int = 0
     attempts: int = 1
@@ -95,5 +100,6 @@ class TestResultDTO(BaseDTO):
     score: float
     attempts: int
     code_submitted: str | None
+    question_answers: list[dict[str, str]]
     llm_assessment: dict[str, object] | None
     created_at: datetime

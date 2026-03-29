@@ -23,16 +23,23 @@ from competency_system.application.ports.llm import LLMGateway
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
+    CreateUserUseCase,
     IssueTokenPairUseCase,
+    ListUsersUseCase,
     LogoutUseCase,
     RefreshTokenPairUseCase,
+    UpdateUserRoleUseCase,
+    UpdateUserStatusUseCase,
 )
 from competency_system.application.use_cases.candidate import (
     AssessCandidateUseCase,
     GetCandidateProfileUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
-from competency_system.application.use_cases.ranking import RecalculateRankingUseCase
+from competency_system.application.use_cases.ranking import (
+    GetVacancyRankingUseCase,
+    RecalculateRankingUseCase,
+)
 from competency_system.application.use_cases.task import (
     GetTaskUseCase,
     ListTasksUseCase,
@@ -45,7 +52,10 @@ from competency_system.application.use_cases.vacancy import (
     ExtractVacancyGraphUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
+    ListVacanciesForReviewUseCase,
+    ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    UpdateVacancyStatusUseCase,
 )
 from competency_system.domain.value_objects.enums import UserRole
 from competency_system.infrastructure.health.database_health import (
@@ -148,6 +158,24 @@ def get_list_vacancy_suggestions_use_case(
     return ListVacancySuggestionsUseCase(uow)
 
 
+def get_list_vacancies_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListVacanciesUseCase:
+    return ListVacanciesUseCase(uow)
+
+
+def get_update_vacancy_status_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> UpdateVacancyStatusUseCase:
+    return UpdateVacancyStatusUseCase(uow)
+
+
+def get_list_vacancies_for_review_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListVacanciesForReviewUseCase:
+    return ListVacanciesForReviewUseCase(uow)
+
+
 def get_decide_vacancy_suggestion_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> DecideVacancySuggestionUseCase:
@@ -208,6 +236,12 @@ def get_recalculate_ranking_use_case(
     return RecalculateRankingUseCase(uow)
 
 
+def get_get_vacancy_ranking_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> GetVacancyRankingUseCase:
+    return GetVacancyRankingUseCase(uow)
+
+
 # auth repositories and use cases
 
 
@@ -257,6 +291,30 @@ def get_logout_use_case(
     ],
 ) -> LogoutUseCase:
     return LogoutUseCase(refresh_token_repo)
+
+
+def get_list_users_use_case(
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> ListUsersUseCase:
+    return ListUsersUseCase(user_repo)
+
+
+def get_create_user_use_case(
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> CreateUserUseCase:
+    return CreateUserUseCase(user_repo)
+
+
+def get_update_user_role_use_case(
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> UpdateUserRoleUseCase:
+    return UpdateUserRoleUseCase(user_repo)
+
+
+def get_update_user_status_use_case(
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> UpdateUserStatusUseCase:
+    return UpdateUserStatusUseCase(user_repo)
 
 
 def get_login_data(

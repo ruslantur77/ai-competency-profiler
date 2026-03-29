@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import sqrt
 from uuid import UUID
 
 from competency_system.domain.entities.candidate import Candidate
@@ -38,7 +39,7 @@ class RankingScore:
 
 
 class RankingEngine:
-    """Движок ранжирования с явной и объяснимой моделью score."""
+    """Движок ранжирования на основе векторной близости."""
 
     def rank_candidates(
         self,
@@ -49,8 +50,10 @@ class RankingEngine:
 
         Алгоритм:
         1. Разделить компетенции вакансии на обязательные и желательные.
-        2. Посчитать покрытие каждой компетенции по сумме весов subcompetencies.
-        3. Сложить score обязательного и желательного блоков с прозрачными весами.
+        2. Для каждой компетенции посчитать cosine similarity между
+           вектором весов вакансии и бинарным вектором достижений кандидата.
+        3. Аггрегировать similarity обязательного и желательного блоков с
+           весами 70/30 (или 100/0 и 0/100 для неполных групп).
         """
         if not vacancy.is_ready:
             raise ValueError("Vacancy must be ready")
@@ -88,8 +91,8 @@ class RankingEngine:
                 for competency in desired_competencies
             )
 
-            required_match = self._group_match_ratio(breakdown, required=True)
-            desired_match = self._group_match_ratio(breakdown, required=False)
+            required_match = self._group_similarity_ratio(breakdown, required=True)
+            desired_match = self._group_similarity_ratio(breakdown, required=False)
             required_score = required_match * required_budget
             desired_score = desired_match * desired_budget
             total_score = required_score + desired_score
@@ -137,9 +140,22 @@ class RankingEngine:
             for sub in competency.sub_competencies
             if sub.id in candidate.achieved_subcompetency_ids
         )
-        coverage = matched_weight / total_weight if total_weight > 0 else 0.0
+        candidate_norm_sq = sum(
+            1.0
+            for sub in competency.sub_competencies
+            if sub.id in candidate.achieved_subcompetency_ids
+        )
+        vacancy_norm_sq = sum(
+            self._clamp_weight(sub.weight) ** 2 for sub in competency.sub_competencies
+        )
+        similarity = (
+            matched_weight / (sqrt(vacancy_norm_sq) * sqrt(candidate_norm_sq))
+            if vacancy_norm_sq > 0.0 and candidate_norm_sq > 0.0
+            else 0.0
+        )
+        coverage = similarity
         score_contribution = (
-            group_budget * (total_weight / group_total_weight) * coverage
+            group_budget * (total_weight / group_total_weight) * similarity
             if group_budget > 0 and group_total_weight > 0 and total_weight > 0
             else 0.0
         )
@@ -172,7 +188,7 @@ class RankingEngine:
             self._competency_total_weight(competency) for competency in competencies
         )
 
-    def _group_match_ratio(
+    def _group_similarity_ratio(
         self,
         breakdown: tuple[RankingBreakdownItem, ...],
         *,
@@ -184,8 +200,10 @@ class RankingEngine:
         total_weight = sum(item.total_weight for item in group_items)
         if total_weight <= 0:
             return 0.0
-        matched_weight = sum(item.matched_weight for item in group_items)
-        return matched_weight / total_weight
+        weighted_similarity = sum(
+            item.total_weight * item.coverage for item in group_items
+        )
+        return weighted_similarity / total_weight
 
     def _competency_total_weight(self, competency: Competency) -> float:
         return sum(

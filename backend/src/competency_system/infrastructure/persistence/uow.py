@@ -14,6 +14,9 @@ from competency_system.application.ports.repositories import (
     CompetencyRepository as CompetencyRepositoryPort,
 )
 from competency_system.application.ports.repositories import (
+    RankingSnapshotRepository as RankingSnapshotRepositoryPort,
+)
+from competency_system.application.ports.repositories import (
     RefreshTokenRepository as RefreshTokenRepositoryPort,
 )
 from competency_system.application.ports.repositories import (
@@ -34,11 +37,15 @@ from competency_system.application.ports.repositories import (
 from competency_system.application.ports.repositories import (
     VacancySuggestionRepository as VacancySuggestionRepositoryPort,
 )
+from competency_system.application.ports.repositories import (
+    WebhookEventRepository as WebhookEventRepositoryPort,
+)
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.infrastructure.persistence.repositories import (
     CandidateRepository,
     CategoryRepository,
     CompetencyRepository,
+    RankingSnapshotRepository,
     RefreshTokenRepository,
     SubCompetencyRepository,
     TaskRepository,
@@ -46,6 +53,7 @@ from competency_system.infrastructure.persistence.repositories import (
     UserRepository,
     VacancyRepository,
     VacancySuggestionRepository,
+    WebhookEventRepository,
 )
 
 
@@ -61,6 +69,8 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
         self.tasks: TaskRepositoryPort
         self.test_results: TestResultRepositoryPort
         self.vacancy_suggestions: VacancySuggestionRepositoryPort
+        self.webhook_events: WebhookEventRepositoryPort
+        self.ranking_snapshots: RankingSnapshotRepositoryPort
         self.users: UserRepositoryPort
         self.refresh_tokens: RefreshTokenRepositoryPort
 
@@ -74,6 +84,8 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
         self.tasks = TaskRepository(self.session)
         self.test_results = TestResultRepository(self.session)
         self.vacancy_suggestions = VacancySuggestionRepository(self.session)
+        self.webhook_events = WebhookEventRepository(self.session)
+        self.ranking_snapshots = RankingSnapshotRepository(self.session)
         self.users = UserRepository(self.session)
         self.refresh_tokens = RefreshTokenRepository(self.session)
         return self

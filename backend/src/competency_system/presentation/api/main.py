@@ -28,6 +28,9 @@ from competency_system.presentation.api.middleware import (
 from competency_system.presentation.api.routes.admin_tasks import (
     router as admin_tasks_router,
 )
+from competency_system.presentation.api.routes.admin_users import (
+    router as admin_users_router,
+)
 from competency_system.presentation.api.routes.auth import router as auth_router
 from competency_system.presentation.api.routes.candidates import (
     router as candidates_router,
@@ -89,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(vacancies_router, prefix=API_PREFIX)
     app.include_router(tasks_router, prefix=API_PREFIX)
     app.include_router(admin_tasks_router, prefix=API_PREFIX)
+    app.include_router(admin_users_router, prefix=API_PREFIX)
     app.include_router(webhook_router, prefix=API_PREFIX)
     app.include_router(candidates_router, prefix=API_PREFIX)
     app.include_router(ranking_router, prefix=API_PREFIX)

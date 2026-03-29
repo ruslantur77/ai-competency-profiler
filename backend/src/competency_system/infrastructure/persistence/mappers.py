@@ -9,6 +9,7 @@ from competency_system.domain.entities import (
     Candidate,
     Category,
     Competency,
+    RankingSnapshot,
     RefreshToken,
     SubCompetency,
     Task,
@@ -17,6 +18,7 @@ from competency_system.domain.entities import (
     User,
     Vacancy,
     VacancyGraphSuggestion,
+    WebhookEvent,
 )
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
@@ -31,6 +33,7 @@ from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
     CategoryOrm,
     CompetencyOrm,
+    RankingSnapshotOrm,
     RefreshTokenOrm,
     SubCompetencyOrm,
     TaskOrm,
@@ -38,6 +41,7 @@ from competency_system.infrastructure.persistence.models import (
     UserOrm,
     VacancyOrm,
     VacancySuggestionOrm,
+    WebhookEventOrm,
 )
 
 
@@ -359,6 +363,8 @@ def task_to_orm(task: Task) -> TaskOrm:
         description=task.description,
         type=task.type.value.lower(),
         mapping_validated=task.mapping_validated,
+        mapping_status=task.mapping_status,
+        mapping_error_message=task.mapping_error_message,
         competency_mappings=json.dumps(
             [
                 {
@@ -387,6 +393,8 @@ def task_from_orm(task: TaskOrm) -> Task:
             for mapping in _json_loads(task.competency_mappings)
         ],
         mapping_validated=task.mapping_validated,
+        mapping_status=task.mapping_status,
+        mapping_error_message=task.mapping_error_message,
         created_at=task.created_at,
         updated_at=task.updated_at,
     )
@@ -401,6 +409,7 @@ def test_result_to_orm(test_result: TestResult) -> TestResultOrm:
         score=test_result.score,
         attempts=test_result.attempts,
         code_submitted=test_result.code_submitted,
+        question_answers=json.dumps(test_result.question_answers, ensure_ascii=False),
         llm_assessment=json.dumps(test_result.llm_assessment, ensure_ascii=False)
         if test_result.llm_assessment is not None
         else None,
@@ -416,6 +425,7 @@ def test_result_from_orm(test_result: TestResultOrm) -> TestResult:
         score=test_result.score,
         attempts=test_result.attempts,
         code_submitted=test_result.code_submitted,
+        question_answers=json.loads(test_result.question_answers or "[]"),
         llm_assessment=(
             json.loads(test_result.llm_assessment)
             if test_result.llm_assessment is not None
@@ -423,6 +433,60 @@ def test_result_from_orm(test_result: TestResultOrm) -> TestResult:
         ),
         created_at=test_result.created_at,
         updated_at=test_result.created_at,
+    )
+
+
+def webhook_event_to_orm(event: WebhookEvent) -> WebhookEventOrm:
+    return WebhookEventOrm(
+        id=event.id,
+        event_id=event.event_id,
+        vacancy_id=event.vacancy_id,
+        candidate_external_id=event.candidate_external_id,
+        task_external_id=event.task_external_id,
+        status=event.status,
+        error_message=event.error_message,
+        candidate_id=event.candidate_id,
+        test_result_id=event.test_result_id,
+        payload=json.dumps(event.payload or {}, ensure_ascii=False),
+        processed_at=event.processed_at,
+    )
+
+
+def webhook_event_from_orm(event: WebhookEventOrm) -> WebhookEvent:
+    return WebhookEvent(
+        id=event.id,
+        event_id=event.event_id,
+        vacancy_id=event.vacancy_id,
+        candidate_external_id=event.candidate_external_id,
+        task_external_id=event.task_external_id,
+        status=event.status,
+        error_message=event.error_message,
+        candidate_id=event.candidate_id,
+        test_result_id=event.test_result_id,
+        payload=json.loads(event.payload or "{}"),
+        processed_at=event.processed_at,
+        created_at=event.created_at,
+        updated_at=event.updated_at,
+    )
+
+
+def ranking_snapshot_to_orm(snapshot: RankingSnapshot) -> RankingSnapshotOrm:
+    return RankingSnapshotOrm(
+        id=snapshot.id,
+        vacancy_id=snapshot.vacancy_id,
+        payload=json.dumps(snapshot.payload, ensure_ascii=False),
+        calculated_at=snapshot.calculated_at,
+    )
+
+
+def ranking_snapshot_from_orm(snapshot: RankingSnapshotOrm) -> RankingSnapshot:
+    return RankingSnapshot(
+        id=snapshot.id,
+        vacancy_id=snapshot.vacancy_id,
+        payload=json.loads(snapshot.payload or "{}"),
+        calculated_at=snapshot.calculated_at,
+        created_at=snapshot.calculated_at,
+        updated_at=snapshot.calculated_at,
     )
 
 

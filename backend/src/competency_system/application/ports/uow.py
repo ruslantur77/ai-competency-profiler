@@ -9,6 +9,7 @@ from competency_system.application.ports.repositories import (
     CandidateRepository,
     CategoryRepository,
     CompetencyRepository,
+    RankingSnapshotRepository,
     RefreshTokenRepository,
     SubCompetencyRepository,
     TaskRepository,
@@ -16,6 +17,7 @@ from competency_system.application.ports.repositories import (
     UserRepository,
     VacancyRepository,
     VacancySuggestionRepository,
+    WebhookEventRepository,
 )
 
 
@@ -29,6 +31,8 @@ class UnitOfWork(Protocol):
     tasks: TaskRepository
     test_results: TestResultRepository
     vacancy_suggestions: VacancySuggestionRepository
+    webhook_events: WebhookEventRepository
+    ranking_snapshots: RankingSnapshotRepository
     users: UserRepository
     refresh_tokens: RefreshTokenRepository
 

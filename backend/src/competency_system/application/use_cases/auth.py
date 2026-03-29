@@ -8,6 +8,10 @@ from competency_system.application.dtos.auth import (
     LoginDTO,
     RefreshTokenDataDTO,
     TokenPairDTO,
+    UserAdminDTO,
+    UserCreateDTO,
+    UserRoleUpdateDTO,
+    UserStatusUpdateDTO,
 )
 from competency_system.application.ports.repositories import (
     RefreshTokenRepository,
@@ -127,3 +131,70 @@ class LogoutUseCase:
 
     async def execute(self, token_data: RefreshTokenDataDTO) -> None:
         await self._refresh_token_repo.revoke(token_data.jti)
+
+
+def _user_to_admin_dto(user: User) -> UserAdminDTO:
+    return UserAdminDTO(
+        id=user.id,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
+
+
+class ListUsersUseCase:
+    def __init__(self, user_repo: UserRepository) -> None:
+        self._user_repo = user_repo
+
+    async def execute(self) -> list[UserAdminDTO]:
+        users = await self._user_repo.list()
+        return [_user_to_admin_dto(user) for user in users]
+
+
+class CreateUserUseCase:
+    def __init__(self, user_repo: UserRepository) -> None:
+        self._user_repo = user_repo
+
+    async def execute(self, command: UserCreateDTO) -> UserAdminDTO:
+        existing = await self._user_repo.get_by_email(command.email)
+        if existing is not None:
+            raise ValueError(f"User with email {command.email} already exists")
+        user = User(
+            id=uuid4(),
+            email=command.email,
+            hashed_password=hash_value(command.password),
+            role=command.role,
+            is_active=True,
+        )
+        await self._user_repo.add(user)
+        return _user_to_admin_dto(user)
+
+
+class UpdateUserRoleUseCase:
+    def __init__(self, user_repo: UserRepository) -> None:
+        self._user_repo = user_repo
+
+    async def execute(self, user_id: UUID, command: UserRoleUpdateDTO) -> UserAdminDTO:
+        user = await self._user_repo.get(user_id)
+        if user is None:
+            raise ValueError(f"User {user_id} not found")
+        user.role = command.role
+        await self._user_repo.add(user)
+        return _user_to_admin_dto(user)
+
+
+class UpdateUserStatusUseCase:
+    def __init__(self, user_repo: UserRepository) -> None:
+        self._user_repo = user_repo
+
+    async def execute(
+        self, user_id: UUID, command: UserStatusUpdateDTO
+    ) -> UserAdminDTO:
+        user = await self._user_repo.get(user_id)
+        if user is None:
+            raise ValueError(f"User {user_id} not found")
+        user.is_active = command.is_active
+        await self._user_repo.add(user)
+        return _user_to_admin_dto(user)

@@ -30,6 +30,8 @@ class Task(Entity):
     # Маппинг на компетенции
     competency_mappings: list[TaskCompetencyMapping] = field(default_factory=list)
     mapping_validated: bool = False
+    mapping_status: str = "pending"
+    mapping_error_message: str | None = None
 
 
 @dataclass(kw_only=True)
@@ -46,10 +48,10 @@ class TestResult(Entity):
 
     # Для CODE заданий
     code_submitted: str | None = None
+    question_answers: list[dict[str, str]] = field(default_factory=list)
     llm_assessment: dict[str, object] | None = None
 
     @property
     def normalized_score(self) -> float:
-        """Нормализованный score с штрафом за попытки."""
-        penalty = 0.9 ** (self.attempts - 1)
-        return (self.score / 100.0) * penalty
+        """Нормализованный score в диапазоне [0, 1]."""
+        return self.score / 100.0

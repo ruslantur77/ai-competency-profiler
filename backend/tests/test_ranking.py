@@ -95,16 +95,16 @@ def test_ranking_engine_separates_required_and_desired_groups() -> None:
     ]
 
     top = scores[0]
-    assert top.required_match == pytest.approx(0.7)
+    assert top.required_match == pytest.approx(0.9191450300180579)
     assert top.desired_match == pytest.approx(1.0)
-    assert top.required_score == pytest.approx(49.0)
+    assert top.required_score == pytest.approx(64.34015210126405)
     assert top.desired_score == pytest.approx(30.0)
-    assert top.total_score == pytest.approx(79.0)
+    assert top.total_score == pytest.approx(94.34015210126405)
     assert len(top.breakdown) == 2
     assert {item.required for item in top.breakdown} == {True, False}
     assert next(
         item.score_contribution for item in top.breakdown if item.required
-    ) == pytest.approx(49.0)
+    ) == pytest.approx(64.34015210126405)
     assert next(
         item.score_contribution for item in top.breakdown if not item.required
     ) == pytest.approx(30.0)
@@ -150,6 +150,7 @@ async def test_recalculate_ranking_use_case_returns_breakdown(tmp_path: Path) ->
         await uow.vacancies.add(vacancy)
         for candidate in candidates:
             await uow.candidates.add(candidate)
+            await uow.candidates.attach_to_vacancy(candidate.id, vacancy.id)
         await uow.commit()
 
     try:
@@ -165,7 +166,7 @@ async def test_recalculate_ranking_use_case_returns_breakdown(tmp_path: Path) ->
         "candidate-required-only",
         "candidate-desired-only",
     ]
-    assert dto.rankings[0].required_score == pytest.approx(49.0)
+    assert dto.rankings[0].required_score == pytest.approx(64.34015210126405)
     assert dto.rankings[0].desired_score == pytest.approx(30.0)
     assert len(dto.rankings[0].breakdown) == 2
 
@@ -181,6 +182,7 @@ def test_ranking_api_exposes_canonical_and_legacy_paths(tmp_path: Path) -> None:
             await uow.vacancies.add(vacancy)
             for candidate in candidates:
                 await uow.candidates.add(candidate)
+                await uow.candidates.attach_to_vacancy(candidate.id, vacancy.id)
             await uow.commit()
 
     asyncio.run(_seed())
@@ -210,7 +212,7 @@ def test_ranking_api_exposes_canonical_and_legacy_paths(tmp_path: Path) -> None:
         )
         assert canonical_payload["rankings"][0]["breakdown"][0][
             "score_contribution"
-        ] == pytest.approx(49.0)
+        ] == pytest.approx(64.34015210126405)
     finally:
         app.dependency_overrides.clear()
         asyncio.run(engine.dispose())
