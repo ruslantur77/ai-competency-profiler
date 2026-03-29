@@ -28,3 +28,9 @@ def test_airflow_dag_task_counts() -> None:
     assert len(task_sync.tasks) == 1
     assert len(candidate_assessment.tasks) == 2
     assert len(ranking_recalculation.tasks) == 1
+
+
+def test_candidate_assessment_task_dependency() -> None:
+    assess = candidate_assessment.get_task("assess_candidate")
+    recalculate = candidate_assessment.get_task("recalculate_ranking")
+    assert recalculate.upstream_task_ids == {assess.task_id}

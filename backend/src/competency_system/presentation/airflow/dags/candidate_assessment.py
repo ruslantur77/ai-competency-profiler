@@ -36,7 +36,7 @@ def candidate_assessment_dag() -> None:
     @task(task_id="assess_candidate")
     def assess_candidate() -> dict[str, object]:
         payload = CandidateAssessmentTriggerDTO.model_validate(get_dag_conf())
-        result = run_logged_async(
+        run_logged_async(
             "candidate_assessment.assess_candidate",
             lambda runtime: AssessCandidateUseCase(
                 runtime.uow(),
@@ -44,7 +44,6 @@ def candidate_assessment_dag() -> None:
             ).execute(payload),
         )
         return {
-            "assessment": result.model_dump(mode="json"),
             "vacancy_id": str(payload.vacancy_id) if payload.vacancy_id else None,
         }
 
