@@ -108,7 +108,9 @@ class CompetencyOrm(Base):
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
 
-    category: Mapped[CategoryOrm] = relationship(back_populates="competencies")
+    category: Mapped[CategoryOrm] = relationship(
+        back_populates="competencies", lazy="raise"
+    )
     sub_competencies: Mapped[list[SubCompetencyOrm]] = relationship(
         back_populates="competency", cascade="all, delete-orphan", lazy="raise"
     )
@@ -131,7 +133,9 @@ class SubCompetencyOrm(Base):
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
 
-    competency: Mapped[CompetencyOrm] = relationship(back_populates="sub_competencies")
+    competency: Mapped[CompetencyOrm] = relationship(
+        back_populates="sub_competencies", lazy="raise"
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -315,6 +319,12 @@ class CandidateOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    achievements: Mapped[list[CandidateSubCompetencyAchievementOrm]] = relationship(
+        back_populates="candidate", cascade="all, delete-orphan", lazy="raise"
+    )
+    test_results: Mapped[list[TestResultOrm]] = relationship(
+        back_populates="candidate", cascade="all, delete-orphan", lazy="raise"
+    )
 
 
 class CandidateSubCompetencyAchievementOrm(Base):
@@ -337,6 +347,10 @@ class CandidateSubCompetencyAchievementOrm(Base):
     achieved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    candidate: Mapped[CandidateOrm] = relationship(
+        back_populates="achievements", lazy="raise"
+    )
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
 
 
 class TaskOrm(Base):
@@ -364,6 +378,12 @@ class TaskOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    sub_competency_mappings: Mapped[list[TaskSubCompetencyMappingOrm]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", lazy="raise"
+    )
+    test_results: Mapped[list[TestResultOrm]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", lazy="raise"
+    )
 
 
 class TaskSubCompetencyMappingOrm(Base):
@@ -382,6 +402,10 @@ class TaskSubCompetencyMappingOrm(Base):
     )
     weight: Mapped[float] = mapped_column(Float, default=1.0)
     position: Mapped[int] = mapped_column(Integer)
+    task: Mapped[TaskOrm] = relationship(
+        back_populates="sub_competency_mappings", lazy="raise"
+    )
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
 
 
 class TestResultOrm(Base):
@@ -400,6 +424,8 @@ class TestResultOrm(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    task: Mapped[TaskOrm] = relationship(lazy="raise")
+    candidate: Mapped[CandidateOrm] = relationship(lazy="raise")
 
 
 class TestResultQuestionAnswerOrm(Base):
@@ -412,7 +438,7 @@ class TestResultQuestionAnswerOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     test_result_id: Mapped[UUID] = mapped_column(
-        ForeignKey("test_results.id", ondelete="CASCADE")
+        ForeignKey(TestResultOrm.id, ondelete="CASCADE")
     )
     question: Mapped[str] = mapped_column(String(2000), default="")
     answer: Mapped[str] = mapped_column(String(10000), default="")

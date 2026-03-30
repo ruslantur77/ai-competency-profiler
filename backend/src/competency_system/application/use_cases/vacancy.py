@@ -25,6 +25,10 @@ from competency_system.application.dtos.vacancy import (
     VacancySuggestionDecisionDTO,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.repositories import (
+    CategoryInclude,
+    VacancyInclude,
+)
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.llm_orchestrator import (
     LLMCallSpec,
@@ -207,7 +211,11 @@ class ExtractVacancyGraphUseCase:
 
         try:
             async with self._uow as uow:
-                existing_categories = list(await uow.categories.list())
+                existing_categories = list(
+                    await uow.categories.list(
+                        include={CategoryInclude.SUB_COMPETENCIES}
+                    )
+                )
                 graph = await self._build_graph(vacancy, existing_categories)
 
                 vacancy.status = VacancyStatus.DRAFT
@@ -662,7 +670,10 @@ class FinalizeVacancyGraphUseCase:
         graph: VacancyGraphUpdateDTO,
     ) -> VacancyDTO:
         async with self._uow as uow:
-            vacancy = await uow.vacancies.get(vacancy_id)
+            vacancy = await uow.vacancies.get(
+                vacancy_id,
+                include={VacancyInclude.NORMALIZED_GRAPH},
+            )
             if vacancy is None:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
 
@@ -734,7 +745,10 @@ class GetVacancyGraphUseCase:
 
     async def execute(self, vacancy_id: UUID) -> VacancyDTO:
         async with self._uow as uow:
-            vacancy = await uow.vacancies.get(vacancy_id)
+            vacancy = await uow.vacancies.get(
+                vacancy_id,
+                include={VacancyInclude.NORMALIZED_GRAPH},
+            )
             if vacancy is None:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
             return _vacancy_to_dto(vacancy)

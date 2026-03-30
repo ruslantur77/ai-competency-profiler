@@ -14,6 +14,12 @@ from competency_system.application.dtos.task import (
     TestResultDTO,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.repositories import (
+    CandidateInclude,
+    TaskInclude,
+    TestResultInclude,
+    VacancyInclude,
+)
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.code_assessment_policy import (
     DEFAULT_CODE_ASSESSMENT_POLICY,
@@ -100,8 +106,17 @@ class AssessCandidateUseCase:
                     and existing.candidate_id is not None
                     and existing.test_result_id is not None
                 ):
-                    candidate = await uow.candidates.get(existing.candidate_id)
-                    test_result = await uow.test_results.get(existing.test_result_id)
+                    candidate = await uow.candidates.get(
+                        existing.candidate_id,
+                        include={CandidateInclude.ACHIEVEMENTS},
+                    )
+                    test_result = await uow.test_results.get(
+                        existing.test_result_id,
+                        include={
+                            TestResultInclude.QUESTION_ANSWERS,
+                            TestResultInclude.LLM_ASSESSMENT,
+                        },
+                    )
                     if candidate is None or test_result is None:
                         raise ValueError(
                             "Stored webhook event references missing result"
@@ -139,7 +154,8 @@ class AssessCandidateUseCase:
     ) -> CandidateAssessmentResultDTO:
         async with self._uow as uow:
             candidate = await uow.candidates.get_by_external_id(
-                command.candidate_external_id
+                command.candidate_external_id,
+                include={CandidateInclude.ACHIEVEMENTS},
             )
             if candidate is None:
                 candidate = Candidate(
@@ -150,7 +166,10 @@ class AssessCandidateUseCase:
             elif candidate.vacancy_id != command.vacancy_id:
                 raise ValueError("Candidate is already assigned to another vacancy")
 
-            task = await uow.tasks.get_by_external_id(command.task_external_id)
+            task = await uow.tasks.get_by_external_id(
+                command.task_external_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
             if task is None:
                 raise ValueError(f"Task {command.task_external_id} not found")
 
@@ -311,7 +330,10 @@ class AssessCandidateUseCase:
         uow: UnitOfWork,
         vacancy_id: UUID,
     ) -> list[Competency]:
-        vacancy = await uow.vacancies.get(vacancy_id)
+        vacancy = await uow.vacancies.get(
+            vacancy_id,
+            include={VacancyInclude.NORMALIZED_GRAPH},
+        )
         if vacancy is None:
             raise ValueError(f"Vacancy {vacancy_id} not found")
         return list(vacancy.competencies)
@@ -330,10 +352,16 @@ class GetCandidateProfileUseCase:
 
     async def execute(self, candidate_id: UUID) -> CandidateProfileDTO:
         async with self._uow as uow:
-            candidate = await uow.candidates.get(candidate_id)
+            candidate = await uow.candidates.get(
+                candidate_id,
+                include={CandidateInclude.ACHIEVEMENTS},
+            )
             if candidate is None:
                 raise ValueError(f"Candidate {candidate_id} not found")
-            vacancy = await uow.vacancies.get(candidate.vacancy_id)
+            vacancy = await uow.vacancies.get(
+                candidate.vacancy_id,
+                include={VacancyInclude.NORMALIZED_GRAPH},
+            )
             if vacancy is None:
                 raise ValueError(f"Vacancy {candidate.vacancy_id} not found")
             scores = self._scorer.calculate_scores(

@@ -20,6 +20,7 @@ from competency_system.application.ports.external_testing_system import (
     ExternalTestingSystemGateway,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.repositories import CategoryInclude, TaskInclude
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.domain.entities import (
     Category,
@@ -387,7 +388,9 @@ class SyncTasksUseCase:
         external_tasks = await self._gateway.list_tasks()
 
         async with self._uow as uow:
-            categories = await uow.categories.list()
+            categories = await uow.categories.list(
+                include={CategoryInclude.SUB_COMPETENCIES}
+            )
             synced: list[TaskDTO] = []
 
             for record in external_tasks:
@@ -441,10 +444,15 @@ class RebuildTaskMappingUseCase:
 
     async def execute(self, task_id: UUID) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(task_id)
+            task = await uow.tasks.get(
+                task_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
             if task is None:
                 raise ValueError(f"Task {task_id} not found")
-            categories = await uow.categories.list()
+            categories = await uow.categories.list(
+                include={CategoryInclude.SUB_COMPETENCIES}
+            )
             task.competency_mappings = await self._mapper.execute(
                 task,
                 list(categories),
@@ -464,7 +472,10 @@ class ValidateTaskMappingUseCase:
 
     async def execute(self, task_id: UUID) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(task_id)
+            task = await uow.tasks.get(
+                task_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
             if task is None:
                 raise ValueError(f"Task {task_id} not found")
             task.mapping_validated = True
@@ -479,7 +490,9 @@ class ListTasksUseCase:
 
     async def execute(self) -> list[TaskDTO]:
         async with self._uow as uow:
-            tasks = await uow.tasks.list()
+            tasks = await uow.tasks.list(
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+            )
             return [_task_to_dto(task) for task in tasks]
 
 
@@ -489,7 +502,10 @@ class GetTaskUseCase:
 
     async def execute(self, task_id: UUID) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(task_id)
+            task = await uow.tasks.get(
+                task_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
             if task is None:
                 raise ValueError(f"Task {task_id} not found")
             return _task_to_dto(task)

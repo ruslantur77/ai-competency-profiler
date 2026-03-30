@@ -8,6 +8,10 @@ from competency_system.application.dtos.ranking import (
     RankingItemDTO,
     VacancyRankingDTO,
 )
+from competency_system.application.ports.repositories import (
+    CandidateInclude,
+    VacancyInclude,
+)
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.domain.entities import RankingSnapshot
 from competency_system.domain.services.ranking_engine import RankingEngine
@@ -20,11 +24,17 @@ class RecalculateRankingUseCase:
 
     async def execute(self, vacancy_id: UUID) -> VacancyRankingDTO:
         async with self._uow as uow:
-            vacancy = await uow.vacancies.get(vacancy_id)
+            vacancy = await uow.vacancies.get(
+                vacancy_id,
+                include={VacancyInclude.NORMALIZED_GRAPH},
+            )
             if vacancy is None:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
 
-            candidates = await uow.candidates.list_by_vacancy(vacancy_id)
+            candidates = await uow.candidates.list_by_vacancy(
+                vacancy_id,
+                include={CandidateInclude.ACHIEVEMENTS},
+            )
             ranking_scores = self._ranking_engine.rank_candidates(
                 vacancy, list(candidates)
             )

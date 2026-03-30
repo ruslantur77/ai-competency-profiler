@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm.attributes import NO_VALUE
+
 from competency_system.domain.entities import (
     Candidate,
     Category,
@@ -35,6 +38,14 @@ from competency_system.infrastructure.persistence.models import (
 )
 
 
+def _loaded_relation(model: object, attr_name: str) -> list[object]:
+    state = sa_inspect(model)
+    loaded = state.attrs[attr_name].loaded_value
+    if loaded is NO_VALUE:
+        return []
+    return list(loaded)
+
+
 def _normalize_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -57,14 +68,13 @@ def category_to_orm(category: Category) -> CategoryOrm:
 
 
 def category_from_orm(category: CategoryOrm) -> Category:
+    competencies = _loaded_relation(category, "competencies")
     return Category(
         id=category.id,
         name=category.name,
         description=category.description,
         emoji=category.emoji,
-        competencies=[
-            competency_from_orm(competency) for competency in category.competencies
-        ],
+        competencies=[competency_from_orm(competency) for competency in competencies],
         created_at=category.created_at,
         updated_at=category.updated_at,
     )
@@ -85,14 +95,14 @@ def competency_to_orm(competency: Competency) -> CompetencyOrm:
 
 
 def competency_from_orm(competency: CompetencyOrm) -> Competency:
+    sub_competencies = _loaded_relation(competency, "sub_competencies")
     return Competency(
         id=competency.id,
         category_id=competency.category_id,
         name=competency.name,
         description=competency.description,
         sub_competencies=[
-            subcompetency_from_orm(subcompetency)
-            for subcompetency in competency.sub_competencies
+            subcompetency_from_orm(subcompetency) for subcompetency in sub_competencies
         ],
         created_at=competency.created_at,
         updated_at=competency.updated_at,
