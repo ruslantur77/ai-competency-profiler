@@ -11,12 +11,10 @@ from competency_system.domain.value_objects.enums import AssessmentStatus
 
 @dataclass(kw_only=True)
 class Candidate(Entity):
-    """Кандидат с достигнутыми компетенциями.
-
-    Упрощенная версия: просто набор ID достигнутых subcompetencies.
-    """
+    """Кандидат с достигнутыми компетенциями."""
 
     external_id: str
+    vacancy_id: UUID
     achieved_subcompetency_ids: set[UUID] = field(default_factory=set)
     assessment_status: AssessmentStatus = AssessmentStatus.PENDING
     last_assessment_at: datetime | None = None

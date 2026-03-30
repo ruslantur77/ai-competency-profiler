@@ -21,10 +21,6 @@ class Vacancy(Entity):
     description: str
     status: VacancyStatus = VacancyStatus.DRAFT
 
-    # Опциональные поля
-    experience: str = ""
-    key_skills: list[str] = field(default_factory=list)
-
     # Граф компетенций
     categories: list[Category] = field(default_factory=list)
     competencies: list[Competency] = field(default_factory=list)

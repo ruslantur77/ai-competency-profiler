@@ -103,8 +103,6 @@ def _vacancy_to_dto(vacancy: Vacancy) -> VacancyDTO:
         name=vacancy.name,
         description=vacancy.description,
         status=vacancy.status,
-        experience=vacancy.experience,
-        key_skills=vacancy.key_skills,
         categories=[_category_to_dto(category) for category in vacancy.categories],
         competencies=[
             _competency_to_dto(competency) for competency in vacancy.competencies
@@ -204,8 +202,6 @@ class ExtractVacancyGraphUseCase:
         vacancy = Vacancy(
             name=command.name,
             description=command.description,
-            experience=command.experience,
-            key_skills=list(command.key_skills),
             status=VacancyStatus.EXTRACTING,
         )
 
@@ -426,8 +422,6 @@ class ExtractVacancyGraphUseCase:
                         "vacancy": {
                             "name": vacancy.name,
                             "description": vacancy.description,
-                            "experience": vacancy.experience,
-                            "key_skills": vacancy.key_skills,
                         },
                         "existing_categories": category_mapper.to_prompt_items(),
                     },
@@ -461,8 +455,6 @@ class ExtractVacancyGraphUseCase:
                         "vacancy": {
                             "name": vacancy.name,
                             "description": vacancy.description,
-                            "experience": vacancy.experience,
-                            "key_skills": vacancy.key_skills,
                         },
                         "category": {
                             "id": str(category.id),
@@ -504,8 +496,6 @@ class ExtractVacancyGraphUseCase:
                         "vacancy": {
                             "name": vacancy.name,
                             "description": vacancy.description,
-                            "experience": vacancy.experience,
-                            "key_skills": vacancy.key_skills,
                         },
                         "category": {
                             "id": str(category.id),

@@ -8,6 +8,7 @@ Create Date: 2026-03-29 22:58:00
 from __future__ import annotations
 
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -18,54 +19,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "tasks",
-        sa.Column(
-            "mapping_status",
-            sa.String(length=50),
-            nullable=False,
-            server_default="pending",
-        ),
+    webhook_event_status = postgresql.ENUM(
+        "processing",
+        "processed",
+        "failed",
+        name="webhook_event_status",
+        create_type=False,
     )
-    op.add_column(
-        "tasks",
-        sa.Column("mapping_error_message", sa.String(length=1000), nullable=True),
-    )
-    op.add_column(
-        "test_results",
-        sa.Column(
-            "question_answers",
-            sa.String(length=10000),
-            nullable=False,
-            server_default="[]",
-        ),
-    )
-
-    op.create_table(
-        "candidate_vacancy_links",
-        sa.Column("id", sa.UUID(as_uuid=True), primary_key=True, nullable=False),
-        sa.Column(
-            "candidate_id",
-            sa.UUID(as_uuid=True),
-            sa.ForeignKey("candidates.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "vacancy_id",
-            sa.UUID(as_uuid=True),
-            sa.ForeignKey("vacancies.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.func.now(),
-            nullable=False,
-        ),
-        sa.UniqueConstraint(
-            "candidate_id", "vacancy_id", name="uq_candidate_vacancy_candidate_id"
-        ),
-    )
+    webhook_event_status.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "webhook_events",
@@ -80,7 +41,10 @@ def upgrade() -> None:
         sa.Column("candidate_external_id", sa.String(length=100), nullable=False),
         sa.Column("task_external_id", sa.String(length=100), nullable=False),
         sa.Column(
-            "status", sa.String(length=50), nullable=False, server_default="processing"
+            "status",
+            webhook_event_status,
+            nullable=False,
+            server_default="processing",
         ),
         sa.Column("error_message", sa.String(length=2000), nullable=True),
         sa.Column(
@@ -95,7 +59,12 @@ def upgrade() -> None:
             sa.ForeignKey("test_results.id", ondelete="SET NULL"),
             nullable=True,
         ),
-        sa.Column("payload", sa.String(length=10000), nullable=False, server_default="{}"),
+        sa.Column(
+            "payload",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
@@ -121,7 +90,12 @@ def upgrade() -> None:
             nullable=False,
             unique=True,
         ),
-        sa.Column("payload", sa.String(length=100000), nullable=False, server_default="{}"),
+        sa.Column(
+            "payload",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
         sa.Column(
             "calculated_at",
             sa.DateTime(timezone=True),
@@ -134,7 +108,4 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("ranking_snapshots")
     op.drop_table("webhook_events")
-    op.drop_table("candidate_vacancy_links")
-    op.drop_column("test_results", "question_answers")
-    op.drop_column("tasks", "mapping_error_message")
-    op.drop_column("tasks", "mapping_status")
+    sa.Enum(name="webhook_event_status").drop(op.get_bind(), checkfirst=True)

@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from competency_system.domain.entities.base import Entity
+from competency_system.domain.value_objects.enums import WebhookEventStatus
 
 
 @dataclass(kw_only=True)
@@ -13,7 +14,7 @@ class WebhookEvent(Entity):
     vacancy_id: UUID
     candidate_external_id: str
     task_external_id: str
-    status: str = "processing"
+    status: WebhookEventStatus = WebhookEventStatus.PROCESSING
     error_message: str | None = None
     candidate_id: UUID | None = None
     test_result_id: UUID | None = None

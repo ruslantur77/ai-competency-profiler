@@ -28,6 +28,7 @@ from competency_system.domain.entities import (
     Task,
     TaskCompetencyMapping,
 )
+from competency_system.domain.value_objects.enums import TaskMappingStatus
 
 
 def _task_to_dto(task: Task) -> TaskDTO:
@@ -410,11 +411,11 @@ class SyncTasksUseCase:
                         categories,
                         tags=record.tags,
                     )
-                    task.mapping_status = "completed"
+                    task.mapping_status = TaskMappingStatus.COMPLETED
                     task.mapping_error_message = None
                 except Exception as exc:
                     task.competency_mappings = []
-                    task.mapping_status = "failed"
+                    task.mapping_status = TaskMappingStatus.FAILED
                     task.mapping_error_message = str(exc)
                 task.mapping_validated = False
                 await uow.tasks.add(task)
@@ -449,7 +450,7 @@ class RebuildTaskMappingUseCase:
                 list(categories),
                 tags=[],
             )
-            task.mapping_status = "completed"
+            task.mapping_status = TaskMappingStatus.COMPLETED
             task.mapping_error_message = None
             task.mapping_validated = False
             await uow.tasks.add(task)

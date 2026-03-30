@@ -45,6 +45,7 @@ from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
+    TaskMappingStatus,
     TaskType,
     UserRole,
     VacancyStatus,
@@ -129,8 +130,6 @@ def _sample_vacancy() -> VacancyDTO:
         name="Backend Engineer",
         description="Build APIs",
         status=VacancyStatus.READY,
-        experience="3+ years",
-        key_skills=["python", "sql"],
         categories=[category],
         competencies=[competency],
         error_message=None,
@@ -151,7 +150,7 @@ def _sample_task() -> TaskDTO:
             TaskCompetencyMappingDTO(sub_competency_id=uuid4(), weight=1.0)
         ],
         mapping_validated=False,
-        mapping_status="completed",
+        mapping_status=TaskMappingStatus.COMPLETED,
         mapping_error_message=None,
         created_at=now,
         updated_at=now,
@@ -273,28 +272,26 @@ def test_vacancy_routes_contract() -> None:
     app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
         user_id=uuid4(), role=UserRole.ADMIN
     )
-    app.dependency_overrides[get_extract_vacancy_graph_use_case] = (
-        lambda: _StaticUseCase(vacancy)
+    app.dependency_overrides[get_extract_vacancy_graph_use_case] = lambda: (
+        _StaticUseCase(vacancy)
     )
-    app.dependency_overrides[get_get_vacancy_graph_use_case] = (
-        lambda: _StaticUseCase(vacancy)
+    app.dependency_overrides[get_get_vacancy_graph_use_case] = lambda: _StaticUseCase(
+        vacancy
     )
-    app.dependency_overrides[get_finalize_vacancy_graph_use_case] = (
-        lambda: _StaticUseCase(vacancy)
+    app.dependency_overrides[get_finalize_vacancy_graph_use_case] = lambda: (
+        _StaticUseCase(vacancy)
     )
-    app.dependency_overrides[get_list_vacancy_suggestions_use_case] = (
-        lambda: _StaticUseCase([suggestion])
+    app.dependency_overrides[get_list_vacancy_suggestions_use_case] = lambda: (
+        _StaticUseCase([suggestion])
     )
-    app.dependency_overrides[get_decide_vacancy_suggestion_use_case] = (
-        lambda: _StaticUseCase(suggestion)
+    app.dependency_overrides[get_decide_vacancy_suggestion_use_case] = lambda: (
+        _StaticUseCase(suggestion)
     )
 
     with TestClient(app) as client:
         create_payload = VacancyCreateDTO(
             name="Backend Engineer",
             description="Build APIs",
-            experience="3+ years",
-            key_skills=["python"],
         ).model_dump(mode="json")
         created = client.post("/api/v1/vacancies", json=create_payload)
         assert created.status_code == 201
@@ -341,11 +338,11 @@ def test_tasks_admin_and_webhook_routes_contract() -> None:
     )
     app.dependency_overrides[get_get_task_use_case] = lambda: _StaticUseCase(task)
     app.dependency_overrides[get_list_tasks_use_case] = lambda: _StaticUseCase([task])
-    app.dependency_overrides[get_rebuild_task_mapping_use_case] = (
-        lambda: _StaticUseCase(task)
+    app.dependency_overrides[get_rebuild_task_mapping_use_case] = lambda: (
+        _StaticUseCase(task)
     )
-    app.dependency_overrides[get_validate_task_mapping_use_case] = (
-        lambda: _StaticUseCase(task.model_copy(update={"mapping_validated": True}))
+    app.dependency_overrides[get_validate_task_mapping_use_case] = lambda: (
+        _StaticUseCase(task.model_copy(update={"mapping_validated": True}))
     )
     app.dependency_overrides[get_assess_candidate_use_case] = lambda: _StaticUseCase(
         candidate_result
@@ -400,14 +397,14 @@ def test_candidates_and_ranking_routes_contract() -> None:
     app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
         user_id=uuid4(), role=UserRole.ADMIN
     )
-    app.dependency_overrides[get_get_candidate_profile_use_case] = (
-        lambda: _StaticUseCase(profile)
+    app.dependency_overrides[get_get_candidate_profile_use_case] = lambda: (
+        _StaticUseCase(profile)
     )
-    app.dependency_overrides[get_recalculate_ranking_use_case] = (
-        lambda: _StaticUseCase(ranking)
+    app.dependency_overrides[get_recalculate_ranking_use_case] = lambda: _StaticUseCase(
+        ranking
     )
-    app.dependency_overrides[get_get_vacancy_ranking_use_case] = (
-        lambda: _StaticUseCase(ranking)
+    app.dependency_overrides[get_get_vacancy_ranking_use_case] = lambda: _StaticUseCase(
+        ranking
     )
 
     with TestClient(app) as client:

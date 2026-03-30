@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import Field, field_validator
 
 from competency_system.application.dtos.base import BaseDTO
-from competency_system.domain.value_objects.enums import TaskType
+from competency_system.domain.value_objects.enums import TaskMappingStatus, TaskType
 
 
 class TaskCompetencyMappingDTO(BaseDTO):
@@ -60,7 +60,7 @@ class TaskDTO(BaseDTO):
     type: TaskType
     competency_mappings: list[TaskCompetencyMappingDTO]
     mapping_validated: bool
-    mapping_status: str = "pending"
+    mapping_status: TaskMappingStatus = TaskMappingStatus.PENDING
     mapping_error_message: str | None = None
     created_at: datetime
     updated_at: datetime

@@ -44,9 +44,7 @@ router = APIRouter(prefix="/vacancies", tags=["vacancies"])
 @router.get("", response_model=list[VacancyListItemDTO])
 async def list_vacancies(
     _: Annotated[None, Depends(require_hr_expert_admin)],
-    use_case: Annotated[
-        ListVacanciesUseCase, Depends(get_list_vacancies_use_case)
-    ],
+    use_case: Annotated[ListVacanciesUseCase, Depends(get_list_vacancies_use_case)],
     status_filter: str | None = None,
 ) -> list[VacancyListItemDTO]:
     statuses: set[VacancyStatus] | None = None

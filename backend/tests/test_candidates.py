@@ -25,10 +25,15 @@ from competency_system.domain.entities import (
     Task,
     TaskCompetencyMapping,
     TestResult,
+    Vacancy,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
-from competency_system.domain.value_objects.enums import TaskType, UserRole
+from competency_system.domain.value_objects.enums import (
+    TaskType,
+    UserRole,
+    VacancyStatus,
+)
 from competency_system.infrastructure.persistence.models import Base
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 from competency_system.presentation.api.dependencies import (
@@ -91,6 +96,15 @@ async def _seed_task(
         await uow.commit()
 
 
+async def _seed_vacancy(
+    session_factory: async_sessionmaker[AsyncSession],
+    vacancy: Vacancy,
+) -> None:
+    async with SQLAlchemyUnitOfWork(session_factory) as uow:
+        await uow.vacancies.add(vacancy)
+        await uow.commit()
+
+
 def test_candidate_scorer_uses_weighted_coverage() -> None:
     sub_critical = SubCompetency(name="Critical path", weight=0.7)
     sub_minor = SubCompetency(name="Minor path", weight=0.3)
@@ -101,6 +115,7 @@ def test_candidate_scorer_uses_weighted_coverage() -> None:
     )
     candidate = Candidate(
         external_id="candidate-1",
+        vacancy_id=uuid4(),
         achieved_subcompetency_ids={sub_critical.id},
     )
 
@@ -187,15 +202,14 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
 
     sub_critical = SubCompetency(name="Critical path", weight=0.8)
     sub_minor = SubCompetency(name="Minor path", weight=0.2)
+    competency = Competency(
+        category_id=UUID(int=1),
+        name="API design",
+        sub_competencies=[sub_critical, sub_minor],
+    )
     await _seed_competencies(
         session_factory,
-        competencies=[
-            Competency(
-                category_id=UUID(int=1),
-                name="API design",
-                sub_competencies=[sub_critical, sub_minor],
-            ),
-        ],
+        competencies=[competency],
     )
     await _seed_task(
         session_factory,
@@ -208,6 +222,17 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
                 TaskCompetencyMapping(sub_competency_id=sub_critical.id, weight=0.8),
                 TaskCompetencyMapping(sub_competency_id=sub_minor.id, weight=0.2),
             ],
+        ),
+    )
+    vacancy_id = uuid4()
+    await _seed_vacancy(
+        session_factory,
+        Vacancy(
+            id=vacancy_id,
+            name="Backend Engineer",
+            description="Build APIs",
+            status=VacancyStatus.READY,
+            competencies=[competency],
         ),
     )
 
@@ -237,7 +262,7 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
                 "/api/v1/webhook/task-completed",
                 json={
                     "event_id": str(uuid4()),
-                    "vacancy_id": str(uuid4()),
+                    "vacancy_id": str(vacancy_id),
                     "candidate_external_id": "candidate-1",
                     "task_external_id": "task-1",
                     "type": "code",

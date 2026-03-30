@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
-from typing import Any
 from uuid import UUID
 
 from competency_system.domain.entities import (
@@ -13,7 +11,6 @@ from competency_system.domain.entities import (
     RefreshToken,
     SubCompetency,
     Task,
-    TaskCompetencyMapping,
     TestResult,
     User,
     Vacancy,
@@ -21,14 +18,7 @@ from competency_system.domain.entities import (
     WebhookEvent,
 )
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
-from competency_system.domain.value_objects.enums import (
-    AssessmentStatus,
-    SuggestionEntityType,
-    SuggestionStage,
-    SuggestionStatus,
-    TaskType,
-    VacancyStatus,
-)
+from competency_system.domain.value_objects.enums import TaskType
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
     CategoryOrm,
@@ -45,115 +35,12 @@ from competency_system.infrastructure.persistence.models import (
 )
 
 
-def _uuid_list_to_json(value: set[UUID] | list[UUID]) -> str:
-    return json.dumps([str(item) for item in value], ensure_ascii=False)
-
-
-def _json_to_uuid_set(value: str | None) -> set[UUID]:
-    if not value:
-        return set()
-    return {UUID(item) for item in json.loads(value)}
-
-
-def _json_loads(value: str | None) -> list[dict[str, Any]]:
-    if not value:
-        return []
-    data = json.loads(value)
-    if not isinstance(data, list):
-        raise ValueError("Expected a JSON array")
-    return data
-
-
 def _normalize_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
-
-
-def _serialize_subcompetency(subcompetency: SubCompetency) -> dict[str, Any]:
-    return {
-        "id": str(subcompetency.id),
-        "name": subcompetency.name,
-        "description": subcompetency.description,
-        "target_level": int(subcompetency.target_level),
-        "weight": subcompetency.weight,
-        "created_at": subcompetency.created_at.isoformat(),
-        "updated_at": subcompetency.updated_at.isoformat(),
-    }
-
-
-def _deserialize_subcompetency(data: dict[str, Any]) -> SubCompetency:
-    return SubCompetency(
-        id=UUID(str(data["id"])),
-        name=str(data["name"]),
-        description=str(data.get("description", "")),
-        target_level=CompetencyLevel(int(data.get("target_level", 2))),
-        weight=float(data.get("weight", 1.0)),
-        created_at=datetime.fromisoformat(str(data["created_at"])),
-        updated_at=datetime.fromisoformat(str(data["updated_at"])),
-    )
-
-
-def _serialize_competency(competency: Competency) -> dict[str, Any]:
-    return {
-        "id": str(competency.id),
-        "category_id": str(competency.category_id),
-        "name": competency.name,
-        "description": competency.description,
-        "is_required": competency.is_required,
-        "sub_competencies": [
-            _serialize_subcompetency(subcompetency)
-            for subcompetency in competency.sub_competencies
-        ],
-        "created_at": competency.created_at.isoformat(),
-        "updated_at": competency.updated_at.isoformat(),
-    }
-
-
-def _deserialize_competency(data: dict[str, Any]) -> Competency:
-    return Competency(
-        id=UUID(str(data["id"])),
-        category_id=UUID(str(data["category_id"])),
-        name=str(data["name"]),
-        description=str(data.get("description", "")),
-        is_required=bool(data.get("is_required", True)),
-        sub_competencies=[
-            _deserialize_subcompetency(item)
-            for item in data.get("sub_competencies", [])
-        ],
-        created_at=datetime.fromisoformat(str(data["created_at"])),
-        updated_at=datetime.fromisoformat(str(data["updated_at"])),
-    )
-
-
-def _serialize_category(category: Category) -> dict[str, Any]:
-    return {
-        "id": str(category.id),
-        "name": category.name,
-        "description": category.description,
-        "emoji": category.emoji,
-        "competencies": [
-            _serialize_competency(competency) for competency in category.competencies
-        ],
-        "created_at": category.created_at.isoformat(),
-        "updated_at": category.updated_at.isoformat(),
-    }
-
-
-def _deserialize_category(data: dict[str, Any]) -> Category:
-    return Category(
-        id=UUID(str(data["id"])),
-        name=str(data["name"]),
-        description=str(data.get("description", "")),
-        emoji=str(data.get("emoji", "📋")),
-        competencies=[
-            _deserialize_competency(item) for item in data.get("competencies", [])
-        ],
-        created_at=datetime.fromisoformat(str(data["created_at"])),
-        updated_at=datetime.fromisoformat(str(data["updated_at"])),
-    )
 
 
 def category_to_orm(category: Category) -> CategoryOrm:
@@ -189,7 +76,6 @@ def competency_to_orm(competency: Competency) -> CompetencyOrm:
         category_id=competency.category_id,
         name=competency.name,
         description=competency.description,
-        is_required=competency.is_required,
     )
     orm.sub_competencies = [
         subcompetency_to_orm(subcompetency, competency_id=competency.id)
@@ -204,7 +90,6 @@ def competency_from_orm(competency: CompetencyOrm) -> Competency:
         category_id=competency.category_id,
         name=competency.name,
         description=competency.description,
-        is_required=competency.is_required,
         sub_competencies=[
             subcompetency_from_orm(subcompetency)
             for subcompetency in competency.sub_competencies
@@ -224,8 +109,6 @@ def subcompetency_to_orm(
         competency_id=competency_id or UUID(int=0),
         name=subcompetency.name,
         description=subcompetency.description,
-        target_level=int(subcompetency.target_level),
-        weight=subcompetency.weight,
     )
 
 
@@ -234,8 +117,8 @@ def subcompetency_from_orm(subcompetency: SubCompetencyOrm) -> SubCompetency:
         id=subcompetency.id,
         name=subcompetency.name,
         description=subcompetency.description,
-        target_level=CompetencyLevel(int(subcompetency.target_level)),
-        weight=subcompetency.weight,
+        target_level=CompetencyLevel.BEGINNER,
+        weight=1.0,
         created_at=subcompetency.created_at,
         updated_at=subcompetency.updated_at,
     )
@@ -246,18 +129,8 @@ def vacancy_to_orm(vacancy: Vacancy) -> VacancyOrm:
         id=vacancy.id,
         name=vacancy.name,
         description=vacancy.description,
-        status=vacancy.status.value,
-        experience=vacancy.experience,
-        key_skills=json.dumps(vacancy.key_skills, ensure_ascii=False),
+        status=vacancy.status,
         error_message=vacancy.error_message,
-        categories_snapshot=json.dumps(
-            [_serialize_category(category) for category in vacancy.categories],
-            ensure_ascii=False,
-        ),
-        competencies_snapshot=json.dumps(
-            [_serialize_competency(competency) for competency in vacancy.competencies],
-            ensure_ascii=False,
-        ),
     )
 
 
@@ -266,17 +139,9 @@ def vacancy_from_orm(vacancy: VacancyOrm) -> Vacancy:
         id=vacancy.id,
         name=vacancy.name,
         description=vacancy.description,
-        status=VacancyStatus(vacancy.status),
-        experience=vacancy.experience,
-        key_skills=list(json.loads(vacancy.key_skills or "[]")),
-        categories=[
-            _deserialize_category(item)
-            for item in _json_loads(vacancy.categories_snapshot)
-        ],
-        competencies=[
-            _deserialize_competency(item)
-            for item in _json_loads(vacancy.competencies_snapshot)
-        ],
+        status=vacancy.status,
+        categories=[],
+        competencies=[],
         error_message=vacancy.error_message,
         created_at=vacancy.created_at,
         updated_at=vacancy.updated_at,
@@ -287,11 +152,22 @@ def candidate_to_orm(candidate: Candidate) -> CandidateOrm:
     return CandidateOrm(
         id=candidate.id,
         external_id=candidate.external_id,
-        status=candidate.assessment_status.value,
-        achieved_subcompetency_ids=_uuid_list_to_json(
-            candidate.achieved_subcompetency_ids
-        ),
+        vacancy_id=candidate.vacancy_id,
+        status=candidate.assessment_status,
         last_assessment_at=candidate.last_assessment_at,
+    )
+
+
+def candidate_from_orm(candidate: CandidateOrm) -> Candidate:
+    return Candidate(
+        id=candidate.id,
+        external_id=candidate.external_id,
+        vacancy_id=candidate.vacancy_id,
+        achieved_subcompetency_ids=set(),
+        assessment_status=candidate.status,
+        last_assessment_at=candidate.last_assessment_at,
+        created_at=candidate.created_at,
+        updated_at=candidate.updated_at,
     )
 
 
@@ -341,40 +217,16 @@ def refresh_token_from_orm(refresh_token: RefreshTokenOrm) -> RefreshToken:
     )
 
 
-def candidate_from_orm(candidate: CandidateOrm) -> Candidate:
-    return Candidate(
-        id=candidate.id,
-        external_id=candidate.external_id,
-        achieved_subcompetency_ids=_json_to_uuid_set(
-            candidate.achieved_subcompetency_ids
-        ),
-        assessment_status=AssessmentStatus(candidate.status),
-        last_assessment_at=candidate.last_assessment_at,
-        created_at=candidate.created_at,
-        updated_at=candidate.updated_at,
-    )
-
-
 def task_to_orm(task: Task) -> TaskOrm:
     return TaskOrm(
         id=task.id,
         external_id=task.external_id,
         title=task.title,
         description=task.description,
-        type=task.type.value.lower(),
+        type=task.type,
         mapping_validated=task.mapping_validated,
         mapping_status=task.mapping_status,
         mapping_error_message=task.mapping_error_message,
-        competency_mappings=json.dumps(
-            [
-                {
-                    "sub_competency_id": str(mapping.sub_competency_id),
-                    "weight": mapping.weight,
-                }
-                for mapping in task.competency_mappings
-            ],
-            ensure_ascii=False,
-        ),
     )
 
 
@@ -384,14 +236,8 @@ def task_from_orm(task: TaskOrm) -> Task:
         external_id=task.external_id,
         title=task.title,
         description=task.description,
-        type=TaskType(str(task.type).lower()),
-        competency_mappings=[
-            TaskCompetencyMapping(
-                sub_competency_id=UUID(str(mapping["sub_competency_id"])),
-                weight=float(mapping.get("weight", 1.0)),
-            )
-            for mapping in _json_loads(task.competency_mappings)
-        ],
+        type=TaskType(task.type),
+        competency_mappings=[],
         mapping_validated=task.mapping_validated,
         mapping_status=task.mapping_status,
         mapping_error_message=task.mapping_error_message,
@@ -409,10 +255,6 @@ def test_result_to_orm(test_result: TestResult) -> TestResultOrm:
         score=test_result.score,
         attempts=test_result.attempts,
         code_submitted=test_result.code_submitted,
-        question_answers=json.dumps(test_result.question_answers, ensure_ascii=False),
-        llm_assessment=json.dumps(test_result.llm_assessment, ensure_ascii=False)
-        if test_result.llm_assessment is not None
-        else None,
     )
 
 
@@ -425,12 +267,8 @@ def test_result_from_orm(test_result: TestResultOrm) -> TestResult:
         score=test_result.score,
         attempts=test_result.attempts,
         code_submitted=test_result.code_submitted,
-        question_answers=json.loads(test_result.question_answers or "[]"),
-        llm_assessment=(
-            json.loads(test_result.llm_assessment)
-            if test_result.llm_assessment is not None
-            else None
-        ),
+        question_answers=[],
+        llm_assessment=None,
         created_at=test_result.created_at,
         updated_at=test_result.created_at,
     )
@@ -447,7 +285,7 @@ def webhook_event_to_orm(event: WebhookEvent) -> WebhookEventOrm:
         error_message=event.error_message,
         candidate_id=event.candidate_id,
         test_result_id=event.test_result_id,
-        payload=json.dumps(event.payload or {}, ensure_ascii=False),
+        payload=event.payload or {},
         processed_at=event.processed_at,
     )
 
@@ -463,7 +301,7 @@ def webhook_event_from_orm(event: WebhookEventOrm) -> WebhookEvent:
         error_message=event.error_message,
         candidate_id=event.candidate_id,
         test_result_id=event.test_result_id,
-        payload=json.loads(event.payload or "{}"),
+        payload=dict(event.payload or {}),
         processed_at=event.processed_at,
         created_at=event.created_at,
         updated_at=event.updated_at,
@@ -474,7 +312,7 @@ def ranking_snapshot_to_orm(snapshot: RankingSnapshot) -> RankingSnapshotOrm:
     return RankingSnapshotOrm(
         id=snapshot.id,
         vacancy_id=snapshot.vacancy_id,
-        payload=json.dumps(snapshot.payload, ensure_ascii=False),
+        payload=snapshot.payload,
         calculated_at=snapshot.calculated_at,
     )
 
@@ -483,7 +321,7 @@ def ranking_snapshot_from_orm(snapshot: RankingSnapshotOrm) -> RankingSnapshot:
     return RankingSnapshot(
         id=snapshot.id,
         vacancy_id=snapshot.vacancy_id,
-        payload=json.loads(snapshot.payload or "{}"),
+        payload=dict(snapshot.payload or {}),
         calculated_at=snapshot.calculated_at,
         created_at=snapshot.calculated_at,
         updated_at=snapshot.calculated_at,
@@ -496,9 +334,9 @@ def vacancy_suggestion_to_orm(
     return VacancySuggestionOrm(
         id=suggestion.id,
         vacancy_id=suggestion.vacancy_id,
-        stage=suggestion.stage.value,
-        entity_type=suggestion.entity_type.value,
-        status=suggestion.status.value,
+        stage=suggestion.stage,
+        entity_type=suggestion.entity_type,
+        status=suggestion.status,
         name=suggestion.name,
         description=suggestion.description,
         reason=suggestion.reason,
@@ -520,9 +358,9 @@ def vacancy_suggestion_from_orm(
     return VacancyGraphSuggestion(
         id=suggestion.id,
         vacancy_id=suggestion.vacancy_id,
-        stage=SuggestionStage(suggestion.stage),
-        entity_type=SuggestionEntityType(suggestion.entity_type),
-        status=SuggestionStatus(suggestion.status),
+        stage=suggestion.stage,
+        entity_type=suggestion.entity_type,
+        status=suggestion.status,
         name=suggestion.name,
         description=suggestion.description,
         reason=suggestion.reason,

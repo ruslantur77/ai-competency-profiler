@@ -21,13 +21,18 @@ from competency_system.application.use_cases.code_assessment_policy import (
 )
 from competency_system.domain.entities import (
     Candidate,
+    Competency,
     CompetencyScore,
     Task,
     TestResult,
     WebhookEvent,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
-from competency_system.domain.value_objects.enums import AssessmentStatus, TaskType
+from competency_system.domain.value_objects.enums import (
+    AssessmentStatus,
+    TaskType,
+    WebhookEventStatus,
+)
 
 
 def _build_profile(
@@ -91,7 +96,7 @@ class AssessCandidateUseCase:
             existing = await uow.webhook_events.get_by_event_id(command.event_id)
             if existing is not None:
                 if (
-                    existing.status == "processed"
+                    existing.status == WebhookEventStatus.PROCESSED
                     and existing.candidate_id is not None
                     and existing.test_result_id is not None
                 ):
@@ -101,9 +106,11 @@ class AssessCandidateUseCase:
                         raise ValueError(
                             "Stored webhook event references missing result"
                         )
-                    competencies = await uow.competencies.list()
+                    vacancy_competencies = await self._get_vacancy_competencies(
+                        uow, existing.vacancy_id
+                    )
                     scores = self._scorer.calculate_scores(
-                        candidate, list(competencies)
+                        candidate, vacancy_competencies
                     )
                     raise _DuplicateWebhookEvent(
                         CandidateAssessmentResultDTO(
@@ -111,7 +118,7 @@ class AssessCandidateUseCase:
                             test_result=self._to_test_result_dto(test_result),
                         )
                     )
-                if existing.status == "processing":
+                if existing.status == WebhookEventStatus.PROCESSING:
                     raise ValueError(f"Webhook event {command.event_id} is processing")
                 raise ValueError(f"Webhook event {command.event_id} already handled")
 
@@ -121,7 +128,7 @@ class AssessCandidateUseCase:
                 vacancy_id=command.vacancy_id,
                 candidate_external_id=command.candidate_external_id,
                 task_external_id=command.task_external_id,
-                status="processing",
+                status=WebhookEventStatus.PROCESSING,
                 payload=command.model_dump(mode="json"),
             )
             await uow.webhook_events.add(event)
@@ -138,7 +145,10 @@ class AssessCandidateUseCase:
                 candidate = Candidate(
                     id=uuid4(),
                     external_id=command.candidate_external_id,
+                    vacancy_id=command.vacancy_id,
                 )
+            elif candidate.vacancy_id != command.vacancy_id:
+                raise ValueError("Candidate is already assigned to another vacancy")
 
             task = await uow.tasks.get_by_external_id(command.task_external_id)
             if task is None:
@@ -155,10 +165,11 @@ class AssessCandidateUseCase:
             candidate.assessment_status = AssessmentStatus.COMPLETED
             candidate.last_assessment_at = datetime.now(UTC)
             await uow.candidates.add(candidate)
-            await uow.candidates.attach_to_vacancy(candidate.id, command.vacancy_id)
 
-            competencies = await uow.competencies.list()
-            scores = self._scorer.calculate_scores(candidate, list(competencies))
+            vacancy_competencies = await self._get_vacancy_competencies(
+                uow, command.vacancy_id
+            )
+            scores = self._scorer.calculate_scores(candidate, vacancy_competencies)
             await uow.commit()
 
             return CandidateAssessmentResultDTO(
@@ -177,7 +188,7 @@ class AssessCandidateUseCase:
             event = await uow.webhook_events.get_by_event_id(command.event_id)
             if event is None:
                 return
-            event.status = "processed"
+            event.status = WebhookEventStatus.PROCESSED
             event.error_message = None
             event.candidate_id = candidate_id
             event.test_result_id = test_result_id
@@ -194,7 +205,7 @@ class AssessCandidateUseCase:
             event = await uow.webhook_events.get_by_event_id(command.event_id)
             if event is None:
                 return
-            event.status = "failed"
+            event.status = WebhookEventStatus.FAILED
             event.error_message = message
             event.processed_at = datetime.now(UTC)
             await uow.webhook_events.add(event)
@@ -295,6 +306,16 @@ class AssessCandidateUseCase:
             created_at=result.created_at,
         )
 
+    async def _get_vacancy_competencies(
+        self,
+        uow: UnitOfWork,
+        vacancy_id: UUID,
+    ) -> list[Competency]:
+        vacancy = await uow.vacancies.get(vacancy_id)
+        if vacancy is None:
+            raise ValueError(f"Vacancy {vacancy_id} not found")
+        return list(vacancy.competencies)
+
 
 class _DuplicateWebhookEvent(Exception):
     def __init__(self, result: CandidateAssessmentResultDTO) -> None:
@@ -312,6 +333,10 @@ class GetCandidateProfileUseCase:
             candidate = await uow.candidates.get(candidate_id)
             if candidate is None:
                 raise ValueError(f"Candidate {candidate_id} not found")
-            competencies = await uow.competencies.list()
-            scores = self._scorer.calculate_scores(candidate, list(competencies))
+            vacancy = await uow.vacancies.get(candidate.vacancy_id)
+            if vacancy is None:
+                raise ValueError(f"Vacancy {candidate.vacancy_id} not found")
+            scores = self._scorer.calculate_scores(
+                candidate, list(vacancy.competencies)
+            )
             return _build_profile(candidate, scores)

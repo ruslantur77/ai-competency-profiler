@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -68,14 +68,17 @@ def _build_ranking_fixture() -> tuple[Vacancy, list[Candidate]]:
     candidates = [
         Candidate(
             external_id="candidate-full",
+            vacancy_id=uuid4(),
             achieved_subcompetency_ids={required_primary.id, desired_observability.id},
         ),
         Candidate(
             external_id="candidate-required-only",
+            vacancy_id=uuid4(),
             achieved_subcompetency_ids={required_primary.id},
         ),
         Candidate(
             external_id="candidate-desired-only",
+            vacancy_id=uuid4(),
             achieved_subcompetency_ids={desired_observability.id},
         ),
     ]
@@ -127,6 +130,7 @@ def test_ranking_engine_handles_missing_required_group() -> None:
     )
     candidate = Candidate(
         external_id="candidate-1",
+        vacancy_id=uuid4(),
         achieved_subcompetency_ids={desired_skill.id},
     )
 
@@ -149,8 +153,8 @@ async def test_recalculate_ranking_use_case_returns_breakdown(tmp_path: Path) ->
     async with SQLAlchemyUnitOfWork(session_factory) as uow:
         await uow.vacancies.add(vacancy)
         for candidate in candidates:
+            candidate.vacancy_id = vacancy.id
             await uow.candidates.add(candidate)
-            await uow.candidates.attach_to_vacancy(candidate.id, vacancy.id)
         await uow.commit()
 
     try:
@@ -181,8 +185,8 @@ def test_ranking_api_exposes_canonical_and_legacy_paths(tmp_path: Path) -> None:
         async with SQLAlchemyUnitOfWork(session_factory) as uow:
             await uow.vacancies.add(vacancy)
             for candidate in candidates:
+                candidate.vacancy_id = vacancy.id
                 await uow.candidates.add(candidate)
-                await uow.candidates.attach_to_vacancy(candidate.id, vacancy.id)
             await uow.commit()
 
     asyncio.run(_seed())

@@ -16,7 +16,6 @@ async def test_uow_round_trip_vacancy(
         name="Backend Engineer",
         description="Build backend services.",
         status=VacancyStatus.DRAFT,
-        key_skills=["Python", "SQLAlchemy"],
     )
 
     async with SQLAlchemyUnitOfWork(sqlite_session_factory) as uow:
@@ -30,4 +29,3 @@ async def test_uow_round_trip_vacancy(
     assert loaded.name == vacancy.name
     assert loaded.description == vacancy.description
     assert loaded.status == VacancyStatus.DRAFT
-    assert loaded.key_skills == vacancy.key_skills

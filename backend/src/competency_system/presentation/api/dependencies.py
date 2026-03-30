@@ -58,6 +58,7 @@ from competency_system.application.use_cases.vacancy import (
     UpdateVacancyStatusUseCase,
 )
 from competency_system.domain.value_objects.enums import UserRole
+from competency_system.infrastructure.database import create_session_factory
 from competency_system.infrastructure.health.database_health import (
     SQLAlchemyHealthCheckPort,
 )
@@ -116,8 +117,11 @@ def get_testing_system_gateway(request: Request) -> ExternalTestingSystemGateway
 
 def get_health_check_port(request: Request) -> HealthCheckPort:
     session_factory = cast(
-        async_sessionmaker[AsyncSession], request.app.state.session_factory
+        async_sessionmaker[AsyncSession] | None,
+        getattr(request.app.state, "session_factory", None),
     )
+    if session_factory is None:
+        session_factory = create_session_factory(get_settings())
     return SQLAlchemyHealthCheckPort(session_factory)
 
 

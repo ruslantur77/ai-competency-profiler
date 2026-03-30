@@ -19,6 +19,14 @@ class TaskType(StrEnum):
     TEST = auto()
 
 
+class TaskMappingStatus(StrEnum):
+    """Status of task to competency mapping pipeline."""
+
+    PENDING = auto()
+    COMPLETED = auto()
+    FAILED = auto()
+
+
 class AssessmentStatus(StrEnum):
     """Status of candidate assessment."""
 
@@ -50,6 +58,14 @@ class SuggestionEntityType(StrEnum):
     CATEGORY = auto()
     COMPETENCY = auto()
     SUB_COMPETENCY = auto()
+
+
+class WebhookEventStatus(StrEnum):
+    """Status of webhook event processing."""
+
+    PROCESSING = auto()
+    PROCESSED = auto()
+    FAILED = auto()
 
 
 class UserRole(StrEnum):

@@ -18,6 +18,7 @@ from competency_system.domain.entities import (
     RefreshToken,
     SubCompetency,
     Task,
+    TaskCompetencyMapping,
     TestResult,
     User,
     Vacancy,
@@ -53,14 +54,19 @@ from competency_system.infrastructure.persistence.mappers import (
 )
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
-    CandidateVacancyLinkOrm,
+    CandidateSubCompetencyAchievementOrm,
     CategoryOrm,
     CompetencyOrm,
     RankingSnapshotOrm,
     RefreshTokenOrm,
     SubCompetencyOrm,
     TaskOrm,
+    TaskSubCompetencyMappingOrm,
+    TestResultLLMAssessmentOrm,
+    TestResultLLMIssueOrm,
+    TestResultLLMStrengthOrm,
     TestResultOrm,
+    TestResultQuestionAnswerOrm,
     UserOrm,
     VacancyCategoryNodeOrm,
     VacancyCompetencyNodeOrm,
@@ -204,6 +210,7 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
     async def add(self, entity: Vacancy) -> None:
         model = self.to_model(entity)
         await self._session.merge(model)
+        await self._upsert_canonical_graph(entity)
         await self._session.flush()
         await self._replace_normalized_graph(entity)
 
@@ -230,49 +237,111 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
             )
         )
 
-        competency_position = 0
-        sub_position = 0
-        for category_position, category in enumerate(vacancy.categories):
+        if vacancy.categories:
+            category_order = [category.id for category in vacancy.categories]
+            competencies_source = [
+                competency
+                for category in vacancy.categories
+                for competency in category.competencies
+            ]
+        else:
+            seen: set[UUID] = set()
+            category_order = []
+            competencies_source = list(vacancy.competencies)
+            for competency in competencies_source:
+                if competency.category_id not in seen:
+                    seen.add(competency.category_id)
+                    category_order.append(competency.category_id)
+
+        for category_position, category_id in enumerate(category_order):
             self._session.add(
                 VacancyCategoryNodeOrm(
                     vacancy_id=vacancy.id,
-                    category_id=category.id,
-                    name=category.name,
-                    description=category.description,
-                    emoji=category.emoji,
+                    category_id=category_id,
                     position=category_position,
                 )
             )
 
-            for competency in category.competencies:
+        competency_position = 0
+        sub_position = 0
+        for competency in competencies_source:
+            self._session.add(
+                VacancyCompetencyNodeOrm(
+                    vacancy_id=vacancy.id,
+                    competency_id=competency.id,
+                    category_id=competency.category_id,
+                    is_required=competency.is_required,
+                    position=competency_position,
+                )
+            )
+            competency_position += 1
+
+            for sub in competency.sub_competencies:
                 self._session.add(
-                    VacancyCompetencyNodeOrm(
+                    VacancySubCompetencyNodeOrm(
                         vacancy_id=vacancy.id,
+                        sub_competency_id=sub.id,
                         competency_id=competency.id,
-                        category_id=category.id,
-                        name=competency.name,
-                        description=competency.description,
-                        is_required=competency.is_required,
-                        position=competency_position,
+                        target_level=int(sub.target_level),
+                        weight=sub.weight,
+                        position=sub_position,
                     )
                 )
-                competency_position += 1
-
-                for sub in competency.sub_competencies:
-                    self._session.add(
-                        VacancySubCompetencyNodeOrm(
-                            vacancy_id=vacancy.id,
-                            sub_competency_id=sub.id,
-                            competency_id=competency.id,
-                            name=sub.name,
-                            description=sub.description,
-                            target_level=int(sub.target_level),
-                            weight=sub.weight,
-                            position=sub_position,
-                        )
-                    )
-                    sub_position += 1
+                sub_position += 1
         await self._session.flush()
+
+    async def _upsert_canonical_graph(self, vacancy: Vacancy) -> None:
+        categories_by_id: dict[UUID, Category] = {
+            category.id: category for category in vacancy.categories
+        }
+        competencies_source: list[Competency]
+        if vacancy.categories:
+            competencies_source = [
+                competency
+                for category in vacancy.categories
+                for competency in category.competencies
+            ]
+        else:
+            competencies_source = list(vacancy.competencies)
+
+        for competency in competencies_source:
+            if competency.category_id not in categories_by_id:
+                categories_by_id[competency.category_id] = Category(
+                    id=competency.category_id,
+                    name=f"Category {competency.category_id}",
+                    description="",
+                    emoji="📋",
+                    competencies=[],
+                )
+
+        for category in categories_by_id.values():
+            await self._session.merge(
+                CategoryOrm(
+                    id=category.id,
+                    name=category.name,
+                    description=category.description,
+                    emoji=category.emoji,
+                )
+            )
+
+        for competency in competencies_source:
+            await self._session.merge(
+                CompetencyOrm(
+                    id=competency.id,
+                    category_id=competency.category_id,
+                    name=competency.name,
+                    description=competency.description,
+                )
+            )
+            for sub in competency.sub_competencies:
+                await self._session.merge(
+                    SubCompetencyOrm(
+                        id=sub.id,
+                        competency_id=competency.id,
+                        name=sub.name,
+                        description=sub.description,
+                    )
+                )
 
     async def _load_normalized_graph(
         self,
@@ -303,52 +372,94 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
             )
         ).all()
 
+        category_ids = [row.category_id for row in category_rows]
+        competency_ids = [row.competency_id for row in competency_rows]
+        sub_ids = [row.sub_competency_id for row in sub_rows]
+
+        category_models = {
+            model.id: model
+            for model in (
+                await self._session.scalars(
+                    select(CategoryOrm).where(CategoryOrm.id.in_(category_ids))
+                )
+            ).all()
+        }
+        competency_models = {
+            model.id: model
+            for model in (
+                await self._session.scalars(
+                    select(CompetencyOrm).where(CompetencyOrm.id.in_(competency_ids))
+                )
+            ).all()
+        }
+        sub_models = {
+            model.id: model
+            for model in (
+                await self._session.scalars(
+                    select(SubCompetencyOrm).where(SubCompetencyOrm.id.in_(sub_ids))
+                )
+            ).all()
+        }
+
         subs_by_competency: dict[UUID, list[SubCompetency]] = {}
         for sub_row in sub_rows:
+            sub_model = sub_models.get(sub_row.sub_competency_id)
+            if sub_model is None:
+                continue
             subs_by_competency.setdefault(sub_row.competency_id, []).append(
                 SubCompetency(
-                    id=sub_row.sub_competency_id,
-                    name=sub_row.name,
-                    description=sub_row.description,
+                    id=sub_model.id,
+                    name=sub_model.name,
+                    description=sub_model.description,
                     target_level=CompetencyLevel(sub_row.target_level),
                     weight=sub_row.weight,
-                    created_at=sub_row.created_at,
-                    updated_at=sub_row.updated_at,
+                    created_at=sub_model.created_at,
+                    updated_at=sub_model.updated_at,
                 )
             )
 
         competencies_by_category: dict[UUID, list[Competency]] = {}
         all_competencies: list[Competency] = []
         for competency_row in competency_rows:
+            competency_model = competency_models.get(competency_row.competency_id)
+            if competency_model is None:
+                continue
             competency = Competency(
-                id=competency_row.competency_id,
+                id=competency_model.id,
                 category_id=competency_row.category_id,
-                name=competency_row.name,
-                description=competency_row.description,
+                name=competency_model.name,
+                description=competency_model.description,
                 is_required=competency_row.is_required,
                 sub_competencies=subs_by_competency.get(
                     competency_row.competency_id, []
                 ),
-                created_at=competency_row.created_at,
-                updated_at=competency_row.updated_at,
+                created_at=competency_model.created_at,
+                updated_at=competency_model.updated_at,
             )
             competencies_by_category.setdefault(competency_row.category_id, []).append(
                 competency
             )
             all_competencies.append(competency)
 
-        categories = [
-            Category(
-                id=category_row.category_id,
-                name=category_row.name,
-                description=category_row.description,
-                emoji=category_row.emoji,
-                competencies=competencies_by_category.get(category_row.category_id, []),
-                created_at=category_row.created_at,
-                updated_at=category_row.updated_at,
+        categories = []
+        for category_row in category_rows:
+            category_model = category_models.get(category_row.category_id)
+            if category_model is None:
+                continue
+            categories.append(
+                Category(
+                    id=category_model.id,
+                    name=category_model.name,
+                    description=category_model.description,
+                    emoji=category_model.emoji,
+                    competencies=competencies_by_category.get(
+                        category_row.category_id, []
+                    ),
+                    created_at=category_model.created_at,
+                    updated_at=category_model.updated_at,
+                )
             )
-            for category_row in category_rows
-        ]
+
         return categories, all_competencies
 
 
@@ -357,37 +468,60 @@ class CandidateRepository(
 ):
     model = CandidateOrm
 
+    async def get(self, entity_id: UUID) -> Candidate | None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return None
+        candidate = self.to_domain(model)
+        candidate.achieved_subcompetency_ids = await self._get_achievements(model.id)
+        return candidate
+
     async def get_by_external_id(self, external_id: str) -> Candidate | None:
         statement = select(self.model).where(CandidateOrm.external_id == external_id)
         model = await self._session.scalar(statement)
         if model is None:
             return None
-        return self.to_domain(model)
+        candidate = self.to_domain(model)
+        candidate.achieved_subcompetency_ids = await self._get_achievements(model.id)
+        return candidate
 
     async def list_by_vacancy(self, vacancy_id: UUID) -> Sequence[Candidate]:
         statement = (
             select(CandidateOrm)
-            .join(
-                CandidateVacancyLinkOrm,
-                CandidateVacancyLinkOrm.candidate_id == CandidateOrm.id,
-            )
-            .where(CandidateVacancyLinkOrm.vacancy_id == vacancy_id)
+            .where(CandidateOrm.vacancy_id == vacancy_id)
             .order_by(CandidateOrm.created_at.asc())
         )
         result = await self._session.scalars(statement)
-        return [self.to_domain(model) for model in result.all()]
+        rows = result.all()
+        achievements_by_candidate = await self._get_achievements_batch(
+            [row.id for row in rows]
+        )
+        candidates: list[Candidate] = []
+        for row in rows:
+            candidate = self.to_domain(row)
+            candidate.achieved_subcompetency_ids = achievements_by_candidate.get(
+                row.id, set()
+            )
+            candidates.append(candidate)
+        return candidates
 
-    async def attach_to_vacancy(self, candidate_id: UUID, vacancy_id: UUID) -> None:
-        statement = select(CandidateVacancyLinkOrm).where(
-            CandidateVacancyLinkOrm.candidate_id == candidate_id,
-            CandidateVacancyLinkOrm.vacancy_id == vacancy_id,
+    async def add(self, entity: Candidate) -> None:
+        model = self.to_model(entity)
+        await self._session.merge(model)
+        await self._session.flush()
+
+        await self._session.execute(
+            delete(CandidateSubCompetencyAchievementOrm).where(
+                CandidateSubCompetencyAchievementOrm.candidate_id == entity.id
+            )
         )
-        existing = await self._session.scalar(statement)
-        if existing is not None:
-            return
-        self._session.add(
-            CandidateVacancyLinkOrm(candidate_id=candidate_id, vacancy_id=vacancy_id)
-        )
+        for sub_id in sorted(entity.achieved_subcompetency_ids, key=str):
+            self._session.add(
+                CandidateSubCompetencyAchievementOrm(
+                    candidate_id=entity.id,
+                    sub_competency_id=sub_id,
+                )
+            )
         await self._session.flush()
 
     def to_domain(self, model: CandidateOrm) -> Candidate:
@@ -396,16 +530,90 @@ class CandidateRepository(
     def to_model(self, entity: Candidate) -> CandidateOrm:
         return candidate_to_orm(entity)
 
+    async def _get_achievements(self, candidate_id: UUID) -> set[UUID]:
+        rows = (
+            await self._session.scalars(
+                select(CandidateSubCompetencyAchievementOrm.sub_competency_id).where(
+                    CandidateSubCompetencyAchievementOrm.candidate_id == candidate_id
+                )
+            )
+        ).all()
+        return set(rows)
+
+    async def _get_achievements_batch(
+        self, candidate_ids: list[UUID]
+    ) -> dict[UUID, set[UUID]]:
+        if not candidate_ids:
+            return {}
+        rows = (
+            await self._session.execute(
+                select(
+                    CandidateSubCompetencyAchievementOrm.candidate_id,
+                    CandidateSubCompetencyAchievementOrm.sub_competency_id,
+                ).where(
+                    CandidateSubCompetencyAchievementOrm.candidate_id.in_(candidate_ids)
+                )
+            )
+        ).all()
+        result: dict[UUID, set[UUID]] = {
+            candidate_id: set() for candidate_id in candidate_ids
+        }
+        for candidate_id, sub_competency_id in rows:
+            result.setdefault(candidate_id, set()).add(sub_competency_id)
+        return result
+
 
 class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
     model = TaskOrm
+
+    async def get(self, entity_id: UUID) -> Task | None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return None
+        task = self.to_domain(model)
+        task.competency_mappings = await self._get_mappings(model.id)
+        return task
+
+    async def list(self) -> Sequence[Task]:
+        result = await self._session.scalars(select(self.model))
+        rows = result.all()
+        mappings_by_task = await self._get_mappings_batch([row.id for row in rows])
+        tasks: list[Task] = []
+        for row in rows:
+            task = self.to_domain(row)
+            task.competency_mappings = mappings_by_task.get(row.id, [])
+            tasks.append(task)
+        return tasks
 
     async def get_by_external_id(self, external_id: str) -> Task | None:
         statement = select(self.model).where(TaskOrm.external_id == external_id)
         model = await self._session.scalar(statement)
         if model is None:
             return None
-        return self.to_domain(model)
+        task = self.to_domain(model)
+        task.competency_mappings = await self._get_mappings(model.id)
+        return task
+
+    async def add(self, entity: Task) -> None:
+        model = self.to_model(entity)
+        await self._session.merge(model)
+        await self._session.flush()
+
+        await self._session.execute(
+            delete(TaskSubCompetencyMappingOrm).where(
+                TaskSubCompetencyMappingOrm.task_id == entity.id
+            )
+        )
+        for position, mapping in enumerate(entity.competency_mappings):
+            self._session.add(
+                TaskSubCompetencyMappingOrm(
+                    task_id=entity.id,
+                    sub_competency_id=mapping.sub_competency_id,
+                    weight=mapping.weight,
+                    position=position,
+                )
+            )
+        await self._session.flush()
 
     def to_domain(self, model: TaskOrm) -> Task:
         return task_from_orm(model)
@@ -413,17 +621,200 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
     def to_model(self, entity: Task) -> TaskOrm:
         return task_to_orm(entity)
 
+    async def _get_mappings(self, task_id: UUID) -> list[TaskCompetencyMapping]:
+        rows = (
+            await self._session.scalars(
+                select(TaskSubCompetencyMappingOrm)
+                .where(TaskSubCompetencyMappingOrm.task_id == task_id)
+                .order_by(TaskSubCompetencyMappingOrm.position)
+            )
+        ).all()
+        return [
+            TaskCompetencyMapping(
+                sub_competency_id=row.sub_competency_id,
+                weight=row.weight,
+            )
+            for row in rows
+        ]
+
+    async def _get_mappings_batch(
+        self, task_ids: list[UUID]
+    ) -> dict[UUID, list[TaskCompetencyMapping]]:
+        if not task_ids:
+            return {}
+        rows = (
+            await self._session.scalars(
+                select(TaskSubCompetencyMappingOrm)
+                .where(TaskSubCompetencyMappingOrm.task_id.in_(task_ids))
+                .order_by(
+                    TaskSubCompetencyMappingOrm.task_id,
+                    TaskSubCompetencyMappingOrm.position,
+                )
+            )
+        ).all()
+        result: dict[UUID, list[TaskCompetencyMapping]] = {
+            task_id: [] for task_id in task_ids
+        }
+        for row in rows:
+            result.setdefault(row.task_id, []).append(
+                TaskCompetencyMapping(
+                    sub_competency_id=row.sub_competency_id,
+                    weight=row.weight,
+                )
+            )
+        return result
+
 
 class TestResultRepository(
     SQLAlchemyRepository[TestResult, TestResultOrm],
 ):
     model = TestResultOrm
 
+    async def get(self, entity_id: UUID) -> TestResult | None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return None
+        return await self._hydrate_result(model)
+
+    async def list(self) -> Sequence[TestResult]:
+        result = await self._session.scalars(select(self.model))
+        rows = result.all()
+        return [await self._hydrate_result(row) for row in rows]
+
+    async def add(self, entity: TestResult) -> None:
+        model = self.to_model(entity)
+        await self._session.merge(model)
+        await self._session.flush()
+
+        await self._session.execute(
+            delete(TestResultQuestionAnswerOrm).where(
+                TestResultQuestionAnswerOrm.test_result_id == entity.id
+            )
+        )
+        for position, qa in enumerate(entity.question_answers):
+            self._session.add(
+                TestResultQuestionAnswerOrm(
+                    test_result_id=entity.id,
+                    question=str(qa.get("question", "")),
+                    answer=str(qa.get("answer", "")),
+                    position=position,
+                )
+            )
+
+        existing_assessment = await self._session.scalar(
+            select(TestResultLLMAssessmentOrm).where(
+                TestResultLLMAssessmentOrm.test_result_id == entity.id
+            )
+        )
+        if existing_assessment is not None:
+            await self._session.execute(
+                delete(TestResultLLMStrengthOrm).where(
+                    TestResultLLMStrengthOrm.assessment_id == existing_assessment.id
+                )
+            )
+            await self._session.execute(
+                delete(TestResultLLMIssueOrm).where(
+                    TestResultLLMIssueOrm.assessment_id == existing_assessment.id
+                )
+            )
+            await self._session.delete(existing_assessment)
+            await self._session.flush()
+
+        if entity.llm_assessment is not None:
+            llm = entity.llm_assessment
+            assessment = TestResultLLMAssessmentOrm(
+                test_result_id=entity.id,
+                passed=bool(llm.get("passed", entity.passed)),
+                score=float(llm.get("score", entity.score)),
+                feedback=str(llm.get("feedback", "")),
+                criteria_version=str(llm.get("criteria_version", "")),
+                raw_test_score=float(llm.get("raw_test_score", 0.0)),
+                penalized_test_score=float(llm.get("penalized_test_score", 0.0)),
+                attempt_penalty_applied=bool(llm.get("attempt_penalty_applied", False)),
+                final_score=float(llm.get("final_score", entity.score)),
+            )
+            self._session.add(assessment)
+            await self._session.flush()
+
+            strengths = llm.get("strengths", [])
+            if isinstance(strengths, list):
+                for position, value in enumerate(strengths):
+                    self._session.add(
+                        TestResultLLMStrengthOrm(
+                            assessment_id=assessment.id,
+                            value=str(value),
+                            position=position,
+                        )
+                    )
+
+            issues = llm.get("issues", [])
+            if isinstance(issues, list):
+                for position, value in enumerate(issues):
+                    self._session.add(
+                        TestResultLLMIssueOrm(
+                            assessment_id=assessment.id,
+                            value=str(value),
+                            position=position,
+                        )
+                    )
+
+        await self._session.flush()
+
     def to_domain(self, model: TestResultOrm) -> TestResult:
         return test_result_from_orm(model)
 
     def to_model(self, entity: TestResult) -> TestResultOrm:
         return test_result_to_orm(entity)
+
+    async def _hydrate_result(self, model: TestResultOrm) -> TestResult:
+        entity = self.to_domain(model)
+        answers = (
+            await self._session.scalars(
+                select(TestResultQuestionAnswerOrm)
+                .where(TestResultQuestionAnswerOrm.test_result_id == model.id)
+                .order_by(TestResultQuestionAnswerOrm.position)
+            )
+        ).all()
+        entity.question_answers = [
+            {"question": row.question, "answer": row.answer} for row in answers
+        ]
+
+        assessment = await self._session.scalar(
+            select(TestResultLLMAssessmentOrm).where(
+                TestResultLLMAssessmentOrm.test_result_id == model.id
+            )
+        )
+        if assessment is not None:
+            strengths = (
+                await self._session.scalars(
+                    select(TestResultLLMStrengthOrm)
+                    .where(TestResultLLMStrengthOrm.assessment_id == assessment.id)
+                    .order_by(TestResultLLMStrengthOrm.position)
+                )
+            ).all()
+            issues = (
+                await self._session.scalars(
+                    select(TestResultLLMIssueOrm)
+                    .where(TestResultLLMIssueOrm.assessment_id == assessment.id)
+                    .order_by(TestResultLLMIssueOrm.position)
+                )
+            ).all()
+            entity.llm_assessment = {
+                "passed": assessment.passed,
+                "score": assessment.score,
+                "feedback": assessment.feedback,
+                "criteria_version": assessment.criteria_version,
+                "raw_test_score": assessment.raw_test_score,
+                "penalized_test_score": assessment.penalized_test_score,
+                "attempt_penalty_applied": assessment.attempt_penalty_applied,
+                "final_score": assessment.final_score,
+                "strengths": [row.value for row in strengths],
+                "issues": [row.value for row in issues],
+            }
+        else:
+            entity.llm_assessment = None
+
+        return entity
 
 
 class VacancySuggestionRepository(

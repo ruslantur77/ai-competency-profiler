@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from competency_system.domain.entities.base import Entity
-from competency_system.domain.value_objects.enums import TaskType
+from competency_system.domain.value_objects.enums import TaskMappingStatus, TaskType
 
 
 @dataclass(kw_only=True)
@@ -30,7 +30,7 @@ class Task(Entity):
     # Маппинг на компетенции
     competency_mappings: list[TaskCompetencyMapping] = field(default_factory=list)
     mapping_validated: bool = False
-    mapping_status: str = "pending"
+    mapping_status: TaskMappingStatus = TaskMappingStatus.PENDING
     mapping_error_message: str | None = None
 
 

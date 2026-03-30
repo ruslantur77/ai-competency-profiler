@@ -26,8 +26,6 @@ class VacancyDTO(BaseDTO):
     name: str
     description: str
     status: VacancyStatus
-    experience: str
-    key_skills: list[str]
     categories: list[CategoryDTO]
     competencies: list[CompetencyDTO]
     error_message: str | None
@@ -51,8 +49,6 @@ class VacancyStatusUpdateDTO(BaseDTO):
 class VacancyCreateDTO(BaseDTO):
     name: str
     description: str
-    experience: str = ""
-    key_skills: list[str] = Field(default_factory=list)
 
 
 class VacancyGraphUpdateDTO(BaseDTO):
