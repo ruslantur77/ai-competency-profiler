@@ -127,3 +127,6 @@ disable_error_code = ["untyped-decorator"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --tb=short --cov=src"
+markers = [
+    "integration_repo: integration tests for persistence repositories and SQLAlchemyUnitOfWork on PostgreSQL",
+]

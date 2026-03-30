@@ -103,6 +103,13 @@ pytest
 
 # Run tests with coverage
 pytest --cov=src --cov-report=html
+
+# Run repository/UoW integration tests against PostgreSQL
+TEST_DB_URL=postgresql://user:pass@127.0.0.1:5432/app pytest -m integration_repo
+# or
+TEST_DB_HOST=127.0.0.1 TEST_DB_PORT=5432 TEST_DB_NAME=app TEST_DB_USER=user TEST_DB_PASS=pass pytest -m integration_repo
+# or
+pytest -m integration_repo --test-db-url postgresql://user:pass@127.0.0.1:5432/app
 ```
 
 CI mirrors the same quality gates with GitHub Actions:

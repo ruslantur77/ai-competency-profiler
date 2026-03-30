@@ -7,6 +7,20 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Check out repository
@@ -29,4 +43,13 @@ jobs:
         run: mypy src
 
       - name: Pytest
-        run: pytest
+        run: pytest -m "not integration_repo"
+
+      - name: Repository Integration Tests (PostgreSQL)
+        env:
+          TEST_DB_HOST: 127.0.0.1
+          TEST_DB_PORT: 5432
+          TEST_DB_NAME: app
+          TEST_DB_USER: app
+          TEST_DB_PASS: app
+        run: pytest -m integration_repo

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum as PyEnum
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -33,6 +34,10 @@ from competency_system.domain.value_objects.enums import (
 JSON_PAYLOAD = JSON().with_variant(JSONB, "postgresql")
 
 
+def _enum_values(enum_cls: type[PyEnum]) -> list[str]:
+    return [str(member.value) for member in enum_cls]
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -44,7 +49,8 @@ class UserOrm(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role"), server_default=UserRole.HR.value
+        Enum(UserRole, name="user_role", values_callable=_enum_values),
+        server_default=UserRole.HR.value,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
     created_at: Mapped[datetime] = mapped_column(
@@ -152,7 +158,7 @@ class VacancyOrm(Base):
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(String(5000))
     status: Mapped[VacancyStatus] = mapped_column(
-        Enum(VacancyStatus, name="vacancy_status"),
+        Enum(VacancyStatus, name="vacancy_status", values_callable=_enum_values),
         server_default=VacancyStatus.DRAFT.value,
     )
     error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -264,13 +270,21 @@ class VacancySuggestionOrm(Base):
         ForeignKey("vacancies.id", ondelete="CASCADE")
     )
     stage: Mapped[SuggestionStage] = mapped_column(
-        Enum(SuggestionStage, name="suggestion_stage")
+        Enum(
+            SuggestionStage,
+            name="suggestion_stage",
+            values_callable=_enum_values,
+        )
     )
     entity_type: Mapped[SuggestionEntityType] = mapped_column(
-        Enum(SuggestionEntityType, name="suggestion_entity_type")
+        Enum(
+            SuggestionEntityType,
+            name="suggestion_entity_type",
+            values_callable=_enum_values,
+        )
     )
     status: Mapped[SuggestionStatus] = mapped_column(
-        Enum(SuggestionStatus, name="suggestion_status"),
+        Enum(SuggestionStatus, name="suggestion_status", values_callable=_enum_values),
         server_default=SuggestionStatus.PENDING.value,
     )
 
@@ -306,7 +320,7 @@ class CandidateOrm(Base):
         ForeignKey("vacancies.id", ondelete="CASCADE")
     )
     status: Mapped[AssessmentStatus] = mapped_column(
-        Enum(AssessmentStatus, name="assessment_status"),
+        Enum(AssessmentStatus, name="assessment_status", values_callable=_enum_values),
         server_default=AssessmentStatus.PENDING.value,
     )
     last_assessment_at: Mapped[datetime | None] = mapped_column(
@@ -361,11 +375,16 @@ class TaskOrm(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(String(5000), default="")
     type: Mapped[TaskType] = mapped_column(
-        Enum(TaskType, name="task_type"), server_default=TaskType.CODE.value
+        Enum(TaskType, name="task_type", values_callable=_enum_values),
+        server_default=TaskType.CODE.value,
     )
     mapping_validated: Mapped[bool] = mapped_column(default=False)
     mapping_status: Mapped[TaskMappingStatus] = mapped_column(
-        Enum(TaskMappingStatus, name="task_mapping_status"),
+        Enum(
+            TaskMappingStatus,
+            name="task_mapping_status",
+            values_callable=_enum_values,
+        ),
         server_default=TaskMappingStatus.PENDING.value,
     )
     mapping_error_message: Mapped[str | None] = mapped_column(
@@ -501,7 +520,11 @@ class WebhookEventOrm(Base):
     candidate_external_id: Mapped[str] = mapped_column(String(100))
     task_external_id: Mapped[str] = mapped_column(String(100))
     status: Mapped[WebhookEventStatus] = mapped_column(
-        Enum(WebhookEventStatus, name="webhook_event_status"),
+        Enum(
+            WebhookEventStatus,
+            name="webhook_event_status",
+            values_callable=_enum_values,
+        ),
         server_default=WebhookEventStatus.PROCESSING.value,
     )
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)

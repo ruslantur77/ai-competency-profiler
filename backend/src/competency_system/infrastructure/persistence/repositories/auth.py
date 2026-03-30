@@ -89,7 +89,6 @@ class RefreshTokenRepository(SQLAlchemyRepository[RefreshToken, RefreshTokenOrm]
             expires_at=expires_at,
         )
         await self._session.merge(token)
-        await self._session.flush()
 
     async def get_by_jti(
         self,

@@ -16,6 +16,24 @@ from competency_system.infrastructure.persistence.models import Base
 from competency_system.infrastructure.settings import get_settings
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    group = parser.getgroup("integration-db")
+    group.addoption(
+        "--test-db-url",
+        action="store",
+        default=None,
+        help=(
+            "PostgreSQL URL for integration tests. "
+            "Example: postgresql://user:pass@127.0.0.1:5432/app"
+        ),
+    )
+    group.addoption("--test-db-host", action="store", default=None)
+    group.addoption("--test-db-port", action="store", default=None)
+    group.addoption("--test-db-name", action="store", default=None)
+    group.addoption("--test-db-user", action="store", default=None)
+    group.addoption("--test-db-pass", action="store", default=None)
+
+
 @pytest.fixture(autouse=True)
 def test_environment_guard() -> None:
     tracked_keys = (

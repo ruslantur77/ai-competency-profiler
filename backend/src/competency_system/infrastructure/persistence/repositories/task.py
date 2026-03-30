@@ -100,25 +100,26 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
         return task
 
     async def add(self, entity: Task) -> None:
-        model = self.to_model(entity)
-        await self._session.merge(model)
-        await self._session.flush()
+        async with self._session.begin_nested():
+            model = self.to_model(entity)
+            await self._session.merge(model)
+            await self._session.flush()
 
-        await self._session.execute(
-            delete(TaskSubCompetencyMappingOrm).where(
-                TaskSubCompetencyMappingOrm.task_id == entity.id
-            )
-        )
-        for position, mapping in enumerate(entity.competency_mappings):
-            self._session.add(
-                TaskSubCompetencyMappingOrm(
-                    task_id=entity.id,
-                    sub_competency_id=mapping.sub_competency_id,
-                    weight=mapping.weight,
-                    position=position,
+            await self._session.execute(
+                delete(TaskSubCompetencyMappingOrm).where(
+                    TaskSubCompetencyMappingOrm.task_id == entity.id
                 )
             )
-        await self._session.flush()
+            for position, mapping in enumerate(entity.competency_mappings):
+                self._session.add(
+                    TaskSubCompetencyMappingOrm(
+                        task_id=entity.id,
+                        sub_competency_id=mapping.sub_competency_id,
+                        weight=mapping.weight,
+                        position=position,
+                    )
+                )
+            await self._session.flush()
 
     def to_domain(self, model: TaskOrm) -> Task:
         return task_from_orm(model)
