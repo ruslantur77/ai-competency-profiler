@@ -35,7 +35,7 @@ class Settings(BaseSettings):
         default="https://openrouter.ai/api/v1",
         alias="BASE_URL",
     )
-    llm_model: str = Field(default="openai/gpt-oss-20b:free", alias="MODEL")
+    llm_model: str = Field(default="openai/gpt-oss-20b", alias="MODEL")
     llm_timeout_seconds: float = Field(default=30.0, alias="LLM_TIMEOUT_SECONDS")
     llm_retry_attempts: int = Field(default=3, alias="LLM_RETRY_ATTEMPTS")
     llm_max_parallel_requests: int = Field(default=4, alias="LLM_MAX_PARALLEL_REQUESTS")

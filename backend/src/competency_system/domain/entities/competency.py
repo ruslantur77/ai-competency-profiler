@@ -9,10 +9,7 @@ from competency_system.domain.value_objects.competency_level import CompetencyLe
 
 @dataclass(kw_only=True)
 class SubCompetency(Entity):
-    """Подкомпетенция - атомарный навык.
-
-    Упрощенная версия: просто target_level и вес.
-    """
+    """Подкомпетенция - атомарный навык."""
 
     name: str
     description: str = ""
