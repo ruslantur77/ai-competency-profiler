@@ -95,6 +95,15 @@ class CategoryOrm(Base):
     competencies: Mapped[list[CompetencyOrm]] = relationship(
         back_populates="category", cascade="all, delete-orphan", lazy="raise"
     )
+    vacancy_category_nodes: Mapped[list[VacancyCategoryNodeOrm]] = relationship(
+        back_populates="category", lazy="raise"
+    )
+    vacancy_competency_nodes: Mapped[list[VacancyCompetencyNodeOrm]] = relationship(
+        back_populates="category", lazy="raise"
+    )
+    parent_category_suggestions: Mapped[list[VacancySuggestionOrm]] = relationship(
+        back_populates="parent_category", lazy="raise"
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -120,6 +129,15 @@ class CompetencyOrm(Base):
     sub_competencies: Mapped[list[SubCompetencyOrm]] = relationship(
         back_populates="competency", cascade="all, delete-orphan", lazy="raise"
     )
+    vacancy_competency_nodes: Mapped[list[VacancyCompetencyNodeOrm]] = relationship(
+        back_populates="competency", lazy="raise"
+    )
+    vacancy_sub_competency_nodes: Mapped[list[VacancySubCompetencyNodeOrm]] = (
+        relationship(back_populates="competency", lazy="raise")
+    )
+    parent_competency_suggestions: Mapped[list[VacancySuggestionOrm]] = relationship(
+        back_populates="parent_competency", lazy="raise"
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -141,6 +159,15 @@ class SubCompetencyOrm(Base):
 
     competency: Mapped[CompetencyOrm] = relationship(
         back_populates="sub_competencies", lazy="raise"
+    )
+    achievements: Mapped[list[CandidateSubCompetencyAchievementOrm]] = relationship(
+        back_populates="sub_competency", lazy="raise"
+    )
+    task_mappings: Mapped[list[TaskSubCompetencyMappingOrm]] = relationship(
+        back_populates="sub_competency", lazy="raise"
+    )
+    vacancy_sub_competency_nodes: Mapped[list[VacancySubCompetencyNodeOrm]] = (
+        relationship(back_populates="sub_competency", lazy="raise")
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -169,6 +196,30 @@ class VacancyOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    candidates: Mapped[list[CandidateOrm]] = relationship(
+        back_populates="vacancy", cascade="all, delete-orphan", lazy="raise"
+    )
+    category_nodes: Mapped[list[VacancyCategoryNodeOrm]] = relationship(
+        back_populates="vacancy", cascade="all, delete-orphan", lazy="raise"
+    )
+    competency_nodes: Mapped[list[VacancyCompetencyNodeOrm]] = relationship(
+        back_populates="vacancy", cascade="all, delete-orphan", lazy="raise"
+    )
+    sub_competency_nodes: Mapped[list[VacancySubCompetencyNodeOrm]] = relationship(
+        back_populates="vacancy", cascade="all, delete-orphan", lazy="raise"
+    )
+    suggestions: Mapped[list[VacancySuggestionOrm]] = relationship(
+        back_populates="vacancy", cascade="all, delete-orphan", lazy="raise"
+    )
+    webhook_events: Mapped[list[WebhookEventOrm]] = relationship(
+        back_populates="vacancy", cascade="all, delete-orphan", lazy="raise"
+    )
+    ranking_snapshot: Mapped[RankingSnapshotOrm | None] = relationship(
+        back_populates="vacancy",
+        cascade="all, delete-orphan",
+        uselist=False,
+        lazy="raise",
+    )
 
 
 class VacancyCategoryNodeOrm(Base):
@@ -192,6 +243,12 @@ class VacancyCategoryNodeOrm(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="category_nodes", lazy="raise"
+    )
+    category: Mapped[CategoryOrm] = relationship(
+        back_populates="vacancy_category_nodes", lazy="raise"
     )
 
 
@@ -224,6 +281,15 @@ class VacancyCompetencyNodeOrm(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="competency_nodes", lazy="raise"
+    )
+    competency: Mapped[CompetencyOrm] = relationship(
+        back_populates="vacancy_competency_nodes", lazy="raise"
+    )
+    category: Mapped[CategoryOrm] = relationship(
+        back_populates="vacancy_competency_nodes", lazy="raise"
     )
 
 
@@ -259,6 +325,15 @@ class VacancySubCompetencyNodeOrm(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="sub_competency_nodes", lazy="raise"
+    )
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(
+        back_populates="vacancy_sub_competency_nodes", lazy="raise"
+    )
+    competency: Mapped[CompetencyOrm] = relationship(
+        back_populates="vacancy_sub_competency_nodes", lazy="raise"
     )
 
 
@@ -309,6 +384,13 @@ class VacancySuggestionOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    vacancy: Mapped[VacancyOrm] = relationship(back_populates="suggestions", lazy="raise")
+    parent_category: Mapped[CategoryOrm | None] = relationship(
+        back_populates="parent_category_suggestions", lazy="raise"
+    )
+    parent_competency: Mapped[CompetencyOrm | None] = relationship(
+        back_populates="parent_competency_suggestions", lazy="raise"
+    )
 
 
 class CandidateOrm(Base):
@@ -333,11 +415,15 @@ class CandidateOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    vacancy: Mapped[VacancyOrm] = relationship(back_populates="candidates", lazy="raise")
     achievements: Mapped[list[CandidateSubCompetencyAchievementOrm]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan", lazy="raise"
     )
     test_results: Mapped[list[TestResultOrm]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan", lazy="raise"
+    )
+    webhook_events: Mapped[list[WebhookEventOrm]] = relationship(
+        back_populates="candidate", lazy="raise"
     )
 
 
@@ -364,7 +450,9 @@ class CandidateSubCompetencyAchievementOrm(Base):
     candidate: Mapped[CandidateOrm] = relationship(
         back_populates="achievements", lazy="raise"
     )
-    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(
+        back_populates="achievements", lazy="raise"
+    )
 
 
 class TaskOrm(Base):
@@ -424,7 +512,9 @@ class TaskSubCompetencyMappingOrm(Base):
     task: Mapped[TaskOrm] = relationship(
         back_populates="sub_competency_mappings", lazy="raise"
     )
-    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(
+        back_populates="task_mappings", lazy="raise"
+    )
 
 
 class TestResultOrm(Base):
@@ -443,8 +533,22 @@ class TestResultOrm(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-    task: Mapped[TaskOrm] = relationship(lazy="raise")
-    candidate: Mapped[CandidateOrm] = relationship(lazy="raise")
+    question_answers: Mapped[list[TestResultQuestionAnswerOrm]] = relationship(
+        back_populates="test_result", cascade="all, delete-orphan", lazy="raise"
+    )
+    llm_assessment: Mapped[TestResultLLMAssessmentOrm | None] = relationship(
+        back_populates="test_result",
+        cascade="all, delete-orphan",
+        uselist=False,
+        lazy="raise",
+    )
+    task: Mapped[TaskOrm] = relationship(back_populates="test_results", lazy="raise")
+    candidate: Mapped[CandidateOrm] = relationship(
+        back_populates="test_results", lazy="raise"
+    )
+    webhook_events: Mapped[list[WebhookEventOrm]] = relationship(
+        back_populates="test_result", lazy="raise"
+    )
 
 
 class TestResultQuestionAnswerOrm(Base):
@@ -462,6 +566,9 @@ class TestResultQuestionAnswerOrm(Base):
     question: Mapped[str] = mapped_column(String(2000), default="")
     answer: Mapped[str] = mapped_column(String(10000), default="")
     position: Mapped[int] = mapped_column(Integer)
+    test_result: Mapped[TestResultOrm] = relationship(
+        back_populates="question_answers", lazy="raise"
+    )
 
 
 class TestResultLLMAssessmentOrm(Base):
@@ -479,6 +586,15 @@ class TestResultLLMAssessmentOrm(Base):
     penalized_test_score: Mapped[float] = mapped_column(Float, default=0.0)
     attempt_penalty_applied: Mapped[bool] = mapped_column(default=False)
     final_score: Mapped[float] = mapped_column(Float, default=0.0)
+    test_result: Mapped[TestResultOrm] = relationship(
+        back_populates="llm_assessment", lazy="raise"
+    )
+    strengths: Mapped[list[TestResultLLMStrengthOrm]] = relationship(
+        back_populates="assessment", cascade="all, delete-orphan", lazy="raise"
+    )
+    issues: Mapped[list[TestResultLLMIssueOrm]] = relationship(
+        back_populates="assessment", cascade="all, delete-orphan", lazy="raise"
+    )
 
 
 class TestResultLLMStrengthOrm(Base):
@@ -493,6 +609,9 @@ class TestResultLLMStrengthOrm(Base):
     )
     value: Mapped[str] = mapped_column(String(2000), default="")
     position: Mapped[int] = mapped_column(Integer)
+    assessment: Mapped[TestResultLLMAssessmentOrm] = relationship(
+        back_populates="strengths", lazy="raise"
+    )
 
 
 class TestResultLLMIssueOrm(Base):
@@ -507,6 +626,9 @@ class TestResultLLMIssueOrm(Base):
     )
     value: Mapped[str] = mapped_column(String(2000), default="")
     position: Mapped[int] = mapped_column(Integer)
+    assessment: Mapped[TestResultLLMAssessmentOrm] = relationship(
+        back_populates="issues", lazy="raise"
+    )
 
 
 class WebhookEventOrm(Base):
@@ -546,6 +668,15 @@ class WebhookEventOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="webhook_events", lazy="raise"
+    )
+    candidate: Mapped[CandidateOrm | None] = relationship(
+        back_populates="webhook_events", lazy="raise"
+    )
+    test_result: Mapped[TestResultOrm | None] = relationship(
+        back_populates="webhook_events", lazy="raise"
+    )
 
 
 class RankingSnapshotOrm(Base):
@@ -558,4 +689,7 @@ class RankingSnapshotOrm(Base):
     payload: Mapped[dict[str, object]] = mapped_column(JSON_PAYLOAD, default=dict)
     calculated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="ranking_snapshot", lazy="raise"
     )
