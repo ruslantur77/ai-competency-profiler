@@ -8,7 +8,11 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from competency_system.domain.entities import RankingSnapshot, RankingSnapshotPayload, Vacancy
+from competency_system.domain.entities import (
+    RankingSnapshot,
+    RankingSnapshotPayload,
+    Vacancy,
+)
 from competency_system.infrastructure.persistence.models import RankingSnapshotOrm
 from competency_system.infrastructure.persistence.repositories import (
     RankingSnapshotRepository,
@@ -41,7 +45,9 @@ async def test_ranking_snapshot_repository_get_by_vacancy_and_upsert(
     assert loaded is not None
     assert loaded.payload.data["rankings"][0]["candidate"] == "cand-1"
 
-    snapshot.payload = RankingSnapshotPayload(data={"rankings": [{"candidate": "cand-2"}]})
+    snapshot.payload = RankingSnapshotPayload(
+        data={"rankings": [{"candidate": "cand-2"}]}
+    )
     await repo.add(snapshot)
     await pg_session.commit()
 

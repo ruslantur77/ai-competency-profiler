@@ -11,7 +11,9 @@ from competency_system.infrastructure.persistence.mappers import (
     vacancy_suggestion_to_orm,
 )
 from competency_system.infrastructure.persistence.models import VacancySuggestionOrm
-from competency_system.infrastructure.persistence.repositories.base import SQLAlchemyRepository
+from competency_system.infrastructure.persistence.repositories.base import (
+    SQLAlchemyRepository,
+)
 
 
 class VacancySuggestionRepository(

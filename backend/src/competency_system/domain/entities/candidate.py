@@ -39,7 +39,9 @@ class Candidate(Entity):
                     sub_competency_id=sub_competency_id,
                     achieved_at=self.updated_at,
                 )
-                for sub_competency_id in sorted(self.achieved_subcompetency_ids, key=str)
+                for sub_competency_id in sorted(
+                    self.achieved_subcompetency_ids, key=str
+                )
             ]
 
     def has_subcompetency(self, subcompetency_id: UUID) -> bool:

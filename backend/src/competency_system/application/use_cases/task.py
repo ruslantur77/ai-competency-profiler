@@ -20,7 +20,10 @@ from competency_system.application.ports.external_testing_system import (
     ExternalTestingSystemGateway,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
-from competency_system.application.ports.repositories import CategoryInclude, TaskInclude
+from competency_system.application.ports.repositories import (
+    CategoryInclude,
+    TaskInclude,
+)
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.domain.entities import (
     Category,
@@ -490,9 +493,7 @@ class ListTasksUseCase:
 
     async def execute(self) -> list[TaskDTO]:
         async with self._uow as uow:
-            tasks = await uow.tasks.list(
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
-            )
+            tasks = await uow.tasks.list(include={TaskInclude.SUB_COMPETENCY_MAPPINGS})
             return [_task_to_dto(task) for task in tasks]
 
 

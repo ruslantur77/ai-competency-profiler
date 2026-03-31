@@ -5,7 +5,11 @@ from uuid import uuid4
 
 import pytest
 
-from competency_system.application.dtos.auth import LoginDTO, RefreshTokenDataDTO, UserCreateDTO
+from competency_system.application.dtos.auth import (
+    LoginDTO,
+    RefreshTokenDataDTO,
+    UserCreateDTO,
+)
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
     CreateUserUseCase,
@@ -102,7 +106,9 @@ async def test_refresh_token_pair_revokes_expired_token(mock_uow) -> None:
 async def test_refresh_token_pair_rotates_tokens_for_valid_token(mock_uow) -> None:
     user = User(email="user@example.com", hashed_password=hash_value("secret"))
     old_jti = uuid4()
-    raw_token = create_refresh_token(RefreshTokenDataDTO(user_id=user.id, jti=old_jti)).token
+    raw_token = create_refresh_token(
+        RefreshTokenDataDTO(user_id=user.id, jti=old_jti)
+    ).token
     stored = RefreshToken(
         jti=old_jti,
         user_id=user.id,

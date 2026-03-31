@@ -68,7 +68,9 @@ def apply_postgres_migrations(request: pytest.FixtureRequest) -> None:
         f"host={db_config.host} port={db_config.port} "
         f"db={db_config.name} user={db_config.user}"
     )
-    availability_error = _test_db_availability_error(db_config.sync_url, details=details)
+    availability_error = _test_db_availability_error(
+        db_config.sync_url, details=details
+    )
     if availability_error is not None:
         pytest.skip(f"Skipping integration tests: {availability_error}")
 

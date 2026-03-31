@@ -127,7 +127,9 @@ async def test_map_task_to_competencies_rejects_invalid_schema() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sync_tasks_use_case_marks_task_completed_without_sqlite(mock_uow) -> None:
+async def test_sync_tasks_use_case_marks_task_completed_without_sqlite(
+    mock_uow,
+) -> None:
     gateway = FakeTestingGateway(
         [
             ExternalTaskRecord(

@@ -7,7 +7,10 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
-from competency_system.application.ports.repositories import TaskInclude, TestResultInclude
+from competency_system.application.ports.repositories import (
+    TaskInclude,
+    TestResultInclude,
+)
 from competency_system.domain.entities import Task, TaskSubCompetencyMapping, TestResult
 from competency_system.infrastructure.persistence.mappers import (
     task_from_orm,
@@ -21,8 +24,7 @@ from competency_system.infrastructure.persistence.models import (
     TaskOrm,
     TaskSubCompetencyMappingOrm,
     TestResultLLMAssessmentOrm,
-    TestResultLLMIssueOrm,
-    TestResultLLMStrengthOrm,
+    TestResultLLMFeedbackOrm,
     TestResultOrm,
     TestResultQuestionAnswerOrm,
 )
@@ -197,13 +199,8 @@ class TestResultRepository(
         )
         if existing_assessment is not None:
             await self._session.execute(
-                delete(TestResultLLMStrengthOrm).where(
-                    TestResultLLMStrengthOrm.assessment_id == existing_assessment.id
-                )
-            )
-            await self._session.execute(
-                delete(TestResultLLMIssueOrm).where(
-                    TestResultLLMIssueOrm.assessment_id == existing_assessment.id
+                delete(TestResultLLMFeedbackOrm).where(
+                    TestResultLLMFeedbackOrm.assessment_id == existing_assessment.id
                 )
             )
             await self._session.delete(existing_assessment)
@@ -225,21 +222,13 @@ class TestResultRepository(
             self._session.add(assessment)
             await self._session.flush()
 
-            for strength in llm.strengths:
+            for feedback_item in llm.feedback_items:
                 self._session.add(
-                    TestResultLLMStrengthOrm(
+                    TestResultLLMFeedbackOrm(
                         assessment_id=assessment.id,
-                        value=strength.value,
-                        position=strength.position,
-                    )
-                )
-
-            for issue in llm.issues:
-                self._session.add(
-                    TestResultLLMIssueOrm(
-                        assessment_id=assessment.id,
-                        value=issue.value,
-                        position=issue.position,
+                        type=feedback_item.type,
+                        value=feedback_item.value,
+                        position=feedback_item.position,
                     )
                 )
 
@@ -279,24 +268,16 @@ class TestResultRepository(
                 )
             )
             if assessment is not None:
-                strengths = (
+                feedback_items = (
                     await self._session.scalars(
-                        select(TestResultLLMStrengthOrm)
-                        .where(TestResultLLMStrengthOrm.assessment_id == assessment.id)
-                        .order_by(TestResultLLMStrengthOrm.position)
-                    )
-                ).all()
-                issues = (
-                    await self._session.scalars(
-                        select(TestResultLLMIssueOrm)
-                        .where(TestResultLLMIssueOrm.assessment_id == assessment.id)
-                        .order_by(TestResultLLMIssueOrm.position)
+                        select(TestResultLLMFeedbackOrm)
+                        .where(TestResultLLMFeedbackOrm.assessment_id == assessment.id)
+                        .order_by(TestResultLLMFeedbackOrm.position)
                     )
                 ).all()
                 entity.llm_assessment = test_result_llm_assessment_from_rows(
                     assessment,
-                    strengths=list(strengths),
-                    issues=list(issues),
+                    feedback_items=list(feedback_items),
                 )
             else:
                 entity.llm_assessment = None

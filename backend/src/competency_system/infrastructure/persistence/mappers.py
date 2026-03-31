@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
 
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm.attributes import NO_VALUE
@@ -19,8 +18,7 @@ from competency_system.domain.entities import (
     TaskSubCompetencyMapping,
     TestResult,
     TestResultLLMAssessment,
-    TestResultLLMIssue,
-    TestResultLLMStrength,
+    TestResultLLMFeedbackItem,
     TestResultQuestionAnswer,
     User,
     Vacancy,
@@ -510,8 +508,7 @@ def test_result_question_answer_from_row(
 def test_result_llm_assessment_from_rows(
     assessment: object,
     *,
-    strengths: list[object],
-    issues: list[object],
+    feedback_items: list[object],
 ) -> TestResultLLMAssessment:
     return TestResultLLMAssessment(
         id=assessment.id,
@@ -524,22 +521,14 @@ def test_result_llm_assessment_from_rows(
         penalized_test_score=assessment.penalized_test_score,
         attempt_penalty_applied=assessment.attempt_penalty_applied,
         final_score=assessment.final_score,
-        strengths=[
-            TestResultLLMStrength(
+        feedback_items=[
+            TestResultLLMFeedbackItem(
                 id=row.id,
                 assessment_id=row.assessment_id,
+                type=row.type,
                 value=row.value,
                 position=row.position,
             )
-            for row in strengths
-        ],
-        issues=[
-            TestResultLLMIssue(
-                id=row.id,
-                assessment_id=row.assessment_id,
-                value=row.value,
-                position=row.position,
-            )
-            for row in issues
+            for row in feedback_items
         ],
     )

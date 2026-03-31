@@ -274,7 +274,7 @@ class AssessCandidateUseCase:
             score = max(penalized_test_score, assessment.score)
             passed = assessment.passed or passed
             llm_assessment = {
-                **assessment.model_dump(),
+                **assessment.model_dump(mode="json"),
                 "criteria_version": self._code_policy.version,
                 "raw_test_score": raw_test_score,
                 "penalized_test_score": penalized_test_score,
@@ -325,8 +325,14 @@ class AssessCandidateUseCase:
                 "penalized_test_score": result.llm_assessment.penalized_test_score,
                 "attempt_penalty_applied": result.llm_assessment.attempt_penalty_applied,
                 "final_score": result.llm_assessment.final_score,
-                "strengths": [item.value for item in result.llm_assessment.strengths],
-                "issues": [item.value for item in result.llm_assessment.issues],
+                "feedback_items": [
+                    {
+                        "type": item.type.value,
+                        "value": item.value,
+                        "position": item.position,
+                    }
+                    for item in result.llm_assessment.feedback_items
+                ],
             }
         return TestResultDTO(
             id=result.id,

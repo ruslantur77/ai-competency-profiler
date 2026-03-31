@@ -8,8 +8,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from competency_system.application.ports.repositories import CandidateInclude
-from competency_system.domain.entities import Candidate, CandidateSubCompetencyAchievement
-from competency_system.infrastructure.persistence.mappers import candidate_from_orm, candidate_to_orm
+from competency_system.domain.entities import (
+    Candidate,
+    CandidateSubCompetencyAchievement,
+)
+from competency_system.infrastructure.persistence.mappers import (
+    candidate_from_orm,
+    candidate_to_orm,
+)
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
     CandidateSubCompetencyAchievementOrm,

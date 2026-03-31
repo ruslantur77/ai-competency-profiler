@@ -105,11 +105,14 @@ def resolve_test_db_config(pytest_config: pytest.Config) -> ResolvedTestDBConfig
         password = parsed.password or "app"
     else:
         settings = TestDBSettings()
-        host = _first_non_empty(
-            _option(pytest_config, "test_db_host"),
-            os.environ.get("TEST_DB_HOST"),
-            settings.TEST_DB_HOST,
-        ) or settings.TEST_DB_HOST
+        host = (
+            _first_non_empty(
+                _option(pytest_config, "test_db_host"),
+                os.environ.get("TEST_DB_HOST"),
+                settings.TEST_DB_HOST,
+            )
+            or settings.TEST_DB_HOST
+        )
         port = int(
             _first_non_empty(
                 _option(pytest_config, "test_db_port"),
@@ -118,21 +121,30 @@ def resolve_test_db_config(pytest_config: pytest.Config) -> ResolvedTestDBConfig
             )
             or settings.TEST_DB_PORT
         )
-        name = _first_non_empty(
-            _option(pytest_config, "test_db_name"),
-            os.environ.get("TEST_DB_NAME"),
-            settings.TEST_DB_NAME,
-        ) or settings.TEST_DB_NAME
-        user = _first_non_empty(
-            _option(pytest_config, "test_db_user"),
-            os.environ.get("TEST_DB_USER"),
-            settings.TEST_DB_USER,
-        ) or settings.TEST_DB_USER
-        password = _first_non_empty(
-            _option(pytest_config, "test_db_pass"),
-            os.environ.get("TEST_DB_PASS"),
-            settings.TEST_DB_PASS,
-        ) or settings.TEST_DB_PASS
+        name = (
+            _first_non_empty(
+                _option(pytest_config, "test_db_name"),
+                os.environ.get("TEST_DB_NAME"),
+                settings.TEST_DB_NAME,
+            )
+            or settings.TEST_DB_NAME
+        )
+        user = (
+            _first_non_empty(
+                _option(pytest_config, "test_db_user"),
+                os.environ.get("TEST_DB_USER"),
+                settings.TEST_DB_USER,
+            )
+            or settings.TEST_DB_USER
+        )
+        password = (
+            _first_non_empty(
+                _option(pytest_config, "test_db_pass"),
+                os.environ.get("TEST_DB_PASS"),
+                settings.TEST_DB_PASS,
+            )
+            or settings.TEST_DB_PASS
+        )
 
     async_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{name}"
     sync_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"

@@ -108,7 +108,9 @@ def test_domain_fields_are_backed_by_db_or_explicitly_derived() -> None:
         aliases = spec.get("aliases", {})
         derived = set(spec.get("derived", set()))
 
-        domain_fields = {field.name for field in fields(domain_cls)} - BASE_ENTITY_FIELDS
+        domain_fields = {
+            field.name for field in fields(domain_cls)
+        } - BASE_ENTITY_FIELDS
         orm_columns = set(orm_cls.__table__.columns.keys())
         covered = set(derived)
 
@@ -121,7 +123,9 @@ def test_domain_fields_are_backed_by_db_or_explicitly_derived() -> None:
                 covered.add(field_name)
 
         missing = domain_fields - covered
-        assert not missing, f"{domain_cls.__name__} has unmapped fields: {sorted(missing)}"
+        assert not missing, (
+            f"{domain_cls.__name__} has unmapped fields: {sorted(missing)}"
+        )
 
 
 def test_derived_fields_use_existing_tables() -> None:
@@ -152,8 +156,7 @@ def test_derived_fields_use_existing_tables() -> None:
         "TestResult.question_answers": {"test_result_question_answers"},
         "TestResult.llm_assessment": {
             "test_result_llm_assessments",
-            "test_result_llm_strengths",
-            "test_result_llm_issues",
+            "test_result_llm_feedbacks",
         },
     }
 

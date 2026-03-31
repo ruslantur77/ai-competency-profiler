@@ -4,7 +4,11 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from competency_system.domain.entities.base import Entity
-from competency_system.domain.value_objects.enums import TaskMappingStatus, TaskType
+from competency_system.domain.value_objects.enums import (
+    LLMFeedbackType,
+    TaskMappingStatus,
+    TaskType,
+)
 
 
 @dataclass(kw_only=True)
@@ -24,7 +28,9 @@ class Task(Entity):
     description: str = ""
     type: TaskType = TaskType.CODE
 
-    sub_competency_mappings: list[TaskSubCompetencyMapping] = field(default_factory=list)
+    sub_competency_mappings: list[TaskSubCompetencyMapping] = field(
+        default_factory=list
+    )
     competency_mappings: list[TaskSubCompetencyMapping] = field(default_factory=list)
     mapping_validated: bool = False
     mapping_status: TaskMappingStatus = TaskMappingStatus.PENDING
@@ -46,15 +52,9 @@ class TestResultQuestionAnswer(Entity):
 
 
 @dataclass(kw_only=True)
-class TestResultLLMStrength(Entity):
+class TestResultLLMFeedbackItem(Entity):
     assessment_id: UUID
-    value: str = ""
-    position: int
-
-
-@dataclass(kw_only=True)
-class TestResultLLMIssue(Entity):
-    assessment_id: UUID
+    type: LLMFeedbackType
     value: str = ""
     position: int
 
@@ -70,8 +70,7 @@ class TestResultLLMAssessment(Entity):
     penalized_test_score: float = 0.0
     attempt_penalty_applied: bool = False
     final_score: float = 0.0
-    strengths: list[TestResultLLMStrength] = field(default_factory=list)
-    issues: list[TestResultLLMIssue] = field(default_factory=list)
+    feedback_items: list[TestResultLLMFeedbackItem] = field(default_factory=list)
 
 
 @dataclass(kw_only=True)
@@ -103,24 +102,66 @@ class TestResult(Entity):
         self.question_answers = normalized_answers
 
         if isinstance(self.llm_assessment, dict):
-            strengths_raw = self.llm_assessment.get("strengths", [])
-            issues_raw = self.llm_assessment.get("issues", [])
-            strengths = [
-                TestResultLLMStrength(
-                    assessment_id=UUID(int=0),
-                    value=str(value),
-                    position=position,
-                )
-                for position, value in enumerate(strengths_raw)
-            ] if isinstance(strengths_raw, list) else []
-            issues = [
-                TestResultLLMIssue(
-                    assessment_id=UUID(int=0),
-                    value=str(value),
-                    position=position,
-                )
-                for position, value in enumerate(issues_raw)
-            ] if isinstance(issues_raw, list) else []
+            feedback_raw = self.llm_assessment.get("feedback_items", [])
+            feedback_items: list[TestResultLLMFeedbackItem] = []
+            if isinstance(feedback_raw, list):
+                for index, item in enumerate(feedback_raw):
+                    if isinstance(item, dict):
+                        item_type_raw = item.get("type", LLMFeedbackType.NEGATIVE.value)
+                        try:
+                            item_type = LLMFeedbackType(str(item_type_raw))
+                        except ValueError:
+                            item_type = LLMFeedbackType.NEGATIVE
+                        position_raw = item.get("position", index)
+                        try:
+                            position = (
+                                int(position_raw) if position_raw is not None else index
+                            )
+                        except (TypeError, ValueError):
+                            position = index
+                        feedback_items.append(
+                            TestResultLLMFeedbackItem(
+                                assessment_id=UUID(int=0),
+                                type=item_type,
+                                value=str(item.get("value", "")),
+                                position=position,
+                            )
+                        )
+                    else:
+                        feedback_items.append(
+                            TestResultLLMFeedbackItem(
+                                assessment_id=UUID(int=0),
+                                type=LLMFeedbackType.NEGATIVE,
+                                value=str(item),
+                                position=index,
+                            )
+                        )
+
+            # Backward compatibility for existing payloads.
+            if not feedback_items:
+                strengths_raw = self.llm_assessment.get("strengths", [])
+                issues_raw = self.llm_assessment.get("issues", [])
+                if isinstance(strengths_raw, list):
+                    feedback_items.extend(
+                        TestResultLLMFeedbackItem(
+                            assessment_id=UUID(int=0),
+                            type=LLMFeedbackType.POSITIVE,
+                            value=str(value),
+                            position=position,
+                        )
+                        for position, value in enumerate(strengths_raw)
+                    )
+                if isinstance(issues_raw, list):
+                    offset = len(feedback_items)
+                    feedback_items.extend(
+                        TestResultLLMFeedbackItem(
+                            assessment_id=UUID(int=0),
+                            type=LLMFeedbackType.NEGATIVE,
+                            value=str(value),
+                            position=offset + position,
+                        )
+                        for position, value in enumerate(issues_raw)
+                    )
             self.llm_assessment = TestResultLLMAssessment(
                 test_result_id=self.id,
                 passed=bool(self.llm_assessment.get("passed", self.passed)),
@@ -135,8 +176,7 @@ class TestResult(Entity):
                     self.llm_assessment.get("attempt_penalty_applied", False)
                 ),
                 final_score=float(self.llm_assessment.get("final_score", self.score)),
-                strengths=strengths,
-                issues=issues,
+                feedback_items=feedback_items,
             )
 
     @property

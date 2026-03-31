@@ -6,7 +6,11 @@ from uuid import UUID
 from pydantic import Field, field_validator
 
 from competency_system.application.dtos.base import BaseDTO
-from competency_system.domain.value_objects.enums import TaskMappingStatus, TaskType
+from competency_system.domain.value_objects.enums import (
+    LLMFeedbackType,
+    TaskMappingStatus,
+    TaskType,
+)
 
 
 class TaskCompetencyMappingDTO(BaseDTO):
@@ -110,12 +114,17 @@ class CandidateTaskAssessmentDTO(BaseDTO):
         return value
 
 
+class LLMFeedbackItemDTO(BaseDTO):
+    type: LLMFeedbackType
+    value: str
+    position: int | None = None
+
+
 class LLMCodeAssessmentDTO(BaseDTO):
     passed: bool
     score: float
     feedback: str = ""
-    strengths: list[str] = Field(default_factory=list)
-    issues: list[str] = Field(default_factory=list)
+    feedback_items: list[LLMFeedbackItemDTO] = Field(default_factory=list)
 
 
 class TestResultDTO(BaseDTO):

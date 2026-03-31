@@ -56,8 +56,10 @@ class UserRepository(SQLAlchemyRepository[User, UserOrm]):
         *,
         include: Collection[UserInclude] | None = None,
     ) -> User | None:
-        statement = select(UserOrm).where(UserOrm.email == email).options(
-            *self.load_options(include)
+        statement = (
+            select(UserOrm)
+            .where(UserOrm.email == email)
+            .options(*self.load_options(include))
         )
         model = await self._session.scalar(statement)
         if model is None:

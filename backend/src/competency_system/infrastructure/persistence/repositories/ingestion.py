@@ -15,7 +15,9 @@ from competency_system.infrastructure.persistence.models import (
     RankingSnapshotOrm,
     WebhookEventOrm,
 )
-from competency_system.infrastructure.persistence.repositories.base import SQLAlchemyRepository
+from competency_system.infrastructure.persistence.repositories.base import (
+    SQLAlchemyRepository,
+)
 
 
 class WebhookEventRepository(SQLAlchemyRepository[WebhookEvent, WebhookEventOrm]):

@@ -4,9 +4,9 @@ import os
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock
 
 from competency_system.infrastructure.settings import get_settings
 
@@ -95,14 +95,20 @@ def mock_uow() -> MockUnitOfWork:
         competencies=_repo_mock("get", "list", "add", "delete"),
         sub_competencies=_repo_mock("get", "list", "add", "delete"),
         vacancies=_repo_mock("get", "list", "add", "delete", "list_by_statuses"),
-        candidates=_repo_mock("get", "list", "add", "delete", "get_by_external_id", "list_by_vacancy"),
+        candidates=_repo_mock(
+            "get", "list", "add", "delete", "get_by_external_id", "list_by_vacancy"
+        ),
         tasks=_repo_mock("get", "list", "add", "delete", "get_by_external_id"),
         test_results=_repo_mock("get", "list", "add", "delete"),
-        vacancy_suggestions=_repo_mock("get", "list", "add", "delete", "list_by_vacancy"),
+        vacancy_suggestions=_repo_mock(
+            "get", "list", "add", "delete", "list_by_vacancy"
+        ),
         webhook_events=_repo_mock("get", "list", "add", "delete", "get_by_event_id"),
         ranking_snapshots=_repo_mock("get", "list", "add", "delete", "get_by_vacancy"),
         users=_repo_mock("get", "list", "add", "delete", "get_by_email"),
-        refresh_tokens=_repo_mock("get", "list", "add", "delete", "add_token", "get_by_jti", "revoke"),
+        refresh_tokens=_repo_mock(
+            "get", "list", "add", "delete", "add_token", "get_by_jti", "revoke"
+        ),
         commit=AsyncMock(),
         rollback=AsyncMock(),
         flush=AsyncMock(),

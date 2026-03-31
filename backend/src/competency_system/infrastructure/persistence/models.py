@@ -21,6 +21,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from competency_system.domain.value_objects.enums import (
     AssessmentStatus,
+    LLMFeedbackType,
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
@@ -384,7 +385,9 @@ class VacancySuggestionOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    vacancy: Mapped[VacancyOrm] = relationship(back_populates="suggestions", lazy="raise")
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="suggestions", lazy="raise"
+    )
     parent_category: Mapped[CategoryOrm | None] = relationship(
         back_populates="parent_category_suggestions", lazy="raise"
     )
@@ -415,7 +418,9 @@ class CandidateOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    vacancy: Mapped[VacancyOrm] = relationship(back_populates="candidates", lazy="raise")
+    vacancy: Mapped[VacancyOrm] = relationship(
+        back_populates="candidates", lazy="raise"
+    )
     achievements: Mapped[list[CandidateSubCompetencyAchievementOrm]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan", lazy="raise"
     )
@@ -589,45 +594,28 @@ class TestResultLLMAssessmentOrm(Base):
     test_result: Mapped[TestResultOrm] = relationship(
         back_populates="llm_assessment", lazy="raise"
     )
-    strengths: Mapped[list[TestResultLLMStrengthOrm]] = relationship(
-        back_populates="assessment", cascade="all, delete-orphan", lazy="raise"
-    )
-    issues: Mapped[list[TestResultLLMIssueOrm]] = relationship(
+    feedback_items: Mapped[list[TestResultLLMFeedbackOrm]] = relationship(
         back_populates="assessment", cascade="all, delete-orphan", lazy="raise"
     )
 
 
-class TestResultLLMStrengthOrm(Base):
-    __tablename__ = "test_result_llm_strengths"
+class TestResultLLMFeedbackOrm(Base):
+    __tablename__ = "test_result_llm_feedbacks"
     __table_args__ = (
-        UniqueConstraint("assessment_id", "position", name="uq_llm_strength_position"),
+        UniqueConstraint("assessment_id", "position", name="uq_llm_feedback_position"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     assessment_id: Mapped[UUID] = mapped_column(
         ForeignKey("test_result_llm_assessments.id", ondelete="CASCADE")
     )
-    value: Mapped[str] = mapped_column(String(2000), default="")
-    position: Mapped[int] = mapped_column(Integer)
-    assessment: Mapped[TestResultLLMAssessmentOrm] = relationship(
-        back_populates="strengths", lazy="raise"
-    )
-
-
-class TestResultLLMIssueOrm(Base):
-    __tablename__ = "test_result_llm_issues"
-    __table_args__ = (
-        UniqueConstraint("assessment_id", "position", name="uq_llm_issue_position"),
-    )
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    assessment_id: Mapped[UUID] = mapped_column(
-        ForeignKey("test_result_llm_assessments.id", ondelete="CASCADE")
+    type: Mapped[LLMFeedbackType] = mapped_column(
+        Enum(LLMFeedbackType, name="llm_feedback_type", values_callable=_enum_values)
     )
     value: Mapped[str] = mapped_column(String(2000), default="")
     position: Mapped[int] = mapped_column(Integer)
     assessment: Mapped[TestResultLLMAssessmentOrm] = relationship(
-        back_populates="issues", lazy="raise"
+        back_populates="feedback_items", lazy="raise"
     )
 
 

@@ -17,13 +17,12 @@ from competency_system.domain.entities.ingestion import (
 )
 from competency_system.domain.entities.suggestion import VacancyGraphSuggestion
 from competency_system.domain.entities.task import (
-    TaskCompetencyMapping,
     Task,
+    TaskCompetencyMapping,
     TaskSubCompetencyMapping,
     TestResult,
     TestResultLLMAssessment,
-    TestResultLLMIssue,
-    TestResultLLMStrength,
+    TestResultLLMFeedbackItem,
     TestResultQuestionAnswer,
 )
 from competency_system.domain.entities.user import RefreshToken, User
@@ -49,8 +48,7 @@ __all__ = [
     "TestResult",
     "TestResultQuestionAnswer",
     "TestResultLLMAssessment",
-    "TestResultLLMStrength",
-    "TestResultLLMIssue",
+    "TestResultLLMFeedbackItem",
     "VacancyGraphSuggestion",
     "WebhookEvent",
     "WebhookEventPayload",

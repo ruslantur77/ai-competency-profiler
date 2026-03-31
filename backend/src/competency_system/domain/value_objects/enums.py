@@ -36,6 +36,13 @@ class AssessmentStatus(StrEnum):
     FAILED = auto()
 
 
+class LLMFeedbackType(StrEnum):
+    """Type of LLM code feedback item."""
+
+    POSITIVE = auto()
+    NEGATIVE = auto()
+
+
 class SuggestionStage(StrEnum):
     """Pipeline stage that produced suggestion."""
 

@@ -78,8 +78,10 @@ async def test_test_result_repository_hydration_and_replacement(
             "penalized_test_score": 90.0,
             "attempt_penalty_applied": True,
             "final_score": 90.0,
-            "strengths": ["structure"],
-            "issues": ["none"],
+            "feedback_items": [
+                {"type": "positive", "value": "structure", "position": 0},
+                {"type": "negative", "value": "none", "position": 1},
+            ],
         },
     )
     await repo.add(result)
@@ -92,7 +94,10 @@ async def test_test_result_repository_hydration_and_replacement(
     assert loaded is not None
     assert [item.question for item in loaded.question_answers] == ["q1"]
     assert loaded.llm_assessment is not None
-    assert [item.value for item in loaded.llm_assessment.strengths] == ["structure"]
+    assert [item.value for item in loaded.llm_assessment.feedback_items] == [
+        "structure",
+        "none",
+    ]
 
     result.question_answers = [
         TestResultQuestionAnswer(

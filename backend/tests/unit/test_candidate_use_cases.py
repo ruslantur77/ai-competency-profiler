@@ -80,7 +80,9 @@ def test_candidate_scorer_requires_sufficient_result_quality() -> None:
 
 
 @pytest.mark.asyncio
-async def test_assess_candidate_marks_event_failed_when_task_not_found(mock_uow) -> None:
+async def test_assess_candidate_marks_event_failed_when_task_not_found(
+    mock_uow,
+) -> None:
     vacancy_id = uuid4()
     command = CandidateTaskAssessmentDTO(
         event_id="event-1",

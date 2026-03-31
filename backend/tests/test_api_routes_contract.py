@@ -186,7 +186,12 @@ def _sample_candidate_result() -> CandidateAssessmentResultDTO:
             attempts=1,
             code_submitted="print('ok')",
             question_answers=[],
-            llm_assessment={"score": 85},
+            llm_assessment={
+                "score": 85,
+                "feedback_items": [
+                    {"type": "positive", "value": "clear structure", "position": 0}
+                ],
+            },
             created_at=now,
         ),
     )

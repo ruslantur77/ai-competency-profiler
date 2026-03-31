@@ -16,7 +16,10 @@ from competency_system.domain.entities import (
 )
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import VacancyStatus
-from competency_system.infrastructure.persistence.mappers import vacancy_from_orm, vacancy_to_orm
+from competency_system.infrastructure.persistence.mappers import (
+    vacancy_from_orm,
+    vacancy_to_orm,
+)
 from competency_system.infrastructure.persistence.models import (
     CompetencyOrm,
     SubCompetencyOrm,
@@ -106,9 +109,11 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
             and not entity.sub_competency_nodes
             and entity.competencies
         ):
-            entity.category_nodes, entity.competency_nodes, entity.sub_competency_nodes = (
-                self._build_nodes_from_competencies(entity)
-            )
+            (
+                entity.category_nodes,
+                entity.competency_nodes,
+                entity.sub_competency_nodes,
+            ) = self._build_nodes_from_competencies(entity)
 
         await self._upsert_canonical_competencies(entity.competencies)
         await self._replace_normalized_graph(entity)
