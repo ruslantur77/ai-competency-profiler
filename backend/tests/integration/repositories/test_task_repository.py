@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from competency_system.application.ports.repositories import TaskInclude
 from competency_system.domain.entities import (
     Task,
-    TaskCompetencyMapping,
+    TaskSubCompetencyMapping,
     Vacancy,
     WebhookEvent,
 )
@@ -42,8 +42,8 @@ async def test_task_repository_special_methods_and_mapping_replace(
         external_id="task-1",
         title="API Task",
         type=TaskType.CODE,
-        competency_mappings=[
-            TaskCompetencyMapping(sub_competency_id=sub1.id, weight=1.0)
+        sub_competency_mappings=[
+            TaskSubCompetencyMapping(sub_competency_id=sub1.id, weight=1.0)
         ],
     )
     await repo.add(task)
@@ -51,7 +51,7 @@ async def test_task_repository_special_methods_and_mapping_replace(
 
     loaded = await repo.get(task.id, include={TaskInclude.SUB_COMPETENCY_MAPPINGS})
     assert loaded is not None
-    assert [m.sub_competency_id for m in loaded.competency_mappings] == [sub1.id]
+    assert [m.sub_competency_id for m in loaded.sub_competency_mappings] == [sub1.id]
 
     by_external = await repo.get_by_external_id(
         "task-1",
@@ -59,16 +59,16 @@ async def test_task_repository_special_methods_and_mapping_replace(
     )
     assert by_external is not None
 
-    task.competency_mappings = [
-        TaskCompetencyMapping(sub_competency_id=sub2.id, weight=0.4),
-        TaskCompetencyMapping(sub_competency_id=sub1.id, weight=0.6),
+    task.sub_competency_mappings = [
+        TaskSubCompetencyMapping(sub_competency_id=sub2.id, weight=0.4),
+        TaskSubCompetencyMapping(sub_competency_id=sub1.id, weight=0.6),
     ]
     await repo.add(task)
     await pg_session.commit()
 
     updated = await repo.get(task.id, include={TaskInclude.SUB_COMPETENCY_MAPPINGS})
     assert updated is not None
-    assert [m.sub_competency_id for m in updated.competency_mappings] == [
+    assert [m.sub_competency_id for m in updated.sub_competency_mappings] == [
         sub2.id,
         sub1.id,
     ]
@@ -95,8 +95,8 @@ async def test_task_repository_constraints_and_base_delete_list(
             Task(
                 external_id="fk-task",
                 title="Invalid",
-                competency_mappings=[
-                    TaskCompetencyMapping(sub_competency_id=uuid4(), weight=1.0)
+                sub_competency_mappings=[
+                    TaskSubCompetencyMapping(sub_competency_id=uuid4(), weight=1.0)
                 ],
             )
         )

@@ -7,6 +7,7 @@ from competency_system.domain.entities import (
     SubCompetency,
     Task,
     TaskCompetencyMapping,
+    TaskSubCompetencyMapping,
     TestResult,
     Vacancy,
 )
@@ -35,6 +36,7 @@ __all__ = [
     "CompetencyScore",
     "Task",
     "TaskCompetencyMapping",
+    "TaskSubCompetencyMapping",
     "TestResult",
     # Services
     "CompetencyGraphBuilder",

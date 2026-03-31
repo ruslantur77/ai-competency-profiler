@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from competency_system.application.ports.repositories import CandidateInclude
-from competency_system.domain.entities import Candidate
+from competency_system.domain.entities import Candidate, CandidateSubCompetencyAchievement
 from competency_system.infrastructure.persistence.mappers import candidate_from_orm, candidate_to_orm
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
@@ -53,6 +53,17 @@ class CandidateRepository(
         candidate = self.to_domain(model)
         includes = normalize_include(include)
         if CandidateInclude.ACHIEVEMENTS in includes:
+            candidate.achievements = [
+                CandidateSubCompetencyAchievement(
+                    id=row.id,
+                    candidate_id=row.candidate_id,
+                    sub_competency_id=row.sub_competency_id,
+                    achieved_at=row.achieved_at,
+                    created_at=row.achieved_at,
+                    updated_at=row.achieved_at,
+                )
+                for row in model.achievements
+            ]
             candidate.achieved_subcompetency_ids = {
                 row.sub_competency_id for row in model.achievements
             }
@@ -75,6 +86,17 @@ class CandidateRepository(
         candidate = self.to_domain(model)
         includes = normalize_include(include)
         if CandidateInclude.ACHIEVEMENTS in includes:
+            candidate.achievements = [
+                CandidateSubCompetencyAchievement(
+                    id=row.id,
+                    candidate_id=row.candidate_id,
+                    sub_competency_id=row.sub_competency_id,
+                    achieved_at=row.achieved_at,
+                    created_at=row.achieved_at,
+                    updated_at=row.achieved_at,
+                )
+                for row in model.achievements
+            ]
             candidate.achieved_subcompetency_ids = {
                 row.sub_competency_id for row in model.achievements
             }
@@ -99,6 +121,17 @@ class CandidateRepository(
         for row in rows:
             candidate = self.to_domain(row)
             if CandidateInclude.ACHIEVEMENTS in includes:
+                candidate.achievements = [
+                    CandidateSubCompetencyAchievement(
+                        id=item.id,
+                        candidate_id=item.candidate_id,
+                        sub_competency_id=item.sub_competency_id,
+                        achieved_at=item.achieved_at,
+                        created_at=item.achieved_at,
+                        updated_at=item.achieved_at,
+                    )
+                    for item in row.achievements
+                ]
                 candidate.achieved_subcompetency_ids = {
                     item.sub_competency_id for item in row.achievements
                 }
@@ -115,7 +148,11 @@ class CandidateRepository(
                 CandidateSubCompetencyAchievementOrm.candidate_id == entity.id
             )
         )
-        for sub_id in sorted(entity.achieved_subcompetency_ids, key=str):
+        sub_ids = set(entity.achieved_subcompetency_ids)
+        if not sub_ids:
+            sub_ids = {item.sub_competency_id for item in entity.achievements}
+
+        for sub_id in sorted(sub_ids, key=str):
             self._session.add(
                 CandidateSubCompetencyAchievementOrm(
                     candidate_id=entity.id,

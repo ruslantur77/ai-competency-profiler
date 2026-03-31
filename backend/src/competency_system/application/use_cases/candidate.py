@@ -312,6 +312,22 @@ class AssessCandidateUseCase:
         return base * (0.9 ** max(0, attempts - 1))
 
     def _to_test_result_dto(self, result: TestResult) -> TestResultDTO:
+        llm_assessment_payload: dict[str, object] | None
+        if result.llm_assessment is None:
+            llm_assessment_payload = None
+        else:
+            llm_assessment_payload = {
+                "passed": result.llm_assessment.passed,
+                "score": result.llm_assessment.score,
+                "feedback": result.llm_assessment.feedback,
+                "criteria_version": result.llm_assessment.criteria_version,
+                "raw_test_score": result.llm_assessment.raw_test_score,
+                "penalized_test_score": result.llm_assessment.penalized_test_score,
+                "attempt_penalty_applied": result.llm_assessment.attempt_penalty_applied,
+                "final_score": result.llm_assessment.final_score,
+                "strengths": [item.value for item in result.llm_assessment.strengths],
+                "issues": [item.value for item in result.llm_assessment.issues],
+            }
         return TestResultDTO(
             id=result.id,
             candidate_id=result.candidate_id,
@@ -320,8 +336,11 @@ class AssessCandidateUseCase:
             score=result.score,
             attempts=result.attempts,
             code_submitted=result.code_submitted,
-            question_answers=list(result.question_answers),
-            llm_assessment=result.llm_assessment,
+            question_answers=[
+                {"question": item.question, "answer": item.answer}
+                for item in result.question_answers
+            ],
+            llm_assessment=llm_assessment_payload,
             created_at=result.created_at,
         )
 

@@ -1,11 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
-from competency_system.domain.entities.base import Entity
+from competency_system.domain.entities.base import CreatedAtEntity, Entity
 from competency_system.domain.value_objects.enums import WebhookEventStatus
+
+
+@dataclass(kw_only=True)
+class WebhookEventPayload:
+    data: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
+class RankingSnapshotPayload:
+    data: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(kw_only=True)
@@ -18,12 +28,21 @@ class WebhookEvent(Entity):
     error_message: str | None = None
     candidate_id: UUID | None = None
     test_result_id: UUID | None = None
-    payload: dict[str, object] | None = None
+    payload: WebhookEventPayload = field(default_factory=WebhookEventPayload)
     processed_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.payload, dict):
+            self.payload = WebhookEventPayload(data=self.payload)
 
 
 @dataclass(kw_only=True)
-class RankingSnapshot(Entity):
+class RankingSnapshot(CreatedAtEntity):
+    id: UUID
     vacancy_id: UUID
-    payload: dict[str, object]
+    payload: RankingSnapshotPayload = field(default_factory=RankingSnapshotPayload)
     calculated_at: datetime
+
+    def __post_init__(self) -> None:
+        if isinstance(self.payload, dict):
+            self.payload = RankingSnapshotPayload(data=self.payload)

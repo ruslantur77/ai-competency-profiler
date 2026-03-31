@@ -9,8 +9,9 @@ from competency_system.domain.value_objects.competency_level import CompetencyLe
 
 @dataclass(kw_only=True)
 class SubCompetency(Entity):
-    """Подкомпетенция - атомарный навык."""
+    """Подкомпетенция в каноническом справочнике."""
 
+    competency_id: UUID = UUID(int=0)
     name: str
     description: str = ""
     target_level: CompetencyLevel = CompetencyLevel.BEGINNER
@@ -19,7 +20,7 @@ class SubCompetency(Entity):
 
 @dataclass(kw_only=True)
 class Competency(Entity):
-    """Компетенция - группа подкомпетенций."""
+    """Компетенция в каноническом справочнике."""
 
     category_id: UUID
     name: str
@@ -28,7 +29,6 @@ class Competency(Entity):
     is_required: bool = True
 
     def calculate_level(self, achieved_sub_ids: set[UUID]) -> CompetencyLevel:
-        """Взвешенный расчет уровня по покрытию subcompetencies."""
         if not self.sub_competencies:
             return CompetencyLevel.NONE
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
-from competency_system.domain.entities.base import Entity
+from competency_system.domain.entities.base import CreatedAtEntity, Entity
 from competency_system.domain.value_objects.enums import UserRole
 
 
@@ -17,7 +17,7 @@ class User(Entity):
 
 
 @dataclass(kw_only=True)
-class RefreshToken(Entity):
+class RefreshToken(CreatedAtEntity):
     jti: UUID
     user_id: UUID
     token_hash: str

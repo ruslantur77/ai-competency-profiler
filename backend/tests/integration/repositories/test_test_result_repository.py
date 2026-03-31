@@ -10,8 +10,9 @@ from competency_system.application.ports.repositories import TestResultInclude
 from competency_system.domain.entities import (
     Candidate,
     Task,
-    TaskCompetencyMapping,
+    TaskSubCompetencyMapping,
     TestResult,
+    TestResultQuestionAnswer,
     Vacancy,
 )
 from competency_system.infrastructure.persistence.repositories import (
@@ -49,8 +50,8 @@ async def test_test_result_repository_hydration_and_replacement(
     task = Task(
         external_id="task-result",
         title="Result Task",
-        competency_mappings=[
-            TaskCompetencyMapping(sub_competency_id=sub1.id, weight=1.0)
+        sub_competency_mappings=[
+            TaskSubCompetencyMapping(sub_competency_id=sub1.id, weight=1.0)
         ],
     )
     await task_repo.add(task)
@@ -60,7 +61,7 @@ async def test_test_result_repository_hydration_and_replacement(
         task_id=task.id,
         passed=True,
         score=90.0,
-        question_answers=[{"question": "q1", "answer": "a1"}],
+        question_answers=[TestResultQuestionAnswer(question="q1", answer="a1")],
         llm_assessment={
             "passed": True,
             "score": 90.0,
@@ -82,11 +83,11 @@ async def test_test_result_repository_hydration_and_replacement(
         include={TestResultInclude.QUESTION_ANSWERS, TestResultInclude.LLM_ASSESSMENT},
     )
     assert loaded is not None
-    assert loaded.question_answers == [{"question": "q1", "answer": "a1"}]
+    assert [item.question for item in loaded.question_answers] == ["q1"]
     assert loaded.llm_assessment is not None
-    assert loaded.llm_assessment["strengths"] == ["structure"]
+    assert [item.value for item in loaded.llm_assessment.strengths] == ["structure"]
 
-    result.question_answers = [{"question": "q2", "answer": "a2"}]
+    result.question_answers = [TestResultQuestionAnswer(question="q2", answer="a2")]
     result.llm_assessment = None
     await repo.add(result)
     await pg_session.commit()
@@ -96,7 +97,7 @@ async def test_test_result_repository_hydration_and_replacement(
         include={TestResultInclude.QUESTION_ANSWERS, TestResultInclude.LLM_ASSESSMENT},
     )
     assert updated is not None
-    assert updated.question_answers == [{"question": "q2", "answer": "a2"}]
+    assert [item.question for item in updated.question_answers] == ["q2"]
     assert updated.llm_assessment is None
 
 

@@ -8,11 +8,13 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from competency_system.application.ports.repositories import TaskInclude, TestResultInclude
-from competency_system.domain.entities import Task, TaskCompetencyMapping, TestResult
+from competency_system.domain.entities import Task, TaskSubCompetencyMapping, TestResult
 from competency_system.infrastructure.persistence.mappers import (
     task_from_orm,
     task_to_orm,
     test_result_from_orm,
+    test_result_llm_assessment_from_rows,
+    test_result_question_answer_from_row,
     test_result_to_orm,
 )
 from competency_system.infrastructure.persistence.models import (
@@ -60,7 +62,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
             return None
         task = self.to_domain(model)
         if TaskInclude.SUB_COMPETENCY_MAPPINGS in normalize_include(include):
-            task.competency_mappings = self._mappings_from_orm(model)
+            task.sub_competency_mappings = self._mappings_from_orm(model)
         return task
 
     async def list(
@@ -76,7 +78,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
         for row in rows:
             task = self.to_domain(row)
             if TaskInclude.SUB_COMPETENCY_MAPPINGS in includes:
-                task.competency_mappings = self._mappings_from_orm(row)
+                task.sub_competency_mappings = self._mappings_from_orm(row)
             tasks.append(task)
         return tasks
 
@@ -96,7 +98,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
             return None
         task = self.to_domain(model)
         if TaskInclude.SUB_COMPETENCY_MAPPINGS in normalize_include(include):
-            task.competency_mappings = self._mappings_from_orm(model)
+            task.sub_competency_mappings = self._mappings_from_orm(model)
         return task
 
     async def add(self, entity: Task) -> None:
@@ -110,7 +112,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
                     TaskSubCompetencyMappingOrm.task_id == entity.id
                 )
             )
-            for position, mapping in enumerate(entity.competency_mappings):
+            for position, mapping in enumerate(entity.sub_competency_mappings):
                 self._session.add(
                     TaskSubCompetencyMappingOrm(
                         task_id=entity.id,
@@ -127,12 +129,17 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
     def to_model(self, entity: Task) -> TaskOrm:
         return task_to_orm(entity)
 
-    def _mappings_from_orm(self, model: TaskOrm) -> list[TaskCompetencyMapping]:
+    def _mappings_from_orm(self, model: TaskOrm) -> list[TaskSubCompetencyMapping]:
         rows = sorted(model.sub_competency_mappings, key=lambda item: item.position)
         return [
-            TaskCompetencyMapping(
+            TaskSubCompetencyMapping(
+                id=row.id,
+                task_id=row.task_id,
                 sub_competency_id=row.sub_competency_id,
                 weight=row.weight,
+                position=row.position,
+                created_at=model.created_at,
+                updated_at=model.updated_at,
             )
             for row in rows
         ]
@@ -173,13 +180,13 @@ class TestResultRepository(
                 TestResultQuestionAnswerOrm.test_result_id == entity.id
             )
         )
-        for position, qa in enumerate(entity.question_answers):
+        for answer in entity.question_answers:
             self._session.add(
                 TestResultQuestionAnswerOrm(
                     test_result_id=entity.id,
-                    question=str(qa.get("question", "")),
-                    answer=str(qa.get("answer", "")),
-                    position=position,
+                    question=answer.question,
+                    answer=answer.answer,
+                    position=answer.position,
                 )
             )
 
@@ -206,39 +213,35 @@ class TestResultRepository(
             llm = entity.llm_assessment
             assessment = TestResultLLMAssessmentOrm(
                 test_result_id=entity.id,
-                passed=bool(llm.get("passed", entity.passed)),
-                score=float(llm.get("score", entity.score)),
-                feedback=str(llm.get("feedback", "")),
-                criteria_version=str(llm.get("criteria_version", "")),
-                raw_test_score=float(llm.get("raw_test_score", 0.0)),
-                penalized_test_score=float(llm.get("penalized_test_score", 0.0)),
-                attempt_penalty_applied=bool(llm.get("attempt_penalty_applied", False)),
-                final_score=float(llm.get("final_score", entity.score)),
+                passed=llm.passed,
+                score=llm.score,
+                feedback=llm.feedback,
+                criteria_version=llm.criteria_version,
+                raw_test_score=llm.raw_test_score,
+                penalized_test_score=llm.penalized_test_score,
+                attempt_penalty_applied=llm.attempt_penalty_applied,
+                final_score=llm.final_score,
             )
             self._session.add(assessment)
             await self._session.flush()
 
-            strengths = llm.get("strengths", [])
-            if isinstance(strengths, list):
-                for position, value in enumerate(strengths):
-                    self._session.add(
-                        TestResultLLMStrengthOrm(
-                            assessment_id=assessment.id,
-                            value=str(value),
-                            position=position,
-                        )
+            for strength in llm.strengths:
+                self._session.add(
+                    TestResultLLMStrengthOrm(
+                        assessment_id=assessment.id,
+                        value=strength.value,
+                        position=strength.position,
                     )
+                )
 
-            issues = llm.get("issues", [])
-            if isinstance(issues, list):
-                for position, value in enumerate(issues):
-                    self._session.add(
-                        TestResultLLMIssueOrm(
-                            assessment_id=assessment.id,
-                            value=str(value),
-                            position=position,
-                        )
+            for issue in llm.issues:
+                self._session.add(
+                    TestResultLLMIssueOrm(
+                        assessment_id=assessment.id,
+                        value=issue.value,
+                        position=issue.position,
                     )
+                )
 
         await self._session.flush()
 
@@ -266,7 +269,7 @@ class TestResultRepository(
                 )
             ).all()
             entity.question_answers = [
-                {"question": row.question, "answer": row.answer} for row in answers
+                test_result_question_answer_from_row(row) for row in answers
             ]
 
         if TestResultInclude.LLM_ASSESSMENT in includes:
@@ -290,18 +293,11 @@ class TestResultRepository(
                         .order_by(TestResultLLMIssueOrm.position)
                     )
                 ).all()
-                entity.llm_assessment = {
-                    "passed": assessment.passed,
-                    "score": assessment.score,
-                    "feedback": assessment.feedback,
-                    "criteria_version": assessment.criteria_version,
-                    "raw_test_score": assessment.raw_test_score,
-                    "penalized_test_score": assessment.penalized_test_score,
-                    "attempt_penalty_applied": assessment.attempt_penalty_applied,
-                    "final_score": assessment.final_score,
-                    "strengths": [row.value for row in strengths],
-                    "issues": [row.value for row in issues],
-                }
+                entity.llm_assessment = test_result_llm_assessment_from_rows(
+                    assessment,
+                    strengths=list(strengths),
+                    issues=list(issues),
+                )
             else:
                 entity.llm_assessment = None
 

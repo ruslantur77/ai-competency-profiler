@@ -23,7 +23,7 @@ from competency_system.domain.entities import (
     Competency,
     SubCompetency,
     Task,
-    TaskCompetencyMapping,
+    TaskSubCompetencyMapping,
     TestResult,
     Vacancy,
 )
@@ -135,9 +135,9 @@ def test_candidate_scorer_requires_sufficient_result_quality() -> None:
         title="Build API",
         description="Implement endpoint",
         type=TaskType.TEST,
-        competency_mappings=[
-            TaskCompetencyMapping(sub_competency_id=sub_critical.id, weight=0.8),
-            TaskCompetencyMapping(sub_competency_id=sub_minor.id, weight=0.2),
+        sub_competency_mappings=[
+            TaskSubCompetencyMapping(sub_competency_id=sub_critical.id, weight=0.8),
+            TaskSubCompetencyMapping(sub_competency_id=sub_minor.id, weight=0.2),
         ],
     )
     result = TestResult(
@@ -164,8 +164,8 @@ async def test_assess_candidate_rejects_invalid_llm_schema(tmp_path: Path) -> No
         title="Build API",
         description="Implement endpoint",
         type=TaskType.CODE,
-        competency_mappings=[
-            TaskCompetencyMapping(sub_competency_id=uuid4(), weight=1.0),
+        sub_competency_mappings=[
+            TaskSubCompetencyMapping(sub_competency_id=uuid4(), weight=1.0),
         ],
     )
     await _seed_task(session_factory, task)
@@ -218,9 +218,9 @@ async def test_candidate_profile_webhook_and_read_api(tmp_path: Path) -> None:
             title="Build API",
             description="Implement endpoint",
             type=TaskType.CODE,
-            competency_mappings=[
-                TaskCompetencyMapping(sub_competency_id=sub_critical.id, weight=0.8),
-                TaskCompetencyMapping(sub_competency_id=sub_minor.id, weight=0.2),
+            sub_competency_mappings=[
+                TaskSubCompetencyMapping(sub_competency_id=sub_critical.id, weight=0.8),
+                TaskSubCompetencyMapping(sub_competency_id=sub_minor.id, weight=0.2),
             ],
         ),
     )

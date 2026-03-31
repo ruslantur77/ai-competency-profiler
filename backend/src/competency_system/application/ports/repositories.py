@@ -20,6 +20,7 @@ from competency_system.domain.entities import (
     VacancyGraphSuggestion,
     WebhookEvent,
 )
+from competency_system.domain.value_objects.enums import VacancyStatus
 
 
 class CategoryInclude(StrEnum):
@@ -127,7 +128,7 @@ class VacancyRepository(Repository[Vacancy], Protocol):
 
     async def list_by_statuses(
         self,
-        statuses: set[str] | None = None,
+        statuses: set[VacancyStatus] | None = None,
         *,
         include: Collection[VacancyInclude] | None = None,
     ) -> Sequence[Vacancy]: ...

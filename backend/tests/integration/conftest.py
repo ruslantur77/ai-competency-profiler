@@ -150,13 +150,13 @@ def _from_url(url_raw: str) -> TestDatabaseConfig:
     )
 
 
-def _assert_test_db_available(config: TestDatabaseConfig) -> None:
+def _test_db_availability_error(config: TestDatabaseConfig) -> str | None:
     engine = create_engine(config.sync_url, pool_pre_ping=True)
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
-        msg = (
+        return (
             "Integration DB connection failed. "
             "Provide test DB credentials via "
             "TEST_DB_URL (or TEST_DATABASE_URL), "
@@ -167,9 +167,9 @@ def _assert_test_db_available(config: TestDatabaseConfig) -> None:
             f"user={config.user}. "
             f"Original error: {exc}"
         )
-        raise pytest.UsageError(msg) from exc
     finally:
         engine.dispose()
+    return None
 
 
 def _prepare_test_database_for_migrations(config: TestDatabaseConfig) -> None:
@@ -194,7 +194,9 @@ def _prepare_test_database_for_migrations(config: TestDatabaseConfig) -> None:
 @pytest.fixture(scope="session", autouse=True)
 def apply_postgres_migrations(request: pytest.FixtureRequest) -> None:
     db_config = TestDatabaseConfig.from_pytest_config(request.config)
-    _assert_test_db_available(db_config)
+    availability_error = _test_db_availability_error(db_config)
+    if availability_error is not None:
+        pytest.skip(f"Skipping integration tests: {availability_error}")
     _prepare_test_database_for_migrations(db_config)
 
     runtime_env = db_config.runtime_env

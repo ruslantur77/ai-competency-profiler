@@ -13,7 +13,7 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.domain.entities import RankingSnapshot
+from competency_system.domain.entities import RankingSnapshot, RankingSnapshotPayload
 from competency_system.domain.services.ranking_engine import RankingEngine
 
 
@@ -77,13 +77,14 @@ class RecalculateRankingUseCase:
                 snapshot = RankingSnapshot(
                     id=uuid4(),
                     vacancy_id=vacancy_id,
-                    payload=dto.model_dump(mode="json"),
+                    payload=RankingSnapshotPayload(data=dto.model_dump(mode="json")),
                     calculated_at=now,
                     created_at=now,
-                    updated_at=now,
                 )
             else:
-                snapshot.payload = dto.model_dump(mode="json")
+                snapshot.payload = RankingSnapshotPayload(
+                    data=dto.model_dump(mode="json")
+                )
                 snapshot.calculated_at = now
             await uow.ranking_snapshots.add(snapshot)
             await uow.commit()
@@ -102,5 +103,5 @@ class GetVacancyRankingUseCase:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
             snapshot = await uow.ranking_snapshots.get_by_vacancy(vacancy_id)
             if snapshot is not None:
-                return VacancyRankingDTO.model_validate(snapshot.payload)
+                return VacancyRankingDTO.model_validate(snapshot.payload.data)
         return await self._recalculate.execute(vacancy_id)

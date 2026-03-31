@@ -54,18 +54,24 @@ DOMAIN_DB_SPECS: list[dict[str, Any]] = [
     {
         "domain": Vacancy,
         "orm": VacancyOrm,
-        "derived": {"categories", "competencies"},
+        "derived": {
+            "categories",
+            "competencies",
+            "category_nodes",
+            "competency_nodes",
+            "sub_competency_nodes",
+        },
     },
     {
         "domain": Candidate,
         "orm": CandidateOrm,
-        "derived": {"achieved_subcompetency_ids"},
+        "derived": {"achievements", "achieved_subcompetency_ids"},
         "aliases": {"assessment_status": "status"},
     },
     {
         "domain": Task,
         "orm": TaskOrm,
-        "derived": {"competency_mappings"},
+        "derived": {"competency_mappings", "sub_competency_mappings"},
     },
     {
         "domain": TestResult,
@@ -134,10 +140,15 @@ def test_derived_fields_use_existing_tables() -> None:
             "competencies",
             "sub_competencies",
         },
+        "Vacancy.category_nodes": {"vacancy_category_nodes"},
+        "Vacancy.competency_nodes": {"vacancy_competency_nodes"},
+        "Vacancy.sub_competency_nodes": {"vacancy_sub_competency_nodes"},
         "Candidate.achieved_subcompetency_ids": {
             "candidate_sub_competency_achievements"
         },
+        "Candidate.achievements": {"candidate_sub_competency_achievements"},
         "Task.competency_mappings": {"task_sub_competency_mappings"},
+        "Task.sub_competency_mappings": {"task_sub_competency_mappings"},
         "TestResult.question_answers": {"test_result_question_answers"},
         "TestResult.llm_assessment": {
             "test_result_llm_assessments",

@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 @dataclass(kw_only=True)
 class Entity:
-    """Base class for domain entities - простая версия без events."""
+    """Base class for entities with UUID PK and audit timestamps."""
 
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -20,3 +20,10 @@ class Entity:
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+
+@dataclass(kw_only=True)
+class CreatedAtEntity:
+    """Base class for entities that only track creation time."""
+
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))

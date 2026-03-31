@@ -8,20 +8,30 @@ from sqlalchemy.orm.attributes import NO_VALUE
 
 from competency_system.domain.entities import (
     Candidate,
+    CandidateSubCompetencyAchievement,
     Category,
     Competency,
     RankingSnapshot,
+    RankingSnapshotPayload,
     RefreshToken,
     SubCompetency,
     Task,
+    TaskSubCompetencyMapping,
     TestResult,
+    TestResultLLMAssessment,
+    TestResultLLMIssue,
+    TestResultLLMStrength,
+    TestResultQuestionAnswer,
     User,
     Vacancy,
+    VacancyCategoryNode,
+    VacancyCompetencyNode,
     VacancyGraphSuggestion,
+    VacancySubCompetencyNode,
     WebhookEvent,
+    WebhookEventPayload,
 )
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
-from competency_system.domain.value_objects.enums import TaskType
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
     CategoryOrm,
@@ -32,7 +42,10 @@ from competency_system.infrastructure.persistence.models import (
     TaskOrm,
     TestResultOrm,
     UserOrm,
+    VacancyCategoryNodeOrm,
+    VacancyCompetencyNodeOrm,
     VacancyOrm,
+    VacancySubCompetencyNodeOrm,
     VacancySuggestionOrm,
     WebhookEventOrm,
 )
@@ -74,7 +87,7 @@ def category_from_orm(category: CategoryOrm) -> Category:
         name=category.name,
         description=category.description,
         emoji=category.emoji,
-        competencies=[competency_from_orm(competency) for competency in competencies],
+        competencies=[competency_from_orm(item) for item in competencies],
         created_at=category.created_at,
         updated_at=category.updated_at,
     )
@@ -88,7 +101,7 @@ def competency_to_orm(competency: Competency) -> CompetencyOrm:
         description=competency.description,
     )
     orm.sub_competencies = [
-        subcompetency_to_orm(subcompetency, competency_id=competency.id)
+        subcompetency_to_orm(subcompetency)
         for subcompetency in competency.sub_competencies
     ]
     return orm
@@ -109,14 +122,10 @@ def competency_from_orm(competency: CompetencyOrm) -> Competency:
     )
 
 
-def subcompetency_to_orm(
-    subcompetency: SubCompetency,
-    *,
-    competency_id: UUID | None = None,
-) -> SubCompetencyOrm:
+def subcompetency_to_orm(subcompetency: SubCompetency) -> SubCompetencyOrm:
     return SubCompetencyOrm(
         id=subcompetency.id,
-        competency_id=competency_id or UUID(int=0),
+        competency_id=subcompetency.competency_id,
         name=subcompetency.name,
         description=subcompetency.description,
     )
@@ -125,10 +134,9 @@ def subcompetency_to_orm(
 def subcompetency_from_orm(subcompetency: SubCompetencyOrm) -> SubCompetency:
     return SubCompetency(
         id=subcompetency.id,
+        competency_id=subcompetency.competency_id,
         name=subcompetency.name,
         description=subcompetency.description,
-        target_level=CompetencyLevel.BEGINNER,
-        weight=1.0,
         created_at=subcompetency.created_at,
         updated_at=subcompetency.updated_at,
     )
@@ -150,11 +158,90 @@ def vacancy_from_orm(vacancy: VacancyOrm) -> Vacancy:
         name=vacancy.name,
         description=vacancy.description,
         status=vacancy.status,
-        categories=[],
-        competencies=[],
         error_message=vacancy.error_message,
+        category_nodes=[],
+        competency_nodes=[],
+        sub_competency_nodes=[],
         created_at=vacancy.created_at,
         updated_at=vacancy.updated_at,
+    )
+
+
+def vacancy_category_node_to_orm(node: VacancyCategoryNode) -> VacancyCategoryNodeOrm:
+    return VacancyCategoryNodeOrm(
+        id=node.id,
+        vacancy_id=node.vacancy_id,
+        category_id=node.category_id,
+        position=node.position,
+    )
+
+
+def vacancy_category_node_from_orm(node: VacancyCategoryNodeOrm) -> VacancyCategoryNode:
+    return VacancyCategoryNode(
+        id=node.id,
+        vacancy_id=node.vacancy_id,
+        category_id=node.category_id,
+        position=node.position,
+        created_at=node.created_at,
+        updated_at=node.updated_at,
+    )
+
+
+def vacancy_competency_node_to_orm(
+    node: VacancyCompetencyNode,
+) -> VacancyCompetencyNodeOrm:
+    return VacancyCompetencyNodeOrm(
+        id=node.id,
+        vacancy_id=node.vacancy_id,
+        competency_id=node.competency_id,
+        category_id=node.category_id,
+        is_required=node.is_required,
+        position=node.position,
+    )
+
+
+def vacancy_competency_node_from_orm(
+    node: VacancyCompetencyNodeOrm,
+) -> VacancyCompetencyNode:
+    return VacancyCompetencyNode(
+        id=node.id,
+        vacancy_id=node.vacancy_id,
+        competency_id=node.competency_id,
+        category_id=node.category_id,
+        is_required=node.is_required,
+        position=node.position,
+        created_at=node.created_at,
+        updated_at=node.updated_at,
+    )
+
+
+def vacancy_sub_competency_node_to_orm(
+    node: VacancySubCompetencyNode,
+) -> VacancySubCompetencyNodeOrm:
+    return VacancySubCompetencyNodeOrm(
+        id=node.id,
+        vacancy_id=node.vacancy_id,
+        sub_competency_id=node.sub_competency_id,
+        competency_id=node.competency_id,
+        target_level=int(node.target_level),
+        weight=node.weight,
+        position=node.position,
+    )
+
+
+def vacancy_sub_competency_node_from_orm(
+    node: VacancySubCompetencyNodeOrm,
+) -> VacancySubCompetencyNode:
+    return VacancySubCompetencyNode(
+        id=node.id,
+        vacancy_id=node.vacancy_id,
+        sub_competency_id=node.sub_competency_id,
+        competency_id=node.competency_id,
+        target_level=CompetencyLevel(node.target_level),
+        weight=node.weight,
+        position=node.position,
+        created_at=node.created_at,
+        updated_at=node.updated_at,
     )
 
 
@@ -163,18 +250,29 @@ def candidate_to_orm(candidate: Candidate) -> CandidateOrm:
         id=candidate.id,
         external_id=candidate.external_id,
         vacancy_id=candidate.vacancy_id,
-        status=candidate.assessment_status,
+        status=candidate.status,
         last_assessment_at=candidate.last_assessment_at,
     )
 
 
 def candidate_from_orm(candidate: CandidateOrm) -> Candidate:
+    achievements = _loaded_relation(candidate, "achievements")
     return Candidate(
         id=candidate.id,
         external_id=candidate.external_id,
         vacancy_id=candidate.vacancy_id,
-        achieved_subcompetency_ids=set(),
-        assessment_status=candidate.status,
+        achievements=[
+            CandidateSubCompetencyAchievement(
+                id=row.id,
+                candidate_id=row.candidate_id,
+                sub_competency_id=row.sub_competency_id,
+                achieved_at=row.achieved_at,
+                created_at=row.achieved_at,
+                updated_at=row.achieved_at,
+            )
+            for row in achievements
+        ],
+        status=candidate.status,
         last_assessment_at=candidate.last_assessment_at,
         created_at=candidate.created_at,
         updated_at=candidate.updated_at,
@@ -216,14 +314,12 @@ def refresh_token_to_orm(refresh_token: RefreshToken) -> RefreshTokenOrm:
 
 def refresh_token_from_orm(refresh_token: RefreshTokenOrm) -> RefreshToken:
     return RefreshToken(
-        id=refresh_token.jti,
         jti=refresh_token.jti,
         user_id=refresh_token.user_id,
         token_hash=refresh_token.token_hash,
         expires_at=_normalize_utc(refresh_token.expires_at) or refresh_token.expires_at,
         revoked_at=_normalize_utc(refresh_token.revoked_at),
         created_at=_normalize_utc(refresh_token.created_at) or refresh_token.created_at,
-        updated_at=_normalize_utc(refresh_token.created_at) or refresh_token.created_at,
     )
 
 
@@ -241,13 +337,25 @@ def task_to_orm(task: Task) -> TaskOrm:
 
 
 def task_from_orm(task: TaskOrm) -> Task:
+    mappings = _loaded_relation(task, "sub_competency_mappings")
     return Task(
         id=task.id,
         external_id=task.external_id,
         title=task.title,
         description=task.description,
-        type=TaskType(task.type),
-        competency_mappings=[],
+        type=task.type,
+        sub_competency_mappings=[
+            TaskSubCompetencyMapping(
+                id=row.id,
+                task_id=row.task_id,
+                sub_competency_id=row.sub_competency_id,
+                weight=row.weight,
+                position=row.position,
+                created_at=task.created_at,
+                updated_at=task.updated_at,
+            )
+            for row in sorted(mappings, key=lambda item: item.position)
+        ],
         mapping_validated=task.mapping_validated,
         mapping_status=task.mapping_status,
         mapping_error_message=task.mapping_error_message,
@@ -295,7 +403,7 @@ def webhook_event_to_orm(event: WebhookEvent) -> WebhookEventOrm:
         error_message=event.error_message,
         candidate_id=event.candidate_id,
         test_result_id=event.test_result_id,
-        payload=event.payload or {},
+        payload=event.payload.data,
         processed_at=event.processed_at,
     )
 
@@ -311,7 +419,7 @@ def webhook_event_from_orm(event: WebhookEventOrm) -> WebhookEvent:
         error_message=event.error_message,
         candidate_id=event.candidate_id,
         test_result_id=event.test_result_id,
-        payload=dict(event.payload or {}),
+        payload=WebhookEventPayload(data=dict(event.payload or {})),
         processed_at=event.processed_at,
         created_at=event.created_at,
         updated_at=event.updated_at,
@@ -322,7 +430,7 @@ def ranking_snapshot_to_orm(snapshot: RankingSnapshot) -> RankingSnapshotOrm:
     return RankingSnapshotOrm(
         id=snapshot.id,
         vacancy_id=snapshot.vacancy_id,
-        payload=snapshot.payload,
+        payload=snapshot.payload.data,
         calculated_at=snapshot.calculated_at,
     )
 
@@ -331,10 +439,9 @@ def ranking_snapshot_from_orm(snapshot: RankingSnapshotOrm) -> RankingSnapshot:
     return RankingSnapshot(
         id=snapshot.id,
         vacancy_id=snapshot.vacancy_id,
-        payload=dict(snapshot.payload or {}),
+        payload=RankingSnapshotPayload(data=dict(snapshot.payload or {})),
         calculated_at=snapshot.calculated_at,
         created_at=snapshot.calculated_at,
-        updated_at=snapshot.calculated_at,
     )
 
 
@@ -385,4 +492,54 @@ def vacancy_suggestion_from_orm(
         weight=suggestion.weight,
         created_at=suggestion.created_at,
         updated_at=suggestion.updated_at,
+    )
+
+
+def test_result_question_answer_from_row(
+    row: object,
+) -> TestResultQuestionAnswer:
+    return TestResultQuestionAnswer(
+        id=row.id,
+        test_result_id=row.test_result_id,
+        question=row.question,
+        answer=row.answer,
+        position=row.position,
+    )
+
+
+def test_result_llm_assessment_from_rows(
+    assessment: object,
+    *,
+    strengths: list[object],
+    issues: list[object],
+) -> TestResultLLMAssessment:
+    return TestResultLLMAssessment(
+        id=assessment.id,
+        test_result_id=assessment.test_result_id,
+        passed=assessment.passed,
+        score=assessment.score,
+        feedback=assessment.feedback,
+        criteria_version=assessment.criteria_version,
+        raw_test_score=assessment.raw_test_score,
+        penalized_test_score=assessment.penalized_test_score,
+        attempt_penalty_applied=assessment.attempt_penalty_applied,
+        final_score=assessment.final_score,
+        strengths=[
+            TestResultLLMStrength(
+                id=row.id,
+                assessment_id=row.assessment_id,
+                value=row.value,
+                position=row.position,
+            )
+            for row in strengths
+        ],
+        issues=[
+            TestResultLLMIssue(
+                id=row.id,
+                assessment_id=row.assessment_id,
+                value=row.value,
+                position=row.position,
+            )
+            for row in issues
+        ],
     )
