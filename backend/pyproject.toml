@@ -128,5 +128,6 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --tb=short --cov=src"
 markers = [
+    "unit: unit tests with mocked dependencies and no database access",
     "integration_repo: integration tests for persistence repositories and SQLAlchemyUnitOfWork on PostgreSQL",
 ]

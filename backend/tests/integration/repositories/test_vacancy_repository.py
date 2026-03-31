@@ -15,7 +15,10 @@ from competency_system.infrastructure.persistence.models import (
     VacancyCompetencyNodeOrm,
     VacancySubCompetencyNodeOrm,
 )
-from competency_system.infrastructure.persistence.repositories import VacancyRepository
+from competency_system.infrastructure.persistence.repositories import (
+    CategoryRepository,
+    VacancyRepository,
+)
 
 from .helpers import build_vacancy_with_graph
 
@@ -26,12 +29,17 @@ pytestmark = pytest.mark.integration_repo
 async def test_vacancy_repository_status_filter_and_normalized_graph(
     pg_session: AsyncSession,
 ) -> None:
+    category_repo = CategoryRepository(pg_session)
     repo = VacancyRepository(pg_session)
 
     vacancy_a, category_a, competency_a, sub_a1, sub_a2 = build_vacancy_with_graph()
     vacancy_b, _, _, _, _ = build_vacancy_with_graph()
     vacancy_b.name = "Data Engineer"
     vacancy_b.status = VacancyStatus.DRAFT
+
+    await category_repo.add(category_a)
+    await category_repo.add(vacancy_b.categories[0])
+    await pg_session.commit()
 
     await repo.add(vacancy_a)
     await pg_session.commit()
@@ -40,14 +48,14 @@ async def test_vacancy_repository_status_filter_and_normalized_graph(
     await repo.add(vacancy_b)
     await pg_session.commit()
 
-    filtered = await repo.list_by_statuses({VacancyStatus.READY.value})
+    filtered = await repo.list_by_statuses({VacancyStatus.READY})
     assert len(filtered) == 1
     assert filtered[0].id == vacancy_a.id
 
     loaded = await repo.get(vacancy_a.id, include={VacancyInclude.NORMALIZED_GRAPH})
     assert loaded is not None
-    assert len(loaded.categories) == 1
-    assert loaded.categories[0].id == category_a.id
+    assert len(loaded.category_nodes) == 1
+    assert loaded.category_nodes[0].category_id == category_a.id
     assert len(loaded.competencies) == 1
     assert loaded.competencies[0].id == competency_a.id
     assert {sub.id for sub in loaded.competencies[0].sub_competencies} == {
@@ -60,8 +68,12 @@ async def test_vacancy_repository_status_filter_and_normalized_graph(
 async def test_vacancy_repository_replaces_normalized_nodes_on_update(
     pg_session: AsyncSession,
 ) -> None:
+    category_repo = CategoryRepository(pg_session)
     repo = VacancyRepository(pg_session)
     vacancy, _, competency, sub1, sub2 = build_vacancy_with_graph()
+
+    await category_repo.add(vacancy.categories[0])
+    await pg_session.commit()
 
     await repo.add(vacancy)
     await pg_session.commit()
@@ -77,6 +89,9 @@ async def test_vacancy_repository_replaces_normalized_nodes_on_update(
     ]
     vacancy.competencies = [competency]
     vacancy.categories = []
+    vacancy.category_nodes = []
+    vacancy.competency_nodes = []
+    vacancy.sub_competency_nodes = []
 
     await repo.add(vacancy)
     await pg_session.commit()

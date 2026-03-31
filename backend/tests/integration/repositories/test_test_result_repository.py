@@ -61,7 +61,14 @@ async def test_test_result_repository_hydration_and_replacement(
         task_id=task.id,
         passed=True,
         score=90.0,
-        question_answers=[TestResultQuestionAnswer(question="q1", answer="a1")],
+        question_answers=[
+            TestResultQuestionAnswer(
+                test_result_id=uuid4(),
+                question="q1",
+                answer="a1",
+                position=0,
+            )
+        ],
         llm_assessment={
             "passed": True,
             "score": 90.0,
@@ -87,7 +94,14 @@ async def test_test_result_repository_hydration_and_replacement(
     assert loaded.llm_assessment is not None
     assert [item.value for item in loaded.llm_assessment.strengths] == ["structure"]
 
-    result.question_answers = [TestResultQuestionAnswer(question="q2", answer="a2")]
+    result.question_answers = [
+        TestResultQuestionAnswer(
+            test_result_id=result.id,
+            question="q2",
+            answer="a2",
+            position=0,
+        )
+    ]
     result.llm_assessment = None
     await repo.add(result)
     await pg_session.commit()

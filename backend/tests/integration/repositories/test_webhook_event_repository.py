@@ -39,7 +39,7 @@ async def test_webhook_event_repository_special_method_and_uniqueness(
 
     loaded = await repo.get_by_event_id("evt-1")
     assert loaded is not None
-    assert loaded.payload == {"passed": 5, "total": 5}
+    assert loaded.payload.data == {"passed": 5, "total": 5}
 
     with pytest.raises(IntegrityError):
         await repo.add(

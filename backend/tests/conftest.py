@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from unittest.mock import AsyncMock
 
-from competency_system.infrastructure.persistence.models import Base
 from competency_system.infrastructure.settings import get_settings
 
 
@@ -24,7 +19,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         default=None,
         help=(
             "PostgreSQL URL for integration tests. "
-            "Example: postgresql://user:pass@127.0.0.1:5432/app"
+            "Example: postgresql://user:pass@127.0.0.1:5432/test_db"
         ),
     )
     group.addoption("--test-db-host", action="store", default=None)
@@ -58,20 +53,57 @@ def test_environment_guard() -> None:
         get_settings.cache_clear()
 
 
-@pytest_asyncio.fixture()
-async def sqlite_engine(tmp_path: Path) -> AsyncEngine:
-    database_path = tmp_path / "test.db"
-    engine = create_async_engine(f"sqlite+aiosqlite:///{database_path}")
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-    try:
-        yield engine
-    finally:
-        await engine.dispose()
+def _repo_mock(*method_names: str) -> SimpleNamespace:
+    return SimpleNamespace(**{name: AsyncMock() for name in method_names})
+
+
+@dataclass
+class MockUnitOfWork:
+    categories: Any
+    competencies: Any
+    sub_competencies: Any
+    vacancies: Any
+    candidates: Any
+    tasks: Any
+    test_results: Any
+    vacancy_suggestions: Any
+    webhook_events: Any
+    ranking_snapshots: Any
+    users: Any
+    refresh_tokens: Any
+    commit: AsyncMock
+    rollback: AsyncMock
+    flush: AsyncMock
+
+    async def __aenter__(self) -> MockUnitOfWork:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: object | None,
+    ) -> None:
+        if exc_type is not None:
+            await self.rollback()
 
 
 @pytest.fixture()
-def sqlite_session_factory(
-    sqlite_engine: AsyncEngine,
-) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(sqlite_engine, expire_on_commit=False)
+def mock_uow() -> MockUnitOfWork:
+    return MockUnitOfWork(
+        categories=_repo_mock("get", "list", "add", "delete"),
+        competencies=_repo_mock("get", "list", "add", "delete"),
+        sub_competencies=_repo_mock("get", "list", "add", "delete"),
+        vacancies=_repo_mock("get", "list", "add", "delete", "list_by_statuses"),
+        candidates=_repo_mock("get", "list", "add", "delete", "get_by_external_id", "list_by_vacancy"),
+        tasks=_repo_mock("get", "list", "add", "delete", "get_by_external_id"),
+        test_results=_repo_mock("get", "list", "add", "delete"),
+        vacancy_suggestions=_repo_mock("get", "list", "add", "delete", "list_by_vacancy"),
+        webhook_events=_repo_mock("get", "list", "add", "delete", "get_by_event_id"),
+        ranking_snapshots=_repo_mock("get", "list", "add", "delete", "get_by_vacancy"),
+        users=_repo_mock("get", "list", "add", "delete", "get_by_email"),
+        refresh_tokens=_repo_mock("get", "list", "add", "delete", "add_token", "get_by_jti", "revoke"),
+        commit=AsyncMock(),
+        rollback=AsyncMock(),
+        flush=AsyncMock(),
+    )

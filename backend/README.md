@@ -104,12 +104,16 @@ pytest
 # Run tests with coverage
 pytest --cov=src --cov-report=html
 
+# Run only unit tests (no DB)
+pytest -m unit
+
 # Run repository/UoW integration tests against PostgreSQL
-TEST_DB_URL=postgresql://user:pass@127.0.0.1:5432/app pytest -m integration_repo
-# or
-TEST_DB_HOST=127.0.0.1 TEST_DB_PORT=5432 TEST_DB_NAME=app TEST_DB_USER=user TEST_DB_PASS=pass pytest -m integration_repo
-# or
-pytest -m integration_repo --test-db-url postgresql://user:pass@127.0.0.1:5432/app
+cp tests/.env.test.example tests/.env.test
+pytest -m integration_repo
+# or override with explicit credentials
+TEST_DB_HOST=127.0.0.1 TEST_DB_PORT=5432 TEST_DB_NAME=test_db TEST_DB_USER=user TEST_DB_PASS=pass pytest -m integration_repo
+# or use CLI overrides
+pytest -m integration_repo --test-db-host 127.0.0.1 --test-db-port 5432 --test-db-name test_db --test-db-user user --test-db-pass pass
 ```
 
 CI mirrors the same quality gates with GitHub Actions:

@@ -2,20 +2,22 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
-from competency_system.presentation.api.dependencies import get_uow
+from competency_system.application.use_cases.health import HealthCheckResult
+from competency_system.presentation.api.dependencies import get_health_check_use_case
 from competency_system.presentation.api.main import app
+
+pytestmark = pytest.mark.unit
+
+
+class _FakeHealthUseCase:
+    async def execute(self) -> HealthCheckResult:
+        return HealthCheckResult(status="ok", database="ok")
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_returns_ok(
-    sqlite_session_factory: async_sessionmaker[AsyncSession],
-) -> None:
-    app.dependency_overrides[get_uow] = lambda: SQLAlchemyUnitOfWork(
-        sqlite_session_factory
-    )
+async def test_health_endpoint_returns_ok() -> None:
+    app.dependency_overrides[get_health_check_use_case] = lambda: _FakeHealthUseCase()
 
     try:
         transport = ASGITransport(app=app)
