@@ -391,7 +391,7 @@ class SyncTasksUseCase:
         external_tasks = await self._gateway.list_tasks()
 
         async with self._uow as uow:
-            categories = await uow.categories.list(
+            categories = await uow.categories.get_list(
                 include={CategoryInclude.SUB_COMPETENCIES}
             )
             synced: list[TaskDTO] = []
@@ -453,7 +453,7 @@ class RebuildTaskMappingUseCase:
             )
             if task is None:
                 raise ValueError(f"Task {task_id} not found")
-            categories = await uow.categories.list(
+            categories = await uow.categories.get_list(
                 include={CategoryInclude.SUB_COMPETENCIES}
             )
             task.competency_mappings = await self._mapper.execute(
@@ -493,7 +493,9 @@ class ListTasksUseCase:
 
     async def execute(self) -> list[TaskDTO]:
         async with self._uow as uow:
-            tasks = await uow.tasks.list(include={TaskInclude.SUB_COMPETENCY_MAPPINGS})
+            tasks = await uow.tasks.get_list(
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+            )
             return [_task_to_dto(task) for task in tasks]
 
 

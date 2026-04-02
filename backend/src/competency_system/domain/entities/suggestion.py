@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from competency_system.domain.entities.base import Entity
-from competency_system.domain.value_objects.competency_level import CompetencyLevel
-from competency_system.domain.value_objects.enums import (
+from competency_system.domain.value_objects import (
+    CompetencyLevel,
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
 )
+
+if TYPE_CHECKING:
+    from competency_system.domain.entities.competency import Category, Competency
+    from competency_system.domain.entities.vacancy import Vacancy
 
 
 @dataclass(kw_only=True)
@@ -31,3 +36,7 @@ class VacancyGraphSuggestion(Entity):
     is_required: bool | None = None
     target_level: CompetencyLevel | None = None
     weight: float | None = None
+
+    vacancy: Vacancy | None = None
+    parent_category: Category | None = None
+    parent_competency: Competency | None = None

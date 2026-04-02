@@ -67,7 +67,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm]):
             task.sub_competency_mappings = self._mappings_from_orm(model)
         return task
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[TaskInclude] | None = None,
@@ -163,7 +163,7 @@ class TestResultRepository(
             return None
         return await self._hydrate_result(model, include=include)
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[TestResultInclude] | None = None,

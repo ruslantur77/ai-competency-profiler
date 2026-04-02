@@ -47,8 +47,10 @@ class CategoryRepository(SQLAlchemyRepository[Category, CategoryOrm]):
             return (selectinload(CategoryOrm.competencies),)
         return ()
 
-    def to_domain(self, model: CategoryOrm) -> Category:
-        return category_from_orm(model)
+    def to_domain(
+        self, model: CategoryOrm, include: Collection[CategoryInclude] | None = None
+    ) -> Category:
+        return category_from_orm(model, include=include)
 
     def to_model(self, entity: Category) -> CategoryOrm:
         return category_to_orm(entity)

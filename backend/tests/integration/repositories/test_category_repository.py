@@ -37,7 +37,7 @@ async def test_category_repository_crud_and_includes(pg_session: AsyncSession) -
     assert with_subs is not None
     assert len(with_subs.competencies[0].sub_competencies) == 2
 
-    listed = await repo.list(include={CategoryInclude.SUB_COMPETENCIES})
+    listed = await repo.get_list(include={CategoryInclude.SUB_COMPETENCIES})
     assert len(listed) == 1
 
     await repo.delete(category.id)

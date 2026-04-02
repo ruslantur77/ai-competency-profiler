@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -10,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from competency_system.application.ports.repositories import Repository
 
 
-class SQLAlchemyRepository[DomainT, OrmT](Repository[DomainT]):
+class SQLAlchemyRepository[DomainT, OrmT, IncludeT: StrEnum | None](
+    Repository[DomainT]
+):
     model: type[OrmT]
 
     def __init__(self, session: AsyncSession) -> None:
@@ -20,14 +23,16 @@ class SQLAlchemyRepository[DomainT, OrmT](Repository[DomainT]):
     def session(self) -> AsyncSession:
         return self._session
 
-    def load_options(self, include: object | None = None) -> Sequence[Any]:
+    def load_options(
+        self, include: Collection[IncludeT] | None = None
+    ) -> Sequence[Any]:
         return ()
 
     async def get(
         self,
         entity_id: UUID,
         *,
-        include: object | None = None,
+        include: Collection[IncludeT] | None = None,
     ) -> DomainT | None:
         model = await self._session.get(
             self.model,
@@ -38,7 +43,9 @@ class SQLAlchemyRepository[DomainT, OrmT](Repository[DomainT]):
             return None
         return self.to_domain(model)
 
-    async def list(self, *, include: object | None = None) -> Sequence[DomainT]:
+    async def get_list(
+        self, *, include: Collection[IncludeT] | None = None
+    ) -> Sequence[DomainT]:
         statement = select(self.model).options(*self.load_options(include))
         result = await self._session.scalars(statement)
         return [self.to_domain(model) for model in result.all()]
@@ -55,7 +62,9 @@ class SQLAlchemyRepository[DomainT, OrmT](Repository[DomainT]):
         await self._session.delete(model)
         await self._session.flush()
 
-    def to_domain(self, model: OrmT) -> DomainT:
+    def to_domain(
+        self, model: OrmT, include: Collection[IncludeT] | None = None
+    ) -> DomainT:
         raise NotImplementedError
 
     def to_model(self, entity: DomainT) -> OrmT:

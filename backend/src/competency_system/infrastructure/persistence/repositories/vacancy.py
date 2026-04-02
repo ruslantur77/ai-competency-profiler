@@ -57,7 +57,7 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
             ) = await self._load_normalized_graph(vacancy.id)
         return vacancy
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[VacancyInclude] | None = None,
@@ -161,7 +161,7 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                     position=competency_position,
                 )
             )
-            for sub_position, sub in enumerate(competency.sub_competencies):
+            for sub in competency.sub_competencies:
                 sub_nodes.append(
                     VacancySubCompetencyNode(
                         vacancy_id=vacancy.id,

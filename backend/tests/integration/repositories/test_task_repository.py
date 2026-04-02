@@ -116,7 +116,7 @@ async def test_task_repository_constraints_and_base_delete_list(
     await repo.add(task)
     await pg_session.commit()
 
-    all_tasks = await repo.list()
+    all_tasks = await repo.get_list()
     assert len(all_tasks) == 2
 
     await webhook_repo.delete(event.id)

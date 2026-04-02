@@ -1,4 +1,4 @@
-from competency_system.domain.entities.base import Entity
+from competency_system.domain.entities.base import CreatedAtEntity, Entity
 from competency_system.domain.entities.candidate import (
     Candidate,
     CandidateSubCompetencyAchievement,
@@ -9,16 +9,9 @@ from competency_system.domain.entities.competency import (
     Competency,
     SubCompetency,
 )
-from competency_system.domain.entities.ingestion import (
-    RankingSnapshot,
-    RankingSnapshotPayload,
-    WebhookEvent,
-    WebhookEventPayload,
-)
 from competency_system.domain.entities.suggestion import VacancyGraphSuggestion
 from competency_system.domain.entities.task import (
     Task,
-    TaskCompetencyMapping,
     TaskSubCompetencyMapping,
     TestResult,
     TestResultLLMAssessment,
@@ -43,20 +36,16 @@ __all__ = [
     "CandidateSubCompetencyAchievement",
     "CompetencyScore",
     "Task",
-    "TaskCompetencyMapping",
     "TaskSubCompetencyMapping",
     "TestResult",
     "TestResultQuestionAnswer",
     "TestResultLLMAssessment",
     "TestResultLLMFeedbackItem",
     "VacancyGraphSuggestion",
-    "WebhookEvent",
-    "WebhookEventPayload",
-    "RankingSnapshot",
-    "RankingSnapshotPayload",
     "User",
     "RefreshToken",
     "VacancyCategoryNode",
     "VacancyCompetencyNode",
     "VacancySubCompetencyNode",
+    "CreatedAtEntity",
 ]

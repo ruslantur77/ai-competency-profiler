@@ -29,8 +29,8 @@ from competency_system.domain.value_objects.enums import (
     TaskType,
     UserRole,
     VacancyStatus,
-    WebhookEventStatus,
 )
+from competency_system.infrastructure.persistence.enums import WebhookEventStatus
 
 JSON_PAYLOAD = JSON().with_variant(JSONB, "postgresql")
 
@@ -96,15 +96,6 @@ class CategoryOrm(Base):
     competencies: Mapped[list[CompetencyOrm]] = relationship(
         back_populates="category", cascade="all, delete-orphan", lazy="raise"
     )
-    vacancy_category_nodes: Mapped[list[VacancyCategoryNodeOrm]] = relationship(
-        back_populates="category", lazy="raise"
-    )
-    vacancy_competency_nodes: Mapped[list[VacancyCompetencyNodeOrm]] = relationship(
-        back_populates="category", lazy="raise"
-    )
-    parent_category_suggestions: Mapped[list[VacancySuggestionOrm]] = relationship(
-        back_populates="parent_category", lazy="raise"
-    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -130,15 +121,6 @@ class CompetencyOrm(Base):
     sub_competencies: Mapped[list[SubCompetencyOrm]] = relationship(
         back_populates="competency", cascade="all, delete-orphan", lazy="raise"
     )
-    vacancy_competency_nodes: Mapped[list[VacancyCompetencyNodeOrm]] = relationship(
-        back_populates="competency", lazy="raise"
-    )
-    vacancy_sub_competency_nodes: Mapped[list[VacancySubCompetencyNodeOrm]] = (
-        relationship(back_populates="competency", lazy="raise")
-    )
-    parent_competency_suggestions: Mapped[list[VacancySuggestionOrm]] = relationship(
-        back_populates="parent_competency", lazy="raise"
-    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -160,15 +142,6 @@ class SubCompetencyOrm(Base):
 
     competency: Mapped[CompetencyOrm] = relationship(
         back_populates="sub_competencies", lazy="raise"
-    )
-    achievements: Mapped[list[CandidateSubCompetencyAchievementOrm]] = relationship(
-        back_populates="sub_competency", lazy="raise"
-    )
-    task_mappings: Mapped[list[TaskSubCompetencyMappingOrm]] = relationship(
-        back_populates="sub_competency", lazy="raise"
-    )
-    vacancy_sub_competency_nodes: Mapped[list[VacancySubCompetencyNodeOrm]] = (
-        relationship(back_populates="sub_competency", lazy="raise")
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -248,9 +221,7 @@ class VacancyCategoryNodeOrm(Base):
     vacancy: Mapped[VacancyOrm] = relationship(
         back_populates="category_nodes", lazy="raise"
     )
-    category: Mapped[CategoryOrm] = relationship(
-        back_populates="vacancy_category_nodes", lazy="raise"
-    )
+    category: Mapped[CategoryOrm] = relationship(lazy="raise")
 
 
 class VacancyCompetencyNodeOrm(Base):
@@ -286,12 +257,8 @@ class VacancyCompetencyNodeOrm(Base):
     vacancy: Mapped[VacancyOrm] = relationship(
         back_populates="competency_nodes", lazy="raise"
     )
-    competency: Mapped[CompetencyOrm] = relationship(
-        back_populates="vacancy_competency_nodes", lazy="raise"
-    )
-    category: Mapped[CategoryOrm] = relationship(
-        back_populates="vacancy_competency_nodes", lazy="raise"
-    )
+    competency: Mapped[CompetencyOrm] = relationship(lazy="raise")
+    category: Mapped[CategoryOrm] = relationship(lazy="raise")
 
 
 class VacancySubCompetencyNodeOrm(Base):
@@ -330,12 +297,8 @@ class VacancySubCompetencyNodeOrm(Base):
     vacancy: Mapped[VacancyOrm] = relationship(
         back_populates="sub_competency_nodes", lazy="raise"
     )
-    sub_competency: Mapped[SubCompetencyOrm] = relationship(
-        back_populates="vacancy_sub_competency_nodes", lazy="raise"
-    )
-    competency: Mapped[CompetencyOrm] = relationship(
-        back_populates="vacancy_sub_competency_nodes", lazy="raise"
-    )
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
+    competency: Mapped[CompetencyOrm] = relationship(lazy="raise")
 
 
 class VacancySuggestionOrm(Base):
@@ -388,12 +351,8 @@ class VacancySuggestionOrm(Base):
     vacancy: Mapped[VacancyOrm] = relationship(
         back_populates="suggestions", lazy="raise"
     )
-    parent_category: Mapped[CategoryOrm | None] = relationship(
-        back_populates="parent_category_suggestions", lazy="raise"
-    )
-    parent_competency: Mapped[CompetencyOrm | None] = relationship(
-        back_populates="parent_competency_suggestions", lazy="raise"
-    )
+    parent_category: Mapped[CategoryOrm | None] = relationship(lazy="raise")
+    parent_competency: Mapped[CompetencyOrm | None] = relationship(lazy="raise")
 
 
 class CandidateOrm(Base):
@@ -455,9 +414,7 @@ class CandidateSubCompetencyAchievementOrm(Base):
     candidate: Mapped[CandidateOrm] = relationship(
         back_populates="achievements", lazy="raise"
     )
-    sub_competency: Mapped[SubCompetencyOrm] = relationship(
-        back_populates="achievements", lazy="raise"
-    )
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
 
 
 class TaskOrm(Base):
@@ -517,9 +474,7 @@ class TaskSubCompetencyMappingOrm(Base):
     task: Mapped[TaskOrm] = relationship(
         back_populates="sub_competency_mappings", lazy="raise"
     )
-    sub_competency: Mapped[SubCompetencyOrm] = relationship(
-        back_populates="task_mappings", lazy="raise"
-    )
+    sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
 
 
 class TestResultOrm(Base):

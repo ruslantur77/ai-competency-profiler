@@ -71,7 +71,7 @@ async def test_webhook_event_repository_base_list_delete(
     await repo.add(event)
     await pg_session.commit()
 
-    listed = await repo.list()
+    listed = await repo.get_list()
     assert len(listed) == 1
 
     await repo.delete(event.id)

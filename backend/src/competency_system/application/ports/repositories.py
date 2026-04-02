@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
-from typing import Protocol, TypeVar
+from enum import StrEnum, auto
+from typing import Any, Protocol, TypeVar
 from uuid import UUID
 
 from competency_system.domain.entities import (
     Candidate,
     Category,
     Competency,
-    RankingSnapshot,
     RefreshToken,
     SubCompetency,
     Task,
@@ -18,42 +18,87 @@ from competency_system.domain.entities import (
     User,
     Vacancy,
     VacancyGraphSuggestion,
-    WebhookEvent,
 )
+from competency_system.domain.entities.base import CreatedAtEntity, Entity
 from competency_system.domain.value_objects.enums import VacancyStatus
 
 
+class WebhookEventStatus(StrEnum):
+    """Status of webhook event processing."""
+
+    PROCESSING = auto()
+    PROCESSED = auto()
+    FAILED = auto()
+
+
+@dataclass(kw_only=True)
+class WebhookEventPayload:
+    data: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
+class RankingSnapshotPayload:
+    data: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(kw_only=True)
+class WebhookEvent(Entity):
+    event_id: str
+    vacancy_id: UUID
+    candidate_external_id: str
+    task_external_id: str
+    status: WebhookEventStatus = WebhookEventStatus.PROCESSING
+    error_message: str | None = None
+    candidate_id: UUID | None = None
+    test_result_id: UUID | None = None
+    payload: WebhookEventPayload = field(default_factory=WebhookEventPayload)
+    processed_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.payload, dict):
+            self.payload = WebhookEventPayload(data=self.payload)
+
+
+@dataclass(kw_only=True)
+class RankingSnapshot(CreatedAtEntity):
+    id: UUID
+    vacancy_id: UUID
+    payload: RankingSnapshotPayload = field(default_factory=RankingSnapshotPayload)
+    calculated_at: datetime
+
+    def __post_init__(self) -> None:
+        if isinstance(self.payload, dict):
+            self.payload = RankingSnapshotPayload(data=self.payload)
+
+
 class CategoryInclude(StrEnum):
-    COMPETENCIES = "competencies"
-    SUB_COMPETENCIES = "competencies.sub_competencies"
+    COMPETENCIES = auto()
+    SUB_COMPETENCIES = auto()
 
 
 class CompetencyInclude(StrEnum):
-    CATEGORY = "category"
-    SUB_COMPETENCIES = "sub_competencies"
+    CATEGORY = auto()
+    SUB_COMPETENCIES = auto()
 
 
 class VacancyInclude(StrEnum):
-    NORMALIZED_GRAPH = "normalized_graph"
+    NORMALIZED_GRAPH = auto()
 
 
 class CandidateInclude(StrEnum):
-    ACHIEVEMENTS = "achievements"
-    TEST_RESULTS = "test_results"
+    ACHIEVEMENTS = auto()
+    TEST_RESULTS = auto()
+    VACANCY = auto()
 
 
 class TaskInclude(StrEnum):
-    SUB_COMPETENCY_MAPPINGS = "sub_competency_mappings"
-    TEST_RESULTS = "test_results"
+    SUB_COMPETENCY_MAPPINGS = auto()
+    TEST_RESULTS = auto()
 
 
 class TestResultInclude(StrEnum):
-    QUESTION_ANSWERS = "question_answers"
-    LLM_ASSESSMENT = "llm_assessment"
-
-
-class UserInclude(StrEnum):
-    REFRESH_TOKENS = "refresh_tokens"
+    QUESTION_ANSWERS = auto()
+    LLM_ASSESSMENT = auto()
 
 
 EntityT = TypeVar("EntityT")
@@ -64,13 +109,13 @@ class Repository(Protocol[EntityT]):
         self,
         entity_id: UUID,
         *,
-        include: object | None = None,
+        include: Any | None = None,
     ) -> EntityT | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
-        include: object | None = None,
+        include: Any | None = None,
     ) -> Sequence[EntityT]: ...
 
     async def add(self, entity: EntityT) -> None: ...
@@ -86,7 +131,7 @@ class CategoryRepository(Repository[Category], Protocol):
         include: Collection[CategoryInclude] | None = None,
     ) -> Category | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[CategoryInclude] | None = None,
@@ -101,7 +146,7 @@ class CompetencyRepository(Repository[Competency], Protocol):
         include: Collection[CompetencyInclude] | None = None,
     ) -> Competency | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[CompetencyInclude] | None = None,
@@ -120,7 +165,7 @@ class VacancyRepository(Repository[Vacancy], Protocol):
         include: Collection[VacancyInclude] | None = None,
     ) -> Vacancy | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[VacancyInclude] | None = None,
@@ -142,7 +187,7 @@ class CandidateRepository(Repository[Candidate], Protocol):
         include: Collection[CandidateInclude] | None = None,
     ) -> Candidate | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[CandidateInclude] | None = None,
@@ -171,7 +216,7 @@ class TaskRepository(Repository[Task], Protocol):
         include: Collection[TaskInclude] | None = None,
     ) -> Task | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[TaskInclude] | None = None,
@@ -193,7 +238,7 @@ class TestResultRepository(Repository[TestResult], Protocol):
         include: Collection[TestResultInclude] | None = None,
     ) -> TestResult | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
         include: Collection[TestResultInclude] | None = None,
@@ -214,20 +259,20 @@ class UserRepository(Repository[User], Protocol):
         self,
         entity_id: UUID,
         *,
-        include: Collection[UserInclude] | None = None,
+        include: None = None,
     ) -> User | None: ...
 
-    async def list(
+    async def get_list(
         self,
         *,
-        include: Collection[UserInclude] | None = None,
+        include: None = None,
     ) -> Sequence[User]: ...
 
     async def get_by_email(
         self,
         email: str,
         *,
-        include: Collection[UserInclude] | None = None,
+        include: None = None,
     ) -> User | None: ...
 
 

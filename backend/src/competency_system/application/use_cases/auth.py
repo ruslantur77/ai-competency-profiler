@@ -149,7 +149,7 @@ class ListUsersUseCase:
         self._user_repo = user_repo
 
     async def execute(self) -> list[UserAdminDTO]:
-        users = await self._user_repo.list()
+        users = await self._user_repo.get_list()
         return [_user_to_admin_dto(user) for user in users]
 
 

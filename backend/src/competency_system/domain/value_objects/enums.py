@@ -67,14 +67,6 @@ class SuggestionEntityType(StrEnum):
     SUB_COMPETENCY = auto()
 
 
-class WebhookEventStatus(StrEnum):
-    """Status of webhook event processing."""
-
-    PROCESSING = auto()
-    PROCESSED = auto()
-    FAILED = auto()
-
-
 class UserRole(StrEnum):
     """Authorization role for API access."""
 

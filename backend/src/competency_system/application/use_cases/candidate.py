@@ -323,7 +323,7 @@ class AssessCandidateUseCase:
                 "criteria_version": result.llm_assessment.criteria_version,
                 "raw_test_score": result.llm_assessment.raw_test_score,
                 "penalized_test_score": result.llm_assessment.penalized_test_score,
-                "attempt_penalty_applied": result.llm_assessment.attempt_penalty_applied,
+                "attempt_penalty_applied": result.llm_assessment.attempt_penalty_applied,  # noqa: E501
                 "final_score": result.llm_assessment.final_score,
                 "feedback_items": [
                     {

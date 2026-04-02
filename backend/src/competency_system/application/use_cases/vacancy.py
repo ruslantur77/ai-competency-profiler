@@ -212,7 +212,7 @@ class ExtractVacancyGraphUseCase:
         try:
             async with self._uow as uow:
                 existing_categories = list(
-                    await uow.categories.list(
+                    await uow.categories.get_list(
                         include={CategoryInclude.SUB_COMPETENCIES}
                     )
                 )

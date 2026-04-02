@@ -38,7 +38,7 @@ async def test_competency_repository_crud_and_include(pg_session: AsyncSession) 
     assert loaded.name == "Databases"
     assert len(loaded.sub_competencies) == 1
 
-    listed = await repo.list(include={CompetencyInclude.SUB_COMPETENCIES})
+    listed = await repo.get_list(include={CompetencyInclude.SUB_COMPETENCIES})
     assert len(listed) == 1
 
     await repo.delete(competency.id)

@@ -5,13 +5,12 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from competency_system.domain.entities.base import CreatedAtEntity, Entity
-from competency_system.domain.value_objects.enums import UserRole
+from competency_system.domain.value_objects import UserRole
 
 
 @dataclass(kw_only=True)
 class User(Entity):
     email: str
-    hashed_password: str
     role: UserRole = UserRole.HR
     is_active: bool = True
 
