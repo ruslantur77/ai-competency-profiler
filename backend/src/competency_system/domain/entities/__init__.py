@@ -48,4 +48,5 @@ __all__ = [
     "VacancyCompetencyNode",
     "VacancySubCompetencyNode",
     "CreatedAtEntity",
+    "UserWithCredentials",
 ]

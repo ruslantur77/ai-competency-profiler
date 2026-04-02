@@ -13,6 +13,7 @@ from competency_system.application.dtos.task import (
     LLMCodeAssessmentDTO,
     TestResultDTO,
 )
+from competency_system.application.dtos.webhooks import WebhookEvent, WebhookEventStatus
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
 from competency_system.application.ports.repositories import (
     CandidateInclude,
@@ -31,13 +32,11 @@ from competency_system.domain.entities import (
     CompetencyScore,
     Task,
     TestResult,
-    WebhookEvent,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.enums import (
     AssessmentStatus,
     TaskType,
-    WebhookEventStatus,
 )
 
 
@@ -364,6 +363,7 @@ class AssessCandidateUseCase:
         return list(vacancy.competencies)
 
 
+# TODO: вынести эксепшн
 class _DuplicateWebhookEvent(Exception):
     def __init__(self, result: CandidateAssessmentResultDTO) -> None:
         super().__init__("Duplicate webhook event")
@@ -379,17 +379,15 @@ class GetCandidateProfileUseCase:
         async with self._uow as uow:
             candidate = await uow.candidates.get(
                 candidate_id,
-                include={CandidateInclude.ACHIEVEMENTS},
+                include={
+                    CandidateInclude.ACHIEVEMENTS,
+                    CandidateInclude.VACANCY,
+                    CandidateInclude.VACANCY_SUBCOMPETENCIES,
+                },
             )
             if candidate is None:
                 raise ValueError(f"Candidate {candidate_id} not found")
-            vacancy = await uow.vacancies.get(
-                candidate.vacancy_id,
-                include={VacancyInclude.NORMALIZED_GRAPH},
-            )
-            if vacancy is None:
-                raise ValueError(f"Vacancy {candidate.vacancy_id} not found")
             scores = self._scorer.calculate_scores(
-                candidate, list(vacancy.competencies)
+                candidate, list(candidate.vacancy.competency_nodes)
             )
             return _build_profile(candidate, scores)

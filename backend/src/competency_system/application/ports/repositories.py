@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum, auto
 from typing import Any, Protocol, TypeVar
 from uuid import UUID
 
+from competency_system.application.dtos.webhooks import RankingSnapshot, WebhookEvent
 from competency_system.domain.entities import (
     Candidate,
     Category,
@@ -19,56 +19,7 @@ from competency_system.domain.entities import (
     Vacancy,
     VacancyGraphSuggestion,
 )
-from competency_system.domain.entities.base import CreatedAtEntity, Entity
 from competency_system.domain.value_objects.enums import VacancyStatus
-
-
-class WebhookEventStatus(StrEnum):
-    """Status of webhook event processing."""
-
-    PROCESSING = auto()
-    PROCESSED = auto()
-    FAILED = auto()
-
-
-@dataclass(kw_only=True)
-class WebhookEventPayload:
-    data: dict[str, object] = field(default_factory=dict)
-
-
-@dataclass(kw_only=True)
-class RankingSnapshotPayload:
-    data: dict[str, object] = field(default_factory=dict)
-
-
-@dataclass(kw_only=True)
-class WebhookEvent(Entity):
-    event_id: str
-    vacancy_id: UUID
-    candidate_external_id: str
-    task_external_id: str
-    status: WebhookEventStatus = WebhookEventStatus.PROCESSING
-    error_message: str | None = None
-    candidate_id: UUID | None = None
-    test_result_id: UUID | None = None
-    payload: WebhookEventPayload = field(default_factory=WebhookEventPayload)
-    processed_at: datetime | None = None
-
-    def __post_init__(self) -> None:
-        if isinstance(self.payload, dict):
-            self.payload = WebhookEventPayload(data=self.payload)
-
-
-@dataclass(kw_only=True)
-class RankingSnapshot(CreatedAtEntity):
-    id: UUID
-    vacancy_id: UUID
-    payload: RankingSnapshotPayload = field(default_factory=RankingSnapshotPayload)
-    calculated_at: datetime
-
-    def __post_init__(self) -> None:
-        if isinstance(self.payload, dict):
-            self.payload = RankingSnapshotPayload(data=self.payload)
 
 
 class CategoryInclude(StrEnum):
@@ -89,16 +40,24 @@ class CandidateInclude(StrEnum):
     ACHIEVEMENTS = auto()
     TEST_RESULTS = auto()
     VACANCY = auto()
+    VACANCY_SUBCOMPETENCIES = auto()
 
 
 class TaskInclude(StrEnum):
     SUB_COMPETENCY_MAPPINGS = auto()
-    TEST_RESULTS = auto()
 
 
 class TestResultInclude(StrEnum):
     QUESTION_ANSWERS = auto()
     LLM_ASSESSMENT = auto()
+    TASK = auto()
+    CANDIDATE = auto()
+
+
+class VacancyGraphSuggestionInclude(StrEnum):
+    VACANCY = auto()
+    PARENT_CATEGORY = auto()
+    PARENT_COMPETENCY = auto()
 
 
 EntityT = TypeVar("EntityT")
@@ -250,7 +209,7 @@ class VacancySuggestionRepository(Repository[VacancyGraphSuggestion], Protocol):
         self,
         vacancy_id: UUID,
         *,
-        include: object | None = None,
+        include: Collection[VacancyGraphSuggestionInclude] | None = None,
     ) -> Sequence[VacancyGraphSuggestion]: ...
 
 
@@ -305,7 +264,7 @@ class RefreshTokenRepository(Repository[RefreshToken], Protocol):
         self,
         jti: UUID,
         *,
-        include: object | None = None,
+        include: None = None,
     ) -> RefreshToken | None: ...
 
     async def revoke(self, jti: UUID) -> None: ...

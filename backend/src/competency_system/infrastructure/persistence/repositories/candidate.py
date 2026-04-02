@@ -8,6 +8,9 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload, selectinload
 
 from competency_system.application.ports.repositories import CandidateInclude
+from competency_system.application.ports.repositories import (
+    CandidateRepository as ICandidateRepository,
+)
 from competency_system.domain.entities import Candidate
 from competency_system.infrastructure.persistence.mappers import (
     candidate_from_orm,
@@ -16,6 +19,7 @@ from competency_system.infrastructure.persistence.mappers import (
 from competency_system.infrastructure.persistence.models import (
     CandidateOrm,
     CandidateSubCompetencyAchievementOrm,
+    VacancyOrm,
 )
 from competency_system.infrastructure.persistence.repositories.base import (
     SQLAlchemyRepository,
@@ -25,6 +29,7 @@ from competency_system.infrastructure.persistence.repositories.base import (
 
 class CandidateRepository(
     SQLAlchemyRepository[Candidate, CandidateOrm, CandidateInclude],
+    ICandidateRepository,
 ):
     model = CandidateOrm
 
@@ -38,8 +43,17 @@ class CandidateRepository(
             options.append(selectinload(CandidateOrm.achievements))
         if CandidateInclude.TEST_RESULTS in includes:
             options.append(selectinload(CandidateOrm.test_results))
-        if CandidateInclude.VACANCY in includes:
+        if (
+            CandidateInclude.VACANCY in includes
+            or CandidateInclude.VACANCY_SUBCOMPETENCIES in includes
+        ):
             options.append(joinedload(CandidateOrm.vacancy))
+        if CandidateInclude.VACANCY_SUBCOMPETENCIES in includes:
+            options.append(
+                joinedload(CandidateOrm.vacancy)
+                .selectinload(VacancyOrm.competency_nodes)
+                .selectinload(VacancyOrm.sub_competency_nodes)
+            )
         return tuple(options)
 
     async def get_by_external_id(
@@ -56,7 +70,7 @@ class CandidateRepository(
         model = await self._session.scalar(statement)
         if model is None:
             return None
-        candidate = self.to_domain(model, include=include)
+        candidate = self.to_domain(model)
         return candidate
 
     async def list_by_vacancy(
@@ -95,10 +109,8 @@ class CandidateRepository(
             )
         await self._session.flush()
 
-    def to_domain(
-        self, model: CandidateOrm, include: Collection[CandidateInclude] | None = None
-    ) -> Candidate:
-        return candidate_from_orm(model, include=include)
+    def to_domain(self, model: CandidateOrm) -> Candidate:
+        return candidate_from_orm(model)
 
     def to_model(self, entity: Candidate) -> CandidateOrm:
         return candidate_to_orm(entity)

@@ -8,7 +8,7 @@ from competency_system.infrastructure.persistence.repositories.base import (
 from competency_system.infrastructure.persistence.repositories.candidate import (
     CandidateRepository,
 )
-from competency_system.infrastructure.persistence.repositories.category import (
+from competency_system.infrastructure.persistence.repositories.competency import (
     CategoryRepository,
     CompetencyRepository,
     SubCompetencyRepository,

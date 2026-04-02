@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
 
+from competency_system.application.ports.repositories import (
+    RefreshTokenRepository as IRefreshTokenRepository,
+)
+from competency_system.application.ports.repositories import (
+    UserRepository as IUserRepository,
+)
 from competency_system.domain.entities import RefreshToken, User
 from competency_system.infrastructure.persistence.mappers import (
     refresh_token_from_orm,
@@ -19,7 +24,7 @@ from competency_system.infrastructure.persistence.repositories.base import (
 )
 
 
-class UserRepository(SQLAlchemyRepository[User, UserOrm, None]):
+class UserRepository(SQLAlchemyRepository[User, UserOrm, None], IUserRepository):
     model = UserOrm
 
     async def get_by_email(self, email: str, *, include: None = None) -> User | None:
@@ -33,14 +38,16 @@ class UserRepository(SQLAlchemyRepository[User, UserOrm, None]):
             return None
         return self.to_domain(model)
 
-    def to_domain(self, model: UserOrm, include: None = None) -> User:
-        return user_from_orm(model, include=include)
+    def to_domain(self, model: UserOrm) -> User:
+        return user_from_orm(model)
 
     def to_model(self, entity: User) -> UserOrm:
         return user_to_orm(entity)
 
 
-class RefreshTokenRepository(SQLAlchemyRepository[RefreshToken, RefreshTokenOrm, None]):
+class RefreshTokenRepository(
+    SQLAlchemyRepository[RefreshToken, RefreshTokenOrm, None], IRefreshTokenRepository
+):
     model = RefreshTokenOrm
 
     async def add_token(
@@ -84,8 +91,8 @@ class RefreshTokenRepository(SQLAlchemyRepository[RefreshToken, RefreshTokenOrm,
         await self._session.execute(statement)
         await self._session.flush()
 
-    def to_domain(self, model: RefreshTokenOrm, include: None = None) -> RefreshToken:
-        return refresh_token_from_orm(model, include=include)
+    def to_domain(self, model: RefreshTokenOrm) -> RefreshToken:
+        return refresh_token_from_orm(model)
 
     def to_model(self, entity: RefreshToken) -> RefreshTokenOrm:
         return refresh_token_to_orm(entity)

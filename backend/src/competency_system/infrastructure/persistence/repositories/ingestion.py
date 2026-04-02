@@ -4,7 +4,13 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from competency_system.domain.entities import RankingSnapshot, WebhookEvent
+from competency_system.application.dtos.webhooks import RankingSnapshot, WebhookEvent
+from competency_system.application.ports.repositories import (
+    RankingSnapshotRepository as IRankingSnapshotRepository,
+)
+from competency_system.application.ports.repositories import (
+    WebhookEventRepository as IWebhookEventRepository,
+)
 from competency_system.infrastructure.persistence.mappers import (
     ranking_snapshot_from_orm,
     ranking_snapshot_to_orm,
@@ -20,7 +26,9 @@ from competency_system.infrastructure.persistence.repositories.base import (
 )
 
 
-class WebhookEventRepository(SQLAlchemyRepository[WebhookEvent, WebhookEventOrm]):
+class WebhookEventRepository(
+    SQLAlchemyRepository[WebhookEvent, WebhookEventOrm, None], IWebhookEventRepository
+):
     model = WebhookEventOrm
 
     async def get_by_event_id(
@@ -43,7 +51,8 @@ class WebhookEventRepository(SQLAlchemyRepository[WebhookEvent, WebhookEventOrm]
 
 
 class RankingSnapshotRepository(
-    SQLAlchemyRepository[RankingSnapshot, RankingSnapshotOrm]
+    SQLAlchemyRepository[RankingSnapshot, RankingSnapshotOrm, None],
+    IRankingSnapshotRepository,
 ):
     model = RankingSnapshotOrm
 

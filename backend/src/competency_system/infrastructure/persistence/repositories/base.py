@@ -62,9 +62,7 @@ class SQLAlchemyRepository[DomainT, OrmT, IncludeT: StrEnum | None](
         await self._session.delete(model)
         await self._session.flush()
 
-    def to_domain(
-        self, model: OrmT, include: Collection[IncludeT] | None = None
-    ) -> DomainT:
+    def to_domain(self, model: OrmT) -> DomainT:
         raise NotImplementedError
 
     def to_model(self, entity: DomainT) -> OrmT:

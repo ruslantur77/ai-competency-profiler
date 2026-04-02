@@ -19,6 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from competency_system.application.dtos.webhooks import WebhookEventStatus
 from competency_system.domain.value_objects.enums import (
     AssessmentStatus,
     LLMFeedbackType,
@@ -30,7 +31,6 @@ from competency_system.domain.value_objects.enums import (
     UserRole,
     VacancyStatus,
 )
-from competency_system.infrastructure.persistence.enums import WebhookEventStatus
 
 JSON_PAYLOAD = JSON().with_variant(JSONB, "postgresql")
 
@@ -71,7 +71,7 @@ class RefreshTokenOrm(Base):
 
     jti: Mapped[UUID] = mapped_column(primary_key=True)
     user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey(UserOrm.id, ondelete="CASCADE"),
     )
     token_hash: Mapped[str] = mapped_column(String(255), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -91,7 +91,7 @@ class CategoryOrm(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
-    emoji: Mapped[str] = mapped_column(String(10), default="📋")
+    emoji: Mapped[str] = mapped_column(String(10), default="")
 
     competencies: Mapped[list[CompetencyOrm]] = relationship(
         back_populates="category", cascade="all, delete-orphan", lazy="raise"
@@ -110,7 +110,7 @@ class CompetencyOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     category_id: Mapped[UUID] = mapped_column(
-        ForeignKey("categories.id", ondelete="CASCADE")
+        ForeignKey(CategoryOrm.id, ondelete="CASCADE")
     )
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
@@ -135,7 +135,7 @@ class SubCompetencyOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     competency_id: Mapped[UUID] = mapped_column(
-        ForeignKey("competencies.id", ondelete="CASCADE")
+        ForeignKey(CompetencyOrm.id, ondelete="CASCADE")
     )
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
@@ -205,10 +205,10 @@ class VacancyCategoryNodeOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE")
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE")
     )
     category_id: Mapped[UUID] = mapped_column(
-        ForeignKey("categories.id", ondelete="CASCADE")
+        ForeignKey(CategoryOrm.id, ondelete="CASCADE")
     )
     position: Mapped[int] = mapped_column(Integer)
 
@@ -237,13 +237,13 @@ class VacancyCompetencyNodeOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE")
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE")
     )
     competency_id: Mapped[UUID] = mapped_column(
-        ForeignKey("competencies.id", ondelete="CASCADE")
+        ForeignKey(CompetencyOrm.id, ondelete="CASCADE")
     )
     category_id: Mapped[UUID] = mapped_column(
-        ForeignKey("categories.id", ondelete="CASCADE")
+        ForeignKey(CategoryOrm.id, ondelete="CASCADE")
     )
     is_required: Mapped[bool] = mapped_column(default=True)
     position: Mapped[int] = mapped_column(Integer)
@@ -276,13 +276,13 @@ class VacancySubCompetencyNodeOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE")
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE")
     )
     sub_competency_id: Mapped[UUID] = mapped_column(
-        ForeignKey("sub_competencies.id", ondelete="CASCADE")
+        ForeignKey(SubCompetencyOrm.id, ondelete="CASCADE")
     )
     competency_id: Mapped[UUID] = mapped_column(
-        ForeignKey("competencies.id", ondelete="CASCADE")
+        ForeignKey(CompetencyOrm.id, ondelete="CASCADE")
     )
     target_level: Mapped[int] = mapped_column(default=2)
     weight: Mapped[float] = mapped_column(Float, default=1.0)
@@ -306,7 +306,7 @@ class VacancySuggestionOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE")
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE")
     )
     stage: Mapped[SuggestionStage] = mapped_column(
         Enum(
@@ -332,10 +332,10 @@ class VacancySuggestionOrm(Base):
     reason: Mapped[str] = mapped_column(String(1000), default="")
 
     parent_category_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
+        ForeignKey(CategoryOrm.id, ondelete="SET NULL"), nullable=True
     )
     parent_competency_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("competencies.id", ondelete="SET NULL"), nullable=True
+        ForeignKey(CompetencyOrm.id, ondelete="SET NULL"), nullable=True
     )
 
     is_required: Mapped[bool | None] = mapped_column(nullable=True)
@@ -361,7 +361,7 @@ class CandidateOrm(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     external_id: Mapped[str] = mapped_column(String(100), unique=True)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE")
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE")
     )
     status: Mapped[AssessmentStatus] = mapped_column(
         Enum(AssessmentStatus, name="assessment_status", values_callable=_enum_values),
@@ -403,10 +403,10 @@ class CandidateSubCompetencyAchievementOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     candidate_id: Mapped[UUID] = mapped_column(
-        ForeignKey("candidates.id", ondelete="CASCADE")
+        ForeignKey(CandidateOrm.id, ondelete="CASCADE")
     )
     sub_competency_id: Mapped[UUID] = mapped_column(
-        ForeignKey("sub_competencies.id", ondelete="CASCADE")
+        ForeignKey(SubCompetencyOrm.id, ondelete="CASCADE")
     )
     achieved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -465,9 +465,9 @@ class TaskSubCompetencyMappingOrm(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    task_id: Mapped[UUID] = mapped_column(ForeignKey(TaskOrm.id, ondelete="CASCADE"))
     sub_competency_id: Mapped[UUID] = mapped_column(
-        ForeignKey("sub_competencies.id", ondelete="CASCADE")
+        ForeignKey(SubCompetencyOrm.id, ondelete="CASCADE")
     )
     weight: Mapped[float] = mapped_column(Float, default=1.0)
     position: Mapped[int] = mapped_column(Integer)
@@ -482,9 +482,9 @@ class TestResultOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     candidate_id: Mapped[UUID] = mapped_column(
-        ForeignKey("candidates.id", ondelete="CASCADE")
+        ForeignKey(CandidateOrm.id, ondelete="CASCADE")
     )
-    task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    task_id: Mapped[UUID] = mapped_column(ForeignKey(TaskOrm.id, ondelete="CASCADE"))
     passed: Mapped[bool] = mapped_column(default=False)
     score: Mapped[float] = mapped_column(default=0.0)
     attempts: Mapped[int] = mapped_column(default=1)
@@ -536,7 +536,7 @@ class TestResultLLMAssessmentOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     test_result_id: Mapped[UUID] = mapped_column(
-        ForeignKey("test_results.id", ondelete="CASCADE"), unique=True
+        ForeignKey(TestResultOrm.id, ondelete="CASCADE"), unique=True
     )
     passed: Mapped[bool] = mapped_column(default=False)
     score: Mapped[float] = mapped_column(default=0.0)
@@ -562,7 +562,7 @@ class TestResultLLMFeedbackOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     assessment_id: Mapped[UUID] = mapped_column(
-        ForeignKey("test_result_llm_assessments.id", ondelete="CASCADE")
+        ForeignKey(TestResultLLMAssessmentOrm.id, ondelete="CASCADE")
     )
     type: Mapped[LLMFeedbackType] = mapped_column(
         Enum(LLMFeedbackType, name="llm_feedback_type", values_callable=_enum_values)
@@ -580,7 +580,7 @@ class WebhookEventOrm(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     event_id: Mapped[str] = mapped_column(String(200), unique=True)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE")
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE")
     )
     candidate_external_id: Mapped[str] = mapped_column(String(100))
     task_external_id: Mapped[str] = mapped_column(String(100))
@@ -590,15 +590,15 @@ class WebhookEventOrm(Base):
             name="webhook_event_status",
             values_callable=_enum_values,
         ),
-        server_default=WebhookEventStatus.PROCESSING.value,
+        server_default=WebhookEventStatus.PENDING.value,
     )
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     candidate_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("candidates.id", ondelete="SET NULL"),
+        ForeignKey(CandidateOrm.id, ondelete="SET NULL"),
         nullable=True,
     )
     test_result_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("test_results.id", ondelete="SET NULL"),
+        ForeignKey(TestResultOrm.id, ondelete="SET NULL"),
         nullable=True,
     )
     payload: Mapped[dict[str, object]] = mapped_column(JSON_PAYLOAD, default=dict)
@@ -627,7 +627,7 @@ class RankingSnapshotOrm(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     vacancy_id: Mapped[UUID] = mapped_column(
-        ForeignKey("vacancies.id", ondelete="CASCADE"), unique=True
+        ForeignKey(VacancyOrm.id, ondelete="CASCADE"), unique=True
     )
     payload: Mapped[dict[str, object]] = mapped_column(JSON_PAYLOAD, default=dict)
     calculated_at: Mapped[datetime] = mapped_column(

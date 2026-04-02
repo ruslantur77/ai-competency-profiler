@@ -9,6 +9,15 @@ from competency_system.application.ports.repositories import (
     CategoryInclude,
     CompetencyInclude,
 )
+from competency_system.application.ports.repositories import (
+    CategoryRepository as ICategoryRepository,
+)
+from competency_system.application.ports.repositories import (
+    CompetencyRepository as ICompetencyRepository,
+)
+from competency_system.application.ports.repositories import (
+    SubCompetencyRepository as ISubCompetencyRepository,
+)
 from competency_system.domain.entities import Category, Competency, SubCompetency
 from competency_system.infrastructure.persistence.mappers import (
     category_from_orm,
@@ -29,7 +38,9 @@ from competency_system.infrastructure.persistence.repositories.base import (
 )
 
 
-class CategoryRepository(SQLAlchemyRepository[Category, CategoryOrm]):
+class CategoryRepository(
+    SQLAlchemyRepository[Category, CategoryOrm, CategoryInclude], ICategoryRepository
+):
     model = CategoryOrm
 
     def load_options(
@@ -47,16 +58,17 @@ class CategoryRepository(SQLAlchemyRepository[Category, CategoryOrm]):
             return (selectinload(CategoryOrm.competencies),)
         return ()
 
-    def to_domain(
-        self, model: CategoryOrm, include: Collection[CategoryInclude] | None = None
-    ) -> Category:
-        return category_from_orm(model, include=include)
+    def to_domain(self, model: CategoryOrm) -> Category:
+        return category_from_orm(model)
 
     def to_model(self, entity: Category) -> CategoryOrm:
         return category_to_orm(entity)
 
 
-class CompetencyRepository(SQLAlchemyRepository[Competency, CompetencyOrm]):
+class CompetencyRepository(
+    SQLAlchemyRepository[Competency, CompetencyOrm, CompetencyInclude],
+    ICompetencyRepository,
+):
     model = CompetencyOrm
 
     def load_options(
@@ -79,7 +91,8 @@ class CompetencyRepository(SQLAlchemyRepository[Competency, CompetencyOrm]):
 
 
 class SubCompetencyRepository(
-    SQLAlchemyRepository[SubCompetency, SubCompetencyOrm],
+    SQLAlchemyRepository[SubCompetency, SubCompetencyOrm, None],
+    ISubCompetencyRepository,
 ):
     model = SubCompetencyOrm
 

@@ -1,11 +1,9 @@
-from dataclasses import dataclass
 from datetime import datetime
 from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session, attributes
 
 from competency_system.domain.entities import Candidate, Vacancy

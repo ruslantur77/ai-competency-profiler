@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from typing import Annotated, cast
 
 import jwt
@@ -62,10 +61,6 @@ from competency_system.infrastructure.database import create_session_factory
 from competency_system.infrastructure.health.database_health import (
     SQLAlchemyHealthCheckPort,
 )
-from competency_system.infrastructure.persistence.repositories import (
-    RefreshTokenRepository,
-    UserRepository,
-)
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 from competency_system.infrastructure.security import decode_jwt, oauth2_scheme
 from competency_system.infrastructure.settings import Settings, get_settings
@@ -77,21 +72,6 @@ def get_db_engine(request: Request) -> AsyncEngine:
 
 def get_session_factory(request: Request) -> async_sessionmaker[AsyncSession]:
     return cast(async_sessionmaker[AsyncSession], request.app.state.session_factory)
-
-
-async def get_session(
-    session_factory: Annotated[
-        async_sessionmaker[AsyncSession],
-        Depends(get_session_factory),
-    ],
-) -> AsyncIterator[AsyncSession]:
-    async with session_factory() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
 
 
 def get_uow(
@@ -115,6 +95,9 @@ def get_testing_system_gateway(request: Request) -> ExternalTestingSystemGateway
     return cast(ExternalTestingSystemGateway, request.app.state.testing_system_gateway)
 
 
+# healthcheck
+
+
 def get_health_check_port(request: Request) -> HealthCheckPort:
     session_factory = cast(
         async_sessionmaker[AsyncSession] | None,
@@ -129,6 +112,9 @@ def get_health_check_use_case(
     health_check_port: Annotated[HealthCheckPort, Depends(get_health_check_port)],
 ) -> HealthCheckUseCase:
     return HealthCheckUseCase(health_check_port)
+
+
+# vacancy use cases
 
 
 def get_extract_vacancy_graph_use_case(
@@ -186,6 +172,9 @@ def get_decide_vacancy_suggestion_use_case(
     return DecideVacancySuggestionUseCase(uow)
 
 
+# tasks use cases
+
+
 def get_sync_tasks_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     gateway: Annotated[
@@ -228,6 +217,9 @@ def get_validate_task_mapping_use_case(
     return ValidateTaskMappingUseCase(uow)
 
 
+# candidates use cases
+
+
 def get_get_candidate_profile_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> GetCandidateProfileUseCase:
@@ -246,79 +238,55 @@ def get_get_vacancy_ranking_use_case(
     return GetVacancyRankingUseCase(uow)
 
 
-# auth repositories and use cases
-
-
-def get_user_repo(
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> UserRepository:
-    return UserRepository(session)
-
-
-def get_refresh_token_repo(
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> RefreshTokenRepository:
-    return RefreshTokenRepository(session)
+# auth  cases
 
 
 def get_authenticate_user_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> AuthenticateUserUseCase:
-    return AuthenticateUserUseCase(user_repo)
+    return AuthenticateUserUseCase(uow=uow)
 
 
 def get_issue_token_pair_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-    refresh_token_repo: Annotated[
-        RefreshTokenRepository, Depends(get_refresh_token_repo)
-    ],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> IssueTokenPairUseCase:
-    return IssueTokenPairUseCase(
-        user_repo=user_repo, refresh_token_repo=refresh_token_repo
-    )
+    return IssueTokenPairUseCase(uow=uow)
 
 
 def get_refresh_token_pair_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-    refresh_token_repo: Annotated[
-        RefreshTokenRepository, Depends(get_refresh_token_repo)
-    ],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> RefreshTokenPairUseCase:
-    return RefreshTokenPairUseCase(
-        user_repo=user_repo, refresh_token_repo=refresh_token_repo
-    )
+    return RefreshTokenPairUseCase(uow=uow)
 
 
 def get_logout_use_case(
-    refresh_token_repo: Annotated[
-        RefreshTokenRepository, Depends(get_refresh_token_repo)
-    ],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> LogoutUseCase:
-    return LogoutUseCase(refresh_token_repo)
+    return LogoutUseCase(uow=uow)
 
 
 def get_list_users_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ListUsersUseCase:
-    return ListUsersUseCase(user_repo)
+    return ListUsersUseCase(uow=uow)
 
 
 def get_create_user_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> CreateUserUseCase:
-    return CreateUserUseCase(user_repo)
+    return CreateUserUseCase(uow=uow)
 
 
 def get_update_user_role_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UpdateUserRoleUseCase:
-    return UpdateUserRoleUseCase(user_repo)
+    return UpdateUserRoleUseCase(uow=uow)
 
 
 def get_update_user_status_use_case(
-    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UpdateUserStatusUseCase:
-    return UpdateUserStatusUseCase(user_repo)
+    return UpdateUserStatusUseCase(uow=uow)
 
 
 def get_login_data(
@@ -331,6 +299,9 @@ def get_login_data(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=exc.errors(),
         ) from None
+
+
+# tokens
 
 
 def get_refresh_token_from_cookie(request: Request) -> str:

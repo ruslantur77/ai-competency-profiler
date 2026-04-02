@@ -13,6 +13,7 @@ class User(Entity):
     email: str
     role: UserRole = UserRole.HR
     is_active: bool = True
+    hashed_password: str
 
 
 @dataclass(kw_only=True)
