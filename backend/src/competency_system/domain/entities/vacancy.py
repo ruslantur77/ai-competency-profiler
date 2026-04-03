@@ -64,3 +64,7 @@ class Vacancy(Entity):
     competency_nodes: list[VacancyCompetencyNode] = field(default_factory=list)
     sub_competency_nodes: list[VacancySubCompetencyNode] = field(default_factory=list)
     suggestions: list[VacancyGraphSuggestion] = field(default_factory=list)
+
+    @property
+    def is_ready(self) -> bool:
+        return self.status == VacancyStatus.READY

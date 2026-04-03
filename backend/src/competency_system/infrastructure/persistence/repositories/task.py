@@ -26,6 +26,8 @@ from competency_system.infrastructure.persistence.mappers import (
 from competency_system.infrastructure.persistence.models import (
     TaskOrm,
     TaskSubCompetencyMappingOrm,
+    TestResultLLMAssessmentOrm,
+    TestResultLLMFeedbackOrm,
     TestResultOrm,
     TestResultQuestionAnswerOrm,
 )
@@ -122,6 +124,55 @@ class TestResultRepository(
                 TestResultQuestionAnswerOrm.test_result_id == entity.id
             )
         )
+        await self._session.execute(
+            delete(TestResultLLMFeedbackOrm).where(
+                TestResultLLMFeedbackOrm.assessment_id.in_(
+                    select(TestResultLLMAssessmentOrm.id).where(
+                        TestResultLLMAssessmentOrm.test_result_id == entity.id
+                    )
+                )
+            )
+        )
+        await self._session.execute(
+            delete(TestResultLLMAssessmentOrm).where(
+                TestResultLLMAssessmentOrm.test_result_id == entity.id
+            )
+        )
+
+        for position, item in enumerate(entity.question_answers):
+            self._session.add(
+                TestResultQuestionAnswerOrm(
+                    test_result_id=entity.id,
+                    question=item.question,
+                    answer=item.answer,
+                    position=position,
+                )
+            )
+        if entity.llm_assessment is not None:
+            assessment_id = entity.llm_assessment.id
+            self._session.add(
+                TestResultLLMAssessmentOrm(
+                    id=assessment_id,
+                    test_result_id=entity.id,
+                    passed=entity.llm_assessment.passed,
+                    score=entity.llm_assessment.score,
+                    feedback=entity.llm_assessment.feedback,
+                    criteria_version=entity.llm_assessment.criteria_version,
+                    raw_test_score=entity.llm_assessment.raw_test_score,
+                    penalized_test_score=entity.llm_assessment.penalized_test_score,
+                    attempt_penalty_applied=entity.llm_assessment.attempt_penalty_applied,
+                    final_score=entity.llm_assessment.final_score,
+                )
+            )
+            for position, item in enumerate(entity.llm_assessment.feedback_items):
+                self._session.add(
+                    TestResultLLMFeedbackOrm(
+                        assessment_id=assessment_id,
+                        type=item.type,
+                        value=item.value,
+                        position=position,
+                    )
+                )
 
         await self._session.flush()
 

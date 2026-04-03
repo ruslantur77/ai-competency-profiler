@@ -139,6 +139,7 @@ class SubCompetencyOrm(Base):
     )
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
+    weight: Mapped[float] = mapped_column(Float, default=1.0)
 
     competency: Mapped[CompetencyOrm] = relationship(
         back_populates="sub_competencies", lazy="raise"

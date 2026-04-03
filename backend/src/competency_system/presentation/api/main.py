@@ -13,6 +13,7 @@ from competency_system.infrastructure.database import create_engine_and_session_
 from competency_system.infrastructure.external.testing_system import (
     HTTPTestingSystemGateway,
 )
+from competency_system.infrastructure.llm.job_queue import InMemoryLLMJobQueue
 from competency_system.infrastructure.llm.openai_compatible import (
     OpenAICompatibleLLMGateway,
 )
@@ -55,11 +56,13 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     db_engine, session_factory = create_engine_and_session_factory(settings)
     llm_gateway = OpenAICompatibleLLMGateway(settings)
     testing_gateway = HTTPTestingSystemGateway(settings)
+    llm_job_queue = InMemoryLLMJobQueue()
 
     app.state.db_engine = db_engine
     app.state.session_factory = session_factory
     app.state.llm_gateway = llm_gateway
     app.state.testing_system_gateway = testing_gateway
+    app.state.llm_job_queue = llm_job_queue
 
     await ensure_bootstrap_admin(session_factory, settings)
 
@@ -68,6 +71,7 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        await llm_job_queue.close()
         await testing_gateway.close()
         await llm_gateway.close()
         await db_engine.dispose()

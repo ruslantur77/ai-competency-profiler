@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from competency_system.application.code_assessment_policy import (
+    DEFAULT_CODE_ASSESSMENT_POLICY,
+    CodeAssessmentPolicy,
+)
 from competency_system.application.dtos.candidate import (
     CandidateAssessmentResultDTO,
     CandidateProfileDTO,
@@ -13,8 +17,13 @@ from competency_system.application.dtos.task import (
     LLMCodeAssessmentDTO,
     TestResultDTO,
 )
-from competency_system.application.dtos.webhooks import WebhookEvent, WebhookEventStatus
+from competency_system.application.dtos.webhooks import (
+    WebhookEvent,
+    WebhookEventPayload,
+    WebhookEventStatus,
+)
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.llm_jobs import LLMJobQueuePort, LLMJobType
 from competency_system.application.ports.repositories import (
     CandidateInclude,
     TaskInclude,
@@ -22,16 +31,17 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.application.code_assessment_policy import (
-    DEFAULT_CODE_ASSESSMENT_POLICY,
-    CodeAssessmentPolicy,
-)
 from competency_system.domain.entities import (
     Candidate,
     Competency,
     CompetencyScore,
+    SubCompetency,
     Task,
     TestResult,
+    TestResultLLMAssessment,
+    TestResultLLMFeedbackItem,
+    TestResultQuestionAnswer,
+    Vacancy,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.enums import (
@@ -66,10 +76,12 @@ class AssessCandidateUseCase:
     def __init__(
         self,
         uow: UnitOfWork,
+        job_queue: LLMJobQueuePort,
         llm_gateway: LLMGateway | None = None,
         code_policy: CodeAssessmentPolicy = DEFAULT_CODE_ASSESSMENT_POLICY,
     ) -> None:
         self._uow = uow
+        self._job_queue = job_queue
         self._llm_gateway = llm_gateway
         self._scorer = CandidateScorer()
         self._code_policy = code_policy
@@ -143,7 +155,7 @@ class AssessCandidateUseCase:
                 candidate_external_id=command.candidate_external_id,
                 task_external_id=command.task_external_id,
                 status=WebhookEventStatus.PROCESSING,
-                payload=command.model_dump(mode="json"),
+                payload=WebhookEventPayload(data=command.model_dump(mode="json")),
             )
             await uow.webhook_events.add(event)
             await uow.commit()
@@ -190,10 +202,27 @@ class AssessCandidateUseCase:
             scores = self._scorer.calculate_scores(candidate, vacancy_competencies)
             await uow.commit()
 
-            return CandidateAssessmentResultDTO(
+            result = CandidateAssessmentResultDTO(
                 candidate_profile=_build_profile(candidate, scores),
                 test_result=self._to_test_result_dto(test_result),
             )
+            if (
+                command.type == TaskType.CODE
+                and command.code
+                and self._llm_gateway is not None
+            ):
+                await self._job_queue.enqueue(
+                    # TODO: replace in-process runner with external queue producer.
+                    job_type=LLMJobType.CANDIDATE_CODE_ASSESSMENT,
+                    payload={"test_result_id": str(test_result.id)},
+                    runner=lambda: self._process_code_assessment_job(
+                        test_result.id,
+                        command.passed,
+                        command.total,
+                        command.duration_seconds,
+                    ),
+                )
+            return result
 
     async def _mark_event_processed(
         self,
@@ -243,51 +272,19 @@ class AssessCandidateUseCase:
         passed = (
             command.passed > 0 and command.total > 0 and command.passed >= command.total
         )
-        llm_assessment: dict[str, object] | None = None
-
-        if (
-            command.type == TaskType.CODE
-            and command.code
-            and self._llm_gateway is not None
-        ):
-            assessment = await self._llm_gateway.generate(
-                [
-                    LLMMessage(
-                        role="system",
-                        content=self._code_policy.system_prompt,
-                    ),
-                    LLMMessage(
-                        role="user",
-                        content=(
-                            f"Task: {task.title}\n"
-                            f"Description: {task.description}\n"
-                            f"Candidate code:\n{command.code}\n\n"
-                            f"Passed tests: {command.passed}/{command.total}\n"
-                            f"Attempts: {command.attempts}\n"
-                            f"Duration: {command.duration_seconds} seconds"
-                        ),
-                    ),
-                ],
-                LLMCodeAssessmentDTO,
-            )
-            score = max(penalized_test_score, assessment.score)
-            passed = assessment.passed or passed
-            llm_assessment = {
-                **assessment.model_dump(mode="json"),
-                "criteria_version": self._code_policy.version,
-                "raw_test_score": raw_test_score,
-                "penalized_test_score": penalized_test_score,
-                "attempt_penalty_applied": command.attempts > 1,
-                "final_score": score,
-            }
-        else:
-            llm_assessment = {
-                "criteria_version": self._code_policy.version,
-                "raw_test_score": raw_test_score,
-                "penalized_test_score": penalized_test_score,
-                "attempt_penalty_applied": command.attempts > 1,
-                "final_score": score,
-            }
+        llm_assessment = TestResultLLMAssessment(
+            id=uuid4(),
+            test_result_id=UUID(int=0),
+            passed=passed,
+            score=score,
+            feedback="",
+            criteria_version=self._code_policy.version,
+            raw_test_score=raw_test_score,
+            penalized_test_score=penalized_test_score,
+            attempt_penalty_applied=command.attempts > 1,
+            final_score=score,
+            feedback_items=[],
+        )
 
         return TestResult(
             id=uuid4(),
@@ -297,9 +294,92 @@ class AssessCandidateUseCase:
             score=score,
             attempts=command.attempts,
             code_submitted=command.code,
-            question_answers=list(command.question_answers),
+            question_answers=[
+                TestResultQuestionAnswer(
+                    id=uuid4(),
+                    test_result_id=UUID(int=0),
+                    question=item.get("question", ""),
+                    answer=item.get("answer", ""),
+                    position=index,
+                )
+                for index, item in enumerate(command.question_answers)
+            ],
             llm_assessment=llm_assessment,
         )
+
+    async def _process_code_assessment_job(
+        self,
+        test_result_id: UUID,
+        passed_tests: int,
+        total_tests: int,
+        duration_seconds: int,
+    ) -> None:
+        if self._llm_gateway is None:
+            return
+        async with self._uow as uow:
+            result = await uow.test_results.get(
+                test_result_id,
+                include={TestResultInclude.TASK, TestResultInclude.LLM_ASSESSMENT},
+            )
+            if result is None or result.task is None or not result.code_submitted:
+                return
+            assessment = await self._llm_gateway.generate(
+                [
+                    LLMMessage(
+                        role="system",
+                        content=self._code_policy.system_prompt,
+                    ),
+                    LLMMessage(
+                        role="user",
+                        content=(
+                            f"Task: {result.task.title}\n"
+                            f"Description: {result.task.description}\n"
+                            f"Candidate code:\n{result.code_submitted}\n\n"
+                            f"Passed tests: {passed_tests}/{total_tests}\n"
+                            f"Attempts: {result.attempts}\n"
+                            f"Duration: {duration_seconds} seconds"
+                        ),
+                    ),
+                ],
+                LLMCodeAssessmentDTO,
+            )
+            base_raw = (
+                result.llm_assessment.raw_test_score
+                if result.llm_assessment
+                else result.score
+            )
+            base_penalized = (
+                result.llm_assessment.penalized_test_score
+                if result.llm_assessment
+                else result.score
+            )
+            final_score = max(base_penalized, assessment.score)
+            result.score = final_score
+            result.passed = bool(result.passed or assessment.passed)
+            result.llm_assessment = TestResultLLMAssessment(
+                id=result.llm_assessment.id if result.llm_assessment else uuid4(),
+                test_result_id=result.id,
+                passed=result.passed,
+                score=assessment.score,
+                feedback=assessment.feedback,
+                criteria_version=self._code_policy.version,
+                raw_test_score=base_raw,
+                penalized_test_score=base_penalized,
+                attempt_penalty_applied=result.attempts > 1,
+                final_score=final_score,
+                feedback_items=[
+                    TestResultLLMFeedbackItem(
+                        id=uuid4(),
+                        assessment_id=UUID(int=0),
+                        type=item.type,
+                        value=item.value,
+                        position=index,
+                    )
+                    for index, item in enumerate(assessment.feedback_items)
+                ],
+            )
+            await uow.test_results.add(result)
+            await uow.commit()
 
     def _raw_test_score(self, passed: int, total: int) -> float:
         if total <= 0:
@@ -360,7 +440,7 @@ class AssessCandidateUseCase:
         )
         if vacancy is None:
             raise ValueError(f"Vacancy {vacancy_id} not found")
-        return list(vacancy.competencies)
+        return _build_requirement_competencies(vacancy)
 
 
 # TODO: вынести эксепшн
@@ -387,7 +467,51 @@ class GetCandidateProfileUseCase:
             )
             if candidate is None:
                 raise ValueError(f"Candidate {candidate_id} not found")
+            vacancy = await uow.vacancies.get(
+                candidate.vacancy_id,
+                include={VacancyInclude.NORMALIZED_GRAPH},
+            )
+            if vacancy is None:
+                raise ValueError(f"Vacancy {candidate.vacancy_id} not found")
             scores = self._scorer.calculate_scores(
-                candidate, list(candidate.vacancy.competency_nodes)
+                candidate, _build_requirement_competencies(vacancy)
             )
             return _build_profile(candidate, scores)
+
+
+def _build_requirement_competencies(vacancy: Vacancy) -> list[Competency]:
+    competencies: list[Competency] = []
+    sub_by_competency: dict[UUID, list[SubCompetency]] = {}
+    for node in vacancy.sub_competency_nodes:
+        base = node.sub_competency
+        if base is None:
+            continue
+        sub_by_competency.setdefault(node.competency_id, []).append(
+            SubCompetency(
+                id=base.id,
+                competency_id=base.competency_id,
+                name=base.name,
+                description=base.description,
+                weight=node.weight,
+                created_at=base.created_at,
+                updated_at=base.updated_at,
+            )
+        )
+    for node_competency in vacancy.competency_nodes:
+        base_competency = node_competency.competency
+        if base_competency is None:
+            continue
+        competencies.append(
+            Competency(
+                id=base_competency.id,
+                category_id=base_competency.category_id,
+                name=base_competency.name,
+                description=base_competency.description,
+                sub_competencies=sub_by_competency.get(
+                    node_competency.competency_id, []
+                ),
+                created_at=base_competency.created_at,
+                updated_at=base_competency.updated_at,
+            )
+        )
+    return competencies

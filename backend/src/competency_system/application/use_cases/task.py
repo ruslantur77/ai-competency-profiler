@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from collections.abc import Sequence
 from uuid import UUID, uuid4
 
 from competency_system.application.dtos.task import (
@@ -20,6 +19,7 @@ from competency_system.application.ports.external_testing_system import (
     ExternalTestingSystemGateway,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.llm_jobs import LLMJobQueuePort, LLMJobType
 from competency_system.application.ports.repositories import (
     CategoryInclude,
     TaskInclude,
@@ -293,7 +293,6 @@ class MapTaskToCompetenciesUseCase:
                                 "id": str(sub.id),
                                 "name": sub.name,
                                 "description": sub.description,
-                                "target_level": int(sub.target_level),
                                 "weight": sub.weight,
                             }
                             for index, sub in enumerate(
@@ -382,18 +381,17 @@ class SyncTasksUseCase:
         uow: UnitOfWork,
         gateway: ExternalTestingSystemGateway,
         llm_gateway: LLMGateway,
+        job_queue: LLMJobQueuePort,
     ) -> None:
         self._uow = uow
         self._gateway = gateway
         self._mapper = MapTaskToCompetenciesUseCase(llm_gateway)
+        self._job_queue = job_queue
 
     async def execute(self) -> SyncTasksResultDTO:
         external_tasks = await self._gateway.list_tasks()
 
         async with self._uow as uow:
-            categories = await uow.categories.get_list(
-                include={CategoryInclude.SUB_COMPETENCIES}
-            )
             synced: list[TaskDTO] = []
 
             for record in external_tasks:
@@ -411,39 +409,69 @@ class SyncTasksUseCase:
                     task.description = record.description
                     task.type = record.type
 
-                try:
-                    task.competency_mappings = await self._build_mappings(
-                        task,
-                        categories,
-                        tags=record.tags,
-                    )
-                    task.mapping_status = TaskMappingStatus.COMPLETED
-                    task.mapping_error_message = None
-                except Exception as exc:
-                    task.competency_mappings = []
-                    task.mapping_status = TaskMappingStatus.FAILED
-                    task.mapping_error_message = str(exc)
+                task.competency_mappings = []
+                task.mapping_status = TaskMappingStatus.PENDING
+                task.mapping_error_message = None
                 task.mapping_validated = False
                 await uow.tasks.add(task)
                 synced.append(_task_to_dto(task))
 
             await uow.commit()
-            return SyncTasksResultDTO(synced_tasks=synced)
+        for record in external_tasks:
+            await self._enqueue_mapping(record.external_id, tags=record.tags)
+        return SyncTasksResultDTO(synced_tasks=synced)
 
-    async def _build_mappings(
+    async def _enqueue_mapping(
         self,
-        task: Task,
-        categories: Sequence[Category],
+        task_external_id: str,
         *,
         tags: list[str],
-    ) -> list[TaskCompetencyMapping]:
-        return await self._mapper.execute(task, list(categories), tags=tags)
+    ) -> None:
+        await self._job_queue.enqueue(
+            # TODO: replace in-process runner with external queue producer.
+            job_type=LLMJobType.TASK_MAPPING,
+            payload={"task_external_id": task_external_id},
+            runner=lambda: self._process_mapping(task_external_id, tags=tags),
+        )
+
+    async def _process_mapping(self, task_external_id: str, *, tags: list[str]) -> None:
+        async with self._uow as uow:
+            task = await uow.tasks.get_by_external_id(
+                task_external_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
+            if task is None:
+                return
+            categories = await uow.categories.get_list(
+                include={CategoryInclude.SUB_COMPETENCIES}
+            )
+            try:
+                task.competency_mappings = await self._mapper.execute(
+                    task,
+                    list(categories),
+                    tags=tags,
+                )
+                task.mapping_status = TaskMappingStatus.COMPLETED
+                task.mapping_error_message = None
+            except Exception as exc:
+                task.competency_mappings = []
+                task.mapping_status = TaskMappingStatus.FAILED
+                task.mapping_error_message = str(exc)
+            task.mapping_validated = False
+            await uow.tasks.add(task)
+            await uow.commit()
 
 
 class RebuildTaskMappingUseCase:
-    def __init__(self, uow: UnitOfWork, llm_gateway: LLMGateway) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        llm_gateway: LLMGateway,
+        job_queue: LLMJobQueuePort,
+    ) -> None:
         self._uow = uow
         self._mapper = MapTaskToCompetenciesUseCase(llm_gateway)
+        self._job_queue = job_queue
 
     async def execute(self, task_id: UUID) -> TaskDTO:
         async with self._uow as uow:
@@ -453,20 +481,55 @@ class RebuildTaskMappingUseCase:
             )
             if task is None:
                 raise ValueError(f"Task {task_id} not found")
-            categories = await uow.categories.get_list(
-                include={CategoryInclude.SUB_COMPETENCIES}
-            )
-            task.competency_mappings = await self._mapper.execute(
-                task,
-                list(categories),
-                tags=[],
-            )
-            task.mapping_status = TaskMappingStatus.COMPLETED
+            task.mapping_status = TaskMappingStatus.PENDING
             task.mapping_error_message = None
             task.mapping_validated = False
             await uow.tasks.add(task)
             await uow.commit()
-            return _task_to_dto(task)
+            dto = _task_to_dto(task)
+
+        await self._enqueue_mapping(task.external_id, tags=[])
+        return dto
+
+    async def _enqueue_mapping(
+        self,
+        task_external_id: str,
+        *,
+        tags: list[str],
+    ) -> None:
+        await self._job_queue.enqueue(
+            # TODO: replace in-process runner with external queue producer.
+            job_type=LLMJobType.TASK_MAPPING,
+            payload={"task_external_id": task_external_id},
+            runner=lambda: self._process_mapping(task_external_id, tags=tags),
+        )
+
+    async def _process_mapping(self, task_external_id: str, *, tags: list[str]) -> None:
+        async with self._uow as uow:
+            task = await uow.tasks.get_by_external_id(
+                task_external_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
+            if task is None:
+                return
+            categories = await uow.categories.get_list(
+                include={CategoryInclude.SUB_COMPETENCIES}
+            )
+            try:
+                task.competency_mappings = await self._mapper.execute(
+                    task,
+                    list(categories),
+                    tags=tags,
+                )
+                task.mapping_status = TaskMappingStatus.COMPLETED
+                task.mapping_error_message = None
+            except Exception as exc:
+                task.competency_mappings = []
+                task.mapping_status = TaskMappingStatus.FAILED
+                task.mapping_error_message = str(exc)
+            task.mapping_validated = False
+            await uow.tasks.add(task)
+            await uow.commit()
 
 
 class ValidateTaskMappingUseCase:

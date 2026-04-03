@@ -35,6 +35,7 @@ def task_sync_dag() -> None:
                 runtime.uow(),
                 runtime.testing_gateway(),
                 runtime.llm_gateway(),
+                runtime.llm_job_queue(),
             ).execute(),
         )
         return result.model_dump(mode="json")

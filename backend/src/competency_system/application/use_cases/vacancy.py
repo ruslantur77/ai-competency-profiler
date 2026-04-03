@@ -4,15 +4,12 @@ import json
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
-from competency_system.application.dtos.competency import (
-    CategoryDTO,
-    CompetencyDTO,
-    SubCompetencyDTO,
-)
 from competency_system.application.dtos.vacancy import (
     VacancyCategoryExtractionResultDTO,
+    VacancyCategoryNodeDTO,
     VacancyCategorySuggestionDTO,
     VacancyCompetencyExtractionResultDTO,
+    VacancyCompetencyNodeDTO,
     VacancyCompetencySuggestionDTO,
     VacancyCreateDTO,
     VacancyDTO,
@@ -21,10 +18,12 @@ from competency_system.application.dtos.vacancy import (
     VacancyListItemDTO,
     VacancyStatusUpdateDTO,
     VacancySubCompetencyExtractionResultDTO,
+    VacancySubCompetencyNodeDTO,
     VacancySubCompetencySuggestionDTO,
     VacancySuggestionDecisionDTO,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.llm_jobs import LLMJobQueuePort, LLMJobType
 from competency_system.application.ports.repositories import (
     CategoryInclude,
     VacancyInclude,
@@ -40,8 +39,12 @@ from competency_system.domain.entities import (
     Competency,
     SubCompetency,
     Vacancy,
+    VacancyCategoryNode,
+    VacancyCompetencyNode,
     VacancyGraphSuggestion,
+    VacancySubCompetencyNode,
 )
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
@@ -54,6 +57,9 @@ from competency_system.domain.value_objects.enums import (
 class _VacancyGraphPayload:
     categories: list[Category]
     competencies: list[Competency]
+    category_nodes: list[VacancyCategoryNode]
+    competency_nodes: list[VacancyCompetencyNode]
+    sub_competency_nodes: list[VacancySubCompetencyNode]
     suggestions: list[VacancyGraphSuggestion]
 
 
@@ -107,9 +113,50 @@ def _vacancy_to_dto(vacancy: Vacancy) -> VacancyDTO:
         name=vacancy.name,
         description=vacancy.description,
         status=vacancy.status,
-        categories=[_category_to_dto(category) for category in vacancy.categories],
-        competencies=[
-            _competency_to_dto(competency) for competency in vacancy.competencies
+        category_nodes=[
+            VacancyCategoryNodeDTO(
+                id=node.id,
+                vacancy_id=node.vacancy_id,
+                category_id=node.category_id,
+                position=node.position,
+                category_name=node.category.name if node.category else "",
+                category_description=node.category.description if node.category else "",
+                category_emoji=node.category.emoji if node.category else "",
+            )
+            for node in vacancy.category_nodes
+        ],
+        competency_nodes=[
+            VacancyCompetencyNodeDTO(
+                id=node.id,
+                vacancy_id=node.vacancy_id,
+                competency_id=node.competency_id,
+                category_id=node.category_id,
+                is_required=node.is_required,
+                position=node.position,
+                competency_name=node.competency.name if node.competency else "",
+                competency_description=(
+                    node.competency.description if node.competency else ""
+                ),
+            )
+            for node in vacancy.competency_nodes
+        ],
+        sub_competency_nodes=[
+            VacancySubCompetencyNodeDTO(
+                id=node.id,
+                vacancy_id=node.vacancy_id,
+                sub_competency_id=node.sub_competency_id,
+                competency_id=node.competency_id,
+                target_level=node.target_level,
+                weight=node.weight,
+                position=node.position,
+                sub_competency_name=(
+                    node.sub_competency.name if node.sub_competency else ""
+                ),
+                sub_competency_description=(
+                    node.sub_competency.description if node.sub_competency else ""
+                ),
+            )
+            for node in vacancy.sub_competency_nodes
         ],
         error_message=vacancy.error_message,
         created_at=vacancy.created_at,
@@ -144,41 +191,58 @@ def _vacancy_to_list_item(vacancy: Vacancy) -> VacancyListItemDTO:
     )
 
 
-def _category_to_dto(category: Category) -> CategoryDTO:
-    return CategoryDTO(
-        id=category.id,
-        name=category.name,
-        description=category.description,
-        emoji=category.emoji,
-        competencies=[
-            _competency_to_dto(competency) for competency in category.competencies
-        ],
-    )
+def _build_nodes_from_competencies(
+    vacancy_id: UUID,
+    competencies: list[Competency],
+) -> tuple[
+    list[VacancyCategoryNode],
+    list[VacancyCompetencyNode],
+    list[VacancySubCompetencyNode],
+]:
+    category_order: list[UUID] = []
+    seen_categories: set[UUID] = set()
+    for competency in competencies:
+        if competency.category_id in seen_categories:
+            continue
+        seen_categories.add(competency.category_id)
+        category_order.append(competency.category_id)
 
+    category_nodes = [
+        VacancyCategoryNode(
+            id=uuid4(),
+            vacancy_id=vacancy_id,
+            category_id=category_id,
+            position=position,
+        )
+        for position, category_id in enumerate(category_order)
+    ]
 
-def _competency_to_dto(competency: Competency) -> CompetencyDTO:
-    return CompetencyDTO(
-        id=competency.id,
-        category_id=competency.category_id,
-        name=competency.name,
-        description=competency.description,
-        is_required=competency.is_required,
-        sub_competencies=[
-            _subcompetency_to_dto(subcompetency)
-            for subcompetency in competency.sub_competencies
-        ],
-    )
-
-
-def _subcompetency_to_dto(subcompetency: SubCompetency) -> SubCompetencyDTO:
-    return SubCompetencyDTO(
-        id=subcompetency.id,
-        name=subcompetency.name,
-        description=subcompetency.description,
-        target_level=subcompetency.target_level,
-        weight=subcompetency.weight,
-    )
-
+    competency_nodes: list[VacancyCompetencyNode] = []
+    sub_nodes: list[VacancySubCompetencyNode] = []
+    for position, competency in enumerate(competencies):
+        competency_nodes.append(
+            VacancyCompetencyNode(
+                id=uuid4(),
+                vacancy_id=vacancy_id,
+                competency_id=competency.id,
+                category_id=competency.category_id,
+                is_required=True,
+                position=position,
+            )
+        )
+        for sub in competency.sub_competencies:
+            sub_nodes.append(
+                VacancySubCompetencyNode(
+                    id=uuid4(),
+                    vacancy_id=vacancy_id,
+                    sub_competency_id=sub.id,
+                    competency_id=competency.id,
+                    target_level=CompetencyLevel.BEGINNER,
+                    weight=sub.weight,
+                    position=len(sub_nodes),
+                )
+            )
+    return category_nodes, competency_nodes, sub_nodes
 
 
 class ExtractVacancyGraphUseCase:
@@ -186,6 +250,7 @@ class ExtractVacancyGraphUseCase:
         self,
         uow: UnitOfWork,
         llm_gateway: LLMGateway,
+        job_queue: LLMJobQueuePort,
         *,
         max_categories: int = 6,
         max_competencies: int = 10,
@@ -194,6 +259,7 @@ class ExtractVacancyGraphUseCase:
         stage_timeout_seconds: float = 45.0,
     ) -> None:
         self._uow = uow
+        self._job_queue = job_queue
         self._llm_orchestrator = StructuredLLMOrchestrator(
             llm_gateway,
             max_parallel_requests=max_parallel_requests,
@@ -209,35 +275,46 @@ class ExtractVacancyGraphUseCase:
             description=command.description,
             status=VacancyStatus.EXTRACTING,
         )
+        async with self._uow as uow:
+            await uow.vacancies.add(vacancy)
+            await uow.commit()
+        await self._job_queue.enqueue(
+            # TODO: replace in-process runner with external queue producer.
+            job_type=LLMJobType.VACANCY_EXTRACTION,
+            payload={"vacancy_id": str(vacancy.id)},
+            runner=lambda: self._process_extraction(vacancy.id),
+        )
+        return _vacancy_to_dto(vacancy)
 
-        try:
-            async with self._uow as uow:
+    async def _process_extraction(self, vacancy_id: UUID) -> None:
+        async with self._uow as uow:
+            vacancy = await uow.vacancies.get(vacancy_id)
+            if vacancy is None:
+                return
+            try:
                 existing_categories = list(
                     await uow.categories.get_list(
                         include={CategoryInclude.SUB_COMPETENCIES}
                     )
                 )
                 graph = await self._build_graph(vacancy, existing_categories)
-
                 vacancy.status = VacancyStatus.DRAFT
-                vacancy.categories = graph.categories
-                vacancy.competencies = graph.competencies
+                vacancy.category_nodes = graph.category_nodes
+                vacancy.competency_nodes = graph.competency_nodes
+                vacancy.sub_competency_nodes = graph.sub_competency_nodes
+                vacancy.error_message = None
 
-                for category in vacancy.categories:
+                for category in graph.categories:
                     await uow.categories.add(category)
                 await uow.vacancies.add(vacancy)
                 for suggestion in graph.suggestions:
                     suggestion.vacancy_id = vacancy.id
                     await uow.vacancy_suggestions.add(suggestion)
-                await uow.commit()
-                return _vacancy_to_dto(vacancy)
-        except Exception as exc:
-            vacancy.status = VacancyStatus.FAILED
-            vacancy.error_message = str(exc)
-            async with self._uow as uow:
+            except Exception as exc:
+                vacancy.status = VacancyStatus.FAILED
+                vacancy.error_message = str(exc)
                 await uow.vacancies.add(vacancy)
-                await uow.commit()
-            raise
+            await uow.commit()
 
     async def _build_graph(
         self,
@@ -280,9 +357,16 @@ class ExtractVacancyGraphUseCase:
         for category, competencies, category_suggestions in extracted:
             category.competencies = competencies
             suggestions.extend(category_suggestions)
+        category_nodes, competency_nodes, sub_nodes = _build_nodes_from_competencies(
+            vacancy.id,
+            all_competencies,
+        )
         return _VacancyGraphPayload(
             categories=categories,
             competencies=all_competencies,
+            category_nodes=category_nodes,
+            competency_nodes=competency_nodes,
+            sub_competency_nodes=sub_nodes,
             suggestions=suggestions,
         )
 
@@ -569,7 +653,6 @@ class ExtractVacancyGraphUseCase:
                     name=suggestion.name or (catalog_item.name if catalog_item else ""),
                     description=suggestion.description
                     or (catalog_item.description if catalog_item else ""),
-                    is_required=suggestion.is_required,
                 )
             )
         return competencies
@@ -595,7 +678,6 @@ class ExtractVacancyGraphUseCase:
                     name=suggestion.name or (catalog_item.name if catalog_item else ""),
                     description=suggestion.description
                     or (catalog_item.description if catalog_item else ""),
-                    target_level=suggestion.target_level,
                     weight=suggestion.weight,
                 )
             )
@@ -679,10 +761,30 @@ class FinalizeVacancyGraphUseCase:
                 raise ValueError(f"Vacancy {vacancy_id} not found")
 
             payload = self._build_payload(graph)
+            for node in payload.category_nodes:
+                node.vacancy_id = vacancy.id
+            for node in payload.competency_nodes:
+                node.vacancy_id = vacancy.id
+            for node in payload.sub_competency_nodes:
+                node.vacancy_id = vacancy.id
             vacancy.status = VacancyStatus.READY
-            vacancy.categories = payload.categories
-            vacancy.competencies = payload.competencies
+            vacancy.category_nodes = payload.category_nodes
+            vacancy.competency_nodes = payload.competency_nodes
+            vacancy.sub_competency_nodes = payload.sub_competency_nodes
             vacancy.error_message = graph.error_message
+
+            used_category_names = {c.name.strip().lower() for c in payload.categories}
+            used_competency_names = {
+                c.name.strip().lower()
+                for category in payload.categories
+                for c in category.competencies
+            }
+            used_sub_names = {
+                sub.name.strip().lower()
+                for category in payload.categories
+                for comp in category.competencies
+                for sub in comp.sub_competencies
+            }
 
             for decision in graph.suggestion_decisions:
                 suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
@@ -691,7 +793,22 @@ class FinalizeVacancyGraphUseCase:
                 suggestion.status = decision.status
                 await uow.vacancy_suggestions.add(suggestion)
 
-            for category in vacancy.categories:
+            suggestions = await uow.vacancy_suggestions.list_by_vacancy(vacancy_id)
+            for suggestion in suggestions:
+                if suggestion.status != SuggestionStatus.PENDING:
+                    continue
+                normalized_name = suggestion.name.strip().lower()
+                if suggestion.stage == SuggestionStage.CATEGORY:
+                    should_approve = normalized_name in used_category_names
+                elif suggestion.stage == SuggestionStage.COMPETENCY:
+                    should_approve = normalized_name in used_competency_names
+                else:
+                    should_approve = normalized_name in used_sub_names
+                if should_approve:
+                    suggestion.status = SuggestionStatus.APPROVED
+                    await uow.vacancy_suggestions.add(suggestion)
+
+            for category in payload.categories:
                 await uow.categories.add(category)
             await uow.vacancies.add(vacancy)
             await uow.commit()
@@ -700,13 +817,24 @@ class FinalizeVacancyGraphUseCase:
     def _build_payload(self, graph: VacancyGraphUpdateDTO) -> _VacancyGraphPayload:
         categories: list[Category] = []
         competencies: list[Competency] = []
+        category_nodes: list[VacancyCategoryNode] = []
+        competency_nodes: list[VacancyCompetencyNode] = []
+        sub_nodes: list[VacancySubCompetencyNode] = []
 
-        for category_dto in graph.categories:
+        for category_position, category_dto in enumerate(graph.categories):
             category = Category(
                 id=category_dto.id,
                 name=category_dto.name,
                 description=category_dto.description,
                 emoji=category_dto.emoji,
+            )
+            category_nodes.append(
+                VacancyCategoryNode(
+                    id=uuid4(),
+                    vacancy_id=UUID(int=0),
+                    category_id=category.id,
+                    position=category_position,
+                )
             )
             category_competencies: list[Competency] = []
             for competency_dto in category_dto.competencies:
@@ -715,18 +843,39 @@ class FinalizeVacancyGraphUseCase:
                     category_id=category.id,
                     name=competency_dto.name,
                     description=competency_dto.description,
-                    is_required=competency_dto.is_required,
                     sub_competencies=[
                         SubCompetency(
                             id=subcompetency_dto.id,
+                            competency_id=competency_dto.id,
                             name=subcompetency_dto.name,
                             description=subcompetency_dto.description,
-                            target_level=subcompetency_dto.target_level,
                             weight=subcompetency_dto.weight,
                         )
                         for subcompetency_dto in competency_dto.sub_competencies
                     ],
                 )
+                competency_nodes.append(
+                    VacancyCompetencyNode(
+                        id=uuid4(),
+                        vacancy_id=UUID(int=0),
+                        competency_id=competency.id,
+                        category_id=category.id,
+                        is_required=competency_dto.is_required,
+                        position=len(competency_nodes),
+                    )
+                )
+                for subcompetency_dto in competency_dto.sub_competencies:
+                    sub_nodes.append(
+                        VacancySubCompetencyNode(
+                            id=uuid4(),
+                            vacancy_id=UUID(int=0),
+                            sub_competency_id=subcompetency_dto.id,
+                            competency_id=competency.id,
+                            target_level=subcompetency_dto.target_level,
+                            weight=subcompetency_dto.weight,
+                            position=len(sub_nodes),
+                        )
+                    )
                 category_competencies.append(competency)
                 competencies.append(competency)
 
@@ -736,6 +885,9 @@ class FinalizeVacancyGraphUseCase:
         return _VacancyGraphPayload(
             categories=categories,
             competencies=competencies,
+            category_nodes=category_nodes,
+            competency_nodes=competency_nodes,
+            sub_competency_nodes=sub_nodes,
             suggestions=[],
         )
 

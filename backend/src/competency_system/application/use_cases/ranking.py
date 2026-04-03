@@ -8,12 +8,15 @@ from competency_system.application.dtos.ranking import (
     RankingItemDTO,
     VacancyRankingDTO,
 )
+from competency_system.application.dtos.webhooks import (
+    RankingSnapshot,
+    RankingSnapshotPayload,
+)
 from competency_system.application.ports.repositories import (
     CandidateInclude,
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.domain.entities import RankingSnapshot, RankingSnapshotPayload
 from competency_system.domain.services.ranking_engine import RankingEngine
 
 

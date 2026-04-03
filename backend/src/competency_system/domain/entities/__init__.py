@@ -18,6 +18,9 @@ from competency_system.domain.entities.task import (
     TestResultLLMFeedbackItem,
     TestResultQuestionAnswer,
 )
+from competency_system.domain.entities.task import (
+    TaskSubCompetencyMapping as TaskCompetencyMapping,
+)
 from competency_system.domain.entities.user import RefreshToken, User
 from competency_system.domain.entities.vacancy import (
     Vacancy,
@@ -36,6 +39,7 @@ __all__ = [
     "CandidateSubCompetencyAchievement",
     "CompetencyScore",
     "Task",
+    "TaskCompetencyMapping",
     "TaskSubCompetencyMapping",
     "TestResult",
     "TestResultQuestionAnswer",
@@ -48,5 +52,4 @@ __all__ = [
     "VacancyCompetencyNode",
     "VacancySubCompetencyNode",
     "CreatedAtEntity",
-    "UserWithCredentials",
 ]

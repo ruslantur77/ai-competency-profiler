@@ -19,6 +19,7 @@ from competency_system.application.ports.external_testing_system import (
 )
 from competency_system.application.ports.health import HealthCheckPort
 from competency_system.application.ports.llm import LLMGateway
+from competency_system.application.ports.llm_jobs import LLMJobQueuePort
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
@@ -95,6 +96,10 @@ def get_testing_system_gateway(request: Request) -> ExternalTestingSystemGateway
     return cast(ExternalTestingSystemGateway, request.app.state.testing_system_gateway)
 
 
+def get_llm_job_queue(request: Request) -> LLMJobQueuePort:
+    return cast(LLMJobQueuePort, request.app.state.llm_job_queue)
+
+
 # healthcheck
 
 
@@ -120,11 +125,13 @@ def get_health_check_use_case(
 def get_extract_vacancy_graph_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
+    job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
     settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> ExtractVacancyGraphUseCase:
     return ExtractVacancyGraphUseCase(
         uow,
         llm_gateway,
+        job_queue,
         max_parallel_requests=settings.llm_max_parallel_requests,
         stage_timeout_seconds=settings.llm_stage_timeout_seconds,
     )
@@ -181,8 +188,9 @@ def get_sync_tasks_use_case(
         ExternalTestingSystemGateway, Depends(get_testing_system_gateway)
     ],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
+    job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
 ) -> SyncTasksUseCase:
-    return SyncTasksUseCase(uow, gateway, llm_gateway)
+    return SyncTasksUseCase(uow, gateway, llm_gateway, job_queue)
 
 
 def get_get_task_use_case(
@@ -194,8 +202,9 @@ def get_get_task_use_case(
 def get_assess_candidate_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
+    job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
 ) -> AssessCandidateUseCase:
-    return AssessCandidateUseCase(uow, llm_gateway)
+    return AssessCandidateUseCase(uow, job_queue, llm_gateway)
 
 
 def get_list_tasks_use_case(
@@ -207,8 +216,9 @@ def get_list_tasks_use_case(
 def get_rebuild_task_mapping_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
+    job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
 ) -> RebuildTaskMappingUseCase:
-    return RebuildTaskMappingUseCase(uow, llm_gateway)
+    return RebuildTaskMappingUseCase(uow, llm_gateway, job_queue)
 
 
 def get_validate_task_mapping_use_case(

@@ -40,6 +40,7 @@ def candidate_assessment_dag() -> None:
             "candidate_assessment.assess_candidate",
             lambda runtime: AssessCandidateUseCase(
                 runtime.uow(),
+                runtime.llm_job_queue(),
                 runtime.llm_gateway(),
             ).execute(payload),
         )

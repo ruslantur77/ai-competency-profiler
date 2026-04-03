@@ -5,6 +5,12 @@ from competency_system.application.ports.external_testing_system import (
 )
 from competency_system.application.ports.health import HealthCheckPort
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
+from competency_system.application.ports.llm_jobs import (
+    LLMJob,
+    LLMJobQueuePort,
+    LLMJobStatus,
+    LLMJobType,
+)
 from competency_system.application.ports.ranking import RankingEnginePort
 from competency_system.application.ports.repositories import (
     CandidateRepository,
@@ -29,6 +35,10 @@ __all__ = [
     "TestResultRepository",
     "LLMGateway",
     "LLMMessage",
+    "LLMJob",
+    "LLMJobType",
+    "LLMJobStatus",
+    "LLMJobQueuePort",
     "ExternalTaskRecord",
     "ExternalTaskAssessmentPayload",
     "ExternalTestingSystemGateway",

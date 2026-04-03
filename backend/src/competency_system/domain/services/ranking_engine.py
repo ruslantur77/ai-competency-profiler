@@ -5,8 +5,11 @@ from math import sqrt
 from uuid import UUID
 
 from competency_system.domain.entities.candidate import Candidate
-from competency_system.domain.entities.competency import Competency
-from competency_system.domain.entities.vacancy import Vacancy
+from competency_system.domain.entities.vacancy import (
+    Vacancy,
+    VacancyCompetencyNode,
+    VacancySubCompetencyNode,
+)
 
 
 @dataclass(frozen=True)
@@ -58,14 +61,19 @@ class RankingEngine:
         if not vacancy.is_ready:
             raise ValueError("Vacancy must be ready")
 
-        competencies = list(vacancy.competencies)
-        if not competencies:
+        competency_nodes = list(vacancy.competency_nodes)
+        sub_nodes = list(vacancy.sub_competency_nodes)
+        if not competency_nodes:
             return []
 
-        required_competencies = [comp for comp in competencies if comp.is_required]
-        desired_competencies = [comp for comp in competencies if not comp.is_required]
-        required_total_weight = self._group_total_weight(required_competencies)
-        desired_total_weight = self._group_total_weight(desired_competencies)
+        required_competencies = [node for node in competency_nodes if node.is_required]
+        desired_competencies = [
+            node for node in competency_nodes if not node.is_required
+        ]
+        required_total_weight = self._group_total_weight(
+            required_competencies, sub_nodes
+        )
+        desired_total_weight = self._group_total_weight(desired_competencies, sub_nodes)
         required_budget, desired_budget = self._group_budgets(
             has_required=bool(required_competencies),
             has_desired=bool(desired_competencies),
@@ -75,7 +83,8 @@ class RankingEngine:
         for candidate in candidates:
             breakdown = tuple(
                 self._build_breakdown_item(
-                    competency=competency,
+                    competency_node=competency,
+                    sub_nodes=sub_nodes,
                     candidate=candidate,
                     group_budget=required_budget,
                     group_total_weight=required_total_weight,
@@ -83,7 +92,8 @@ class RankingEngine:
                 for competency in required_competencies
             ) + tuple(
                 self._build_breakdown_item(
-                    competency=competency,
+                    competency_node=competency,
+                    sub_nodes=sub_nodes,
                     candidate=candidate,
                     group_budget=desired_budget,
                     group_total_weight=desired_total_weight,
@@ -123,30 +133,43 @@ class RankingEngine:
     def _build_breakdown_item(
         self,
         *,
-        competency: Competency,
+        competency_node: VacancyCompetencyNode,
+        sub_nodes: list[VacancySubCompetencyNode],
         candidate: Candidate,
         group_budget: float,
         group_total_weight: float,
     ) -> RankingBreakdownItem:
-        total_subcompetency_ids = tuple(sub.id for sub in competency.sub_competencies)
-        total_weight = self._competency_total_weight(competency)
+        competency = competency_node.competency
+        if competency is None:
+            raise ValueError(
+                "Vacancy competency node must include competency reference"
+            )
+        scoped_sub_nodes = [
+            node
+            for node in sub_nodes
+            if node.competency_id == competency_node.competency_id
+        ]
+        total_subcompetency_ids = tuple(
+            node.sub_competency_id for node in scoped_sub_nodes
+        )
+        total_weight = self._competency_total_weight(scoped_sub_nodes)
         matched_subcompetency_ids = tuple(
-            sub.id
-            for sub in competency.sub_competencies
-            if sub.id in candidate.achieved_subcompetency_ids
+            node.sub_competency_id
+            for node in scoped_sub_nodes
+            if node.sub_competency_id in candidate.achieved_subcompetency_ids
         )
         matched_weight = sum(
-            self._clamp_weight(sub.weight)
-            for sub in competency.sub_competencies
-            if sub.id in candidate.achieved_subcompetency_ids
+            self._clamp_weight(node.weight)
+            for node in scoped_sub_nodes
+            if node.sub_competency_id in candidate.achieved_subcompetency_ids
         )
         candidate_norm_sq = sum(
             1.0
-            for sub in competency.sub_competencies
-            if sub.id in candidate.achieved_subcompetency_ids
+            for node in scoped_sub_nodes
+            if node.sub_competency_id in candidate.achieved_subcompetency_ids
         )
         vacancy_norm_sq = sum(
-            self._clamp_weight(sub.weight) ** 2 for sub in competency.sub_competencies
+            self._clamp_weight(node.weight) ** 2 for node in scoped_sub_nodes
         )
         similarity = (
             matched_weight / (sqrt(vacancy_norm_sq) * sqrt(candidate_norm_sq))
@@ -163,7 +186,7 @@ class RankingEngine:
         return RankingBreakdownItem(
             competency_id=competency.id,
             competency_name=competency.name,
-            required=competency.is_required,
+            required=competency_node.is_required,
             matched_weight=matched_weight,
             total_weight=total_weight,
             coverage=coverage,
@@ -183,9 +206,20 @@ class RankingEngine:
             return 0.0, 100.0
         return 0.0, 0.0
 
-    def _group_total_weight(self, competencies: list[Competency]) -> float:
+    def _group_total_weight(
+        self,
+        competency_nodes: list[VacancyCompetencyNode],
+        sub_nodes: list[VacancySubCompetencyNode],
+    ) -> float:
         return sum(
-            self._competency_total_weight(competency) for competency in competencies
+            self._competency_total_weight(
+                [
+                    node
+                    for node in sub_nodes
+                    if node.competency_id == competency.competency_id
+                ]
+            )
+            for competency in competency_nodes
         )
 
     def _group_similarity_ratio(
@@ -205,10 +239,10 @@ class RankingEngine:
         )
         return weighted_similarity / total_weight
 
-    def _competency_total_weight(self, competency: Competency) -> float:
-        return sum(
-            self._clamp_weight(sub.weight) for sub in competency.sub_competencies
-        )
+    def _competency_total_weight(
+        self, scoped_sub_nodes: list[VacancySubCompetencyNode]
+    ) -> float:
+        return sum(self._clamp_weight(node.weight) for node in scoped_sub_nodes)
 
     def _clamp_weight(self, weight: float) -> float:
         return max(0.0, min(weight, 1.0))

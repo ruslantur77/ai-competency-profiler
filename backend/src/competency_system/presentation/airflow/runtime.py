@@ -14,6 +14,7 @@ from competency_system.infrastructure.database import create_engine_and_session_
 from competency_system.infrastructure.external.testing_system import (
     HTTPTestingSystemGateway,
 )
+from competency_system.infrastructure.llm.job_queue import InMemoryLLMJobQueue
 from competency_system.infrastructure.llm.openai_compatible import (
     OpenAICompatibleLLMGateway,
 )
@@ -31,6 +32,7 @@ class AirflowRuntime:
     session_factory: async_sessionmaker[AsyncSession]
     llm_gateway_client: OpenAICompatibleLLMGateway
     testing_gateway_client: HTTPTestingSystemGateway
+    llm_job_queue_client: InMemoryLLMJobQueue
 
     def uow(self) -> UnitOfWork:
         return SQLAlchemyUnitOfWork(self.session_factory)
@@ -41,7 +43,11 @@ class AirflowRuntime:
     def testing_gateway(self) -> HTTPTestingSystemGateway:
         return self.testing_gateway_client
 
+    def llm_job_queue(self) -> InMemoryLLMJobQueue:
+        return self.llm_job_queue_client
+
     async def close(self) -> None:
+        await self.llm_job_queue_client.close()
         await self.testing_gateway_client.close()
         await self.llm_gateway_client.close()
         await self.db_engine.dispose()
@@ -58,6 +64,7 @@ async def build_runtime() -> AsyncIterator[AirflowRuntime]:
         session_factory=session_factory,
         llm_gateway_client=OpenAICompatibleLLMGateway(settings),
         testing_gateway_client=HTTPTestingSystemGateway(settings),
+        llm_job_queue_client=InMemoryLLMJobQueue(),
     )
     try:
         yield runtime

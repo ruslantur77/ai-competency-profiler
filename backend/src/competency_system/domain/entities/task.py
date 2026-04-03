@@ -42,6 +42,14 @@ class Task(Entity):
         default_factory=list
     )
 
+    @property
+    def competency_mappings(self) -> list[TaskSubCompetencyMapping]:
+        return self.sub_competency_mappings
+
+    @competency_mappings.setter
+    def competency_mappings(self, value: list[TaskSubCompetencyMapping]) -> None:
+        self.sub_competency_mappings = value
+
 
 @dataclass(kw_only=True)
 class TestResultQuestionAnswer(Entity):
@@ -88,3 +96,9 @@ class TestResult(Entity):
     llm_assessment: TestResultLLMAssessment | None = None
     task: Task | None = None
     candidate: Candidate | None = None
+
+    @property
+    def normalized_score(self) -> float:
+        if self.score <= 1.0:
+            return max(0.0, min(1.0, self.score))
+        return max(0.0, min(1.0, self.score / 100.0))

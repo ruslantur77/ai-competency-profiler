@@ -167,6 +167,7 @@ def subcompetency_to_orm(subcompetency: SubCompetency) -> SubCompetencyOrm:
         competency_id=subcompetency.competency_id,
         name=subcompetency.name,
         description=subcompetency.description,
+        weight=subcompetency.weight,
     )
 
 

@@ -7,6 +7,7 @@ from sqlalchemy import delete, select
 
 from competency_system.application.ports.repositories import VacancyInclude
 from competency_system.domain.entities import (
+    Category,
     Competency,
     SubCompetency,
     Vacancy,
@@ -21,6 +22,7 @@ from competency_system.infrastructure.persistence.mappers import (
     vacancy_to_orm,
 )
 from competency_system.infrastructure.persistence.models import (
+    CategoryOrm,
     CompetencyOrm,
     SubCompetencyOrm,
     VacancyCategoryNodeOrm,
@@ -34,7 +36,9 @@ from competency_system.infrastructure.persistence.repositories.base import (
 )
 
 
-class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
+class VacancyRepository(
+    SQLAlchemyRepository[Vacancy, VacancyOrm, VacancyInclude],
+):
     model = VacancyOrm
 
     async def get(
@@ -53,7 +57,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                 vacancy.category_nodes,
                 vacancy.competency_nodes,
                 vacancy.sub_competency_nodes,
-                vacancy.competencies,
             ) = await self._load_normalized_graph(vacancy.id)
         return vacancy
 
@@ -72,7 +75,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                     vacancy.category_nodes,
                     vacancy.competency_nodes,
                     vacancy.sub_competency_nodes,
-                    vacancy.competencies,
                 ) = await self._load_normalized_graph(vacancy.id)
         return vacancies
 
@@ -94,7 +96,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                     vacancy.category_nodes,
                     vacancy.competency_nodes,
                     vacancy.sub_competency_nodes,
-                    vacancy.competencies,
                 ) = await self._load_normalized_graph(vacancy.id)
         return vacancies
 
@@ -102,20 +103,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
         model = self.to_model(entity)
         await self._session.merge(model)
         await self._session.flush()
-
-        if (
-            not entity.category_nodes
-            and not entity.competency_nodes
-            and not entity.sub_competency_nodes
-            and entity.competencies
-        ):
-            (
-                entity.category_nodes,
-                entity.competency_nodes,
-                entity.sub_competency_nodes,
-            ) = self._build_nodes_from_competencies(entity)
-
-        await self._upsert_canonical_competencies(entity.competencies)
         await self._replace_normalized_graph(entity)
 
     def to_domain(self, model: VacancyOrm) -> Vacancy:
@@ -123,79 +110,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
 
     def to_model(self, entity: Vacancy) -> VacancyOrm:
         return vacancy_to_orm(entity)
-
-    def _build_nodes_from_competencies(
-        self,
-        vacancy: Vacancy,
-    ) -> tuple[
-        list[VacancyCategoryNode],
-        list[VacancyCompetencyNode],
-        list[VacancySubCompetencyNode],
-    ]:
-        category_order: list[UUID] = []
-        seen_categories: set[UUID] = set()
-        for competency in vacancy.competencies:
-            if competency.category_id in seen_categories:
-                continue
-            seen_categories.add(competency.category_id)
-            category_order.append(competency.category_id)
-
-        category_nodes = [
-            VacancyCategoryNode(
-                vacancy_id=vacancy.id,
-                category_id=category_id,
-                position=position,
-            )
-            for position, category_id in enumerate(category_order)
-        ]
-
-        competency_nodes: list[VacancyCompetencyNode] = []
-        sub_nodes: list[VacancySubCompetencyNode] = []
-        for competency_position, competency in enumerate(vacancy.competencies):
-            competency_nodes.append(
-                VacancyCompetencyNode(
-                    vacancy_id=vacancy.id,
-                    competency_id=competency.id,
-                    category_id=competency.category_id,
-                    is_required=competency.is_required,
-                    position=competency_position,
-                )
-            )
-            for sub in competency.sub_competencies:
-                sub_nodes.append(
-                    VacancySubCompetencyNode(
-                        vacancy_id=vacancy.id,
-                        sub_competency_id=sub.id,
-                        competency_id=competency.id,
-                        target_level=sub.target_level,
-                        weight=sub.weight,
-                        position=len(sub_nodes),
-                    )
-                )
-        return category_nodes, competency_nodes, sub_nodes
-
-    async def _upsert_canonical_competencies(
-        self,
-        competencies: list[Competency],
-    ) -> None:
-        for competency in competencies:
-            await self._session.merge(
-                CompetencyOrm(
-                    id=competency.id,
-                    category_id=competency.category_id,
-                    name=competency.name,
-                    description=competency.description,
-                )
-            )
-            for sub in competency.sub_competencies:
-                await self._session.merge(
-                    SubCompetencyOrm(
-                        id=sub.id,
-                        competency_id=competency.id,
-                        name=sub.name,
-                        description=sub.description,
-                    )
-                )
 
     async def _replace_normalized_graph(self, vacancy: Vacancy) -> None:
         await self._session.execute(
@@ -258,7 +172,6 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
         list[VacancyCategoryNode],
         list[VacancyCompetencyNode],
         list[VacancySubCompetencyNode],
-        list[Competency],
     ]:
         category_rows = (
             await self._session.scalars(
@@ -284,6 +197,7 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
 
         competency_ids = [row.competency_id for row in competency_rows]
         sub_ids = [row.sub_competency_id for row in sub_rows]
+        category_ids = [row.category_id for row in category_rows]
 
         competency_models = {
             model.id: model
@@ -301,6 +215,14 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                 )
             ).all()
         }
+        category_models = {
+            model.id: model
+            for model in (
+                await self._session.scalars(
+                    select(CategoryOrm).where(CategoryOrm.id.in_(category_ids))
+                )
+            ).all()
+        }
 
         sub_by_competency: dict[UUID, list[SubCompetency]] = {}
         for row in sub_rows:
@@ -313,29 +235,38 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                     competency_id=sub_model.competency_id,
                     name=sub_model.name,
                     description=sub_model.description,
-                    target_level=CompetencyLevel(row.target_level),
-                    weight=row.weight,
+                    weight=sub_model.weight,
                     created_at=sub_model.created_at,
                     updated_at=sub_model.updated_at,
                 )
             )
 
-        competencies: list[Competency] = []
+        competencies: dict[UUID, Competency] = {}
         for row in competency_rows:
             model = competency_models.get(row.competency_id)
             if model is None:
                 continue
-            competencies.append(
-                Competency(
-                    id=model.id,
-                    category_id=row.category_id,
-                    name=model.name,
-                    description=model.description,
-                    is_required=row.is_required,
-                    sub_competencies=sub_by_competency.get(row.competency_id, []),
-                    created_at=model.created_at,
-                    updated_at=model.updated_at,
-                )
+            competencies[row.competency_id] = Competency(
+                id=model.id,
+                category_id=row.category_id,
+                name=model.name,
+                description=model.description,
+                sub_competencies=sub_by_competency.get(row.competency_id, []),
+                created_at=model.created_at,
+                updated_at=model.updated_at,
+            )
+        categories: dict[UUID, Category] = {}
+        for row in category_rows:
+            model = category_models.get(row.category_id)
+            if model is None:
+                continue
+            categories[row.category_id] = Category(
+                id=model.id,
+                name=model.name,
+                description=model.description,
+                emoji=model.emoji,
+                created_at=model.created_at,
+                updated_at=model.updated_at,
             )
 
         category_nodes = [
@@ -346,6 +277,7 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                 position=row.position,
                 created_at=row.created_at,
                 updated_at=row.updated_at,
+                category=categories.get(row.category_id),
             )
             for row in category_rows
         ]
@@ -359,6 +291,8 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                 position=row.position,
                 created_at=row.created_at,
                 updated_at=row.updated_at,
+                category=categories.get(row.category_id),
+                competency=competencies.get(row.competency_id),
             )
             for row in competency_rows
         ]
@@ -373,7 +307,16 @@ class VacancyRepository(SQLAlchemyRepository[Vacancy, VacancyOrm]):
                 position=row.position,
                 created_at=row.created_at,
                 updated_at=row.updated_at,
+                competency=competencies.get(row.competency_id),
+                sub_competency=next(
+                    (
+                        sub
+                        for sub in sub_by_competency.get(row.competency_id, [])
+                        if sub.id == row.sub_competency_id
+                    ),
+                    None,
+                ),
             )
             for row in sub_rows
         ]
-        return category_nodes, competency_nodes, sub_nodes, competencies
+        return category_nodes, competency_nodes, sub_nodes

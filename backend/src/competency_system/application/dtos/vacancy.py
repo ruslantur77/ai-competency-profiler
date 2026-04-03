@@ -6,11 +6,6 @@ from uuid import UUID
 from pydantic import Field
 
 from competency_system.application.dtos.base import BaseDTO
-from competency_system.application.dtos.competency import (
-    CategoryDTO,
-    CompetencyDTO,
-)
-from competency_system.application.dtos.candidate import CandidateDTO
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
@@ -20,26 +15,55 @@ from competency_system.domain.value_objects.enums import (
 )
 
 
-class VacancyDTO(BaseDTO):
-    """Vacancy DTO."""
+class VacancyCategoryNodeDTO(BaseDTO):
+    id: UUID
+    vacancy_id: UUID
+    category_id: UUID
+    position: int
+    category_name: str = ""
+    category_description: str = ""
+    category_emoji: str = ""
 
+
+class VacancyCompetencyNodeDTO(BaseDTO):
+    id: UUID
+    vacancy_id: UUID
+    competency_id: UUID
+    category_id: UUID
+    is_required: bool
+    position: int
+    competency_name: str = ""
+    competency_description: str = ""
+
+
+class VacancySubCompetencyNodeDTO(BaseDTO):
+    id: UUID
+    vacancy_id: UUID
+    sub_competency_id: UUID
+    competency_id: UUID
+    target_level: CompetencyLevel
+    weight: float
+    position: int
+    sub_competency_name: str = ""
+    sub_competency_description: str = ""
+
+
+class VacancyDTO(BaseDTO):
     id: UUID
     name: str
     description: str
     status: VacancyStatus
+    category_nodes: list[VacancyCategoryNodeDTO] = Field(default_factory=list)
+    competency_nodes: list[VacancyCompetencyNodeDTO] = Field(default_factory=list)
+    sub_competency_nodes: list[VacancySubCompetencyNodeDTO] = Field(
+        default_factory=list
+    )
     error_message: str | None = None
-    candidates: list[Candidate] = field(default_factory=list)
-    category_nodes: list[VacancyCategoryNode] = field(default_factory=list)
-    competency_nodes: list[VacancyCompetencyNode] = field(default_factory=list)
-    sub_competency_nodes: list[VacancySubCompetencyNode] = field(default_factory=list)
-    suggestions: list[VacancyGraphSuggestion] = field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
 
 class VacancyListItemDTO(BaseDTO):
-    """DTO for vacancy list item."""
-
     id: UUID
     name: str
     status: VacancyStatus
@@ -55,8 +79,35 @@ class VacancyCreateDTO(BaseDTO):
     description: str
 
 
+class VacancyGraphSubCompetencyInputDTO(BaseDTO):
+    id: UUID
+    name: str
+    description: str = ""
+    target_level: CompetencyLevel = CompetencyLevel.BEGINNER
+    weight: float = 1.0
+
+
+class VacancyGraphCompetencyInputDTO(BaseDTO):
+    id: UUID
+    category_id: UUID
+    name: str
+    description: str = ""
+    is_required: bool = True
+    sub_competencies: list[VacancyGraphSubCompetencyInputDTO] = Field(
+        default_factory=list
+    )
+
+
+class VacancyGraphCategoryInputDTO(BaseDTO):
+    id: UUID
+    name: str
+    description: str = ""
+    emoji: str = ""
+    competencies: list[VacancyGraphCompetencyInputDTO] = Field(default_factory=list)
+
+
 class VacancyGraphUpdateDTO(BaseDTO):
-    categories: list[CategoryDTO]
+    categories: list[VacancyGraphCategoryInputDTO]
     error_message: str | None = None
     suggestion_decisions: list[VacancySuggestionDecisionDTO] = Field(
         default_factory=list
