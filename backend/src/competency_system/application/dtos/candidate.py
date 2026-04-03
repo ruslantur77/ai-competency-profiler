@@ -9,6 +9,15 @@ from competency_system.domain.value_objects.competency_level import CompetencyLe
 from competency_system.domain.value_objects.enums import AssessmentStatus
 
 
+class CandidateListItemDto(BaseDTO):
+    """Candidate list item DTO."""
+
+    id: UUID
+    vacancy_id: UUID
+    status: AssessmentStatus = AssessmentStatus.PENDING
+    last_assessment_at: datetime | None = None
+
+
 class CandidateDTO(BaseDTO):
     """DTO для кандидата."""
 

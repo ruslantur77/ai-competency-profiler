@@ -22,7 +22,7 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.application.use_cases.code_assessment_policy import (
+from competency_system.application.code_assessment_policy import (
     DEFAULT_CODE_ASSESSMENT_POLICY,
     CodeAssessmentPolicy,
 )

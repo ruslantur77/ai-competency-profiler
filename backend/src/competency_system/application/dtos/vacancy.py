@@ -10,6 +10,7 @@ from competency_system.application.dtos.competency import (
     CategoryDTO,
     CompetencyDTO,
 )
+from competency_system.application.dtos.candidate import CandidateDTO
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
@@ -20,21 +21,24 @@ from competency_system.domain.value_objects.enums import (
 
 
 class VacancyDTO(BaseDTO):
-    """DTO для вакансии."""
+    """Vacancy DTO."""
 
     id: UUID
     name: str
     description: str
     status: VacancyStatus
-    categories: list[CategoryDTO]
-    competencies: list[CompetencyDTO]
-    error_message: str | None
+    error_message: str | None = None
+    candidates: list[Candidate] = field(default_factory=list)
+    category_nodes: list[VacancyCategoryNode] = field(default_factory=list)
+    competency_nodes: list[VacancyCompetencyNode] = field(default_factory=list)
+    sub_competency_nodes: list[VacancySubCompetencyNode] = field(default_factory=list)
+    suggestions: list[VacancyGraphSuggestion] = field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
 
 class VacancyListItemDTO(BaseDTO):
-    """DTO для списка вакансий."""
+    """DTO for vacancy list item."""
 
     id: UUID
     name: str

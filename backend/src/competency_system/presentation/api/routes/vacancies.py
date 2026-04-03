@@ -45,20 +45,9 @@ router = APIRouter(prefix="/vacancies", tags=["vacancies"])
 async def list_vacancies(
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[ListVacanciesUseCase, Depends(get_list_vacancies_use_case)],
-    status_filter: str | None = None,
+    status_filter: list[VacancyStatus],
 ) -> list[VacancyListItemDTO]:
-    statuses: set[VacancyStatus] | None = None
-    if status_filter:
-        try:
-            statuses = {
-                VacancyStatus(item.strip()) for item in status_filter.split(",")
-            }
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status filter: {status_filter}",
-            ) from exc
-    return await use_case.execute(statuses=statuses)
+    return await use_case.execute(statuses=set(status_filter))
 
 
 @router.get("/review-queue", response_model=list[VacancyListItemDTO])

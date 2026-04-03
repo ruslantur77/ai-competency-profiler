@@ -180,6 +180,7 @@ def _subcompetency_to_dto(subcompetency: SubCompetency) -> SubCompetencyDTO:
     )
 
 
+
 class ExtractVacancyGraphUseCase:
     def __init__(
         self,
@@ -790,12 +791,10 @@ class ListVacanciesUseCase:
     async def execute(
         self,
         *,
-        statuses: set[VacancyStatus] | None = None,
+        statuses: set[VacancyStatus],
     ) -> list[VacancyListItemDTO]:
         async with self._uow as uow:
-            rows = await uow.vacancies.list_by_statuses(
-                {status.value for status in statuses} if statuses else None
-            )
+            rows = await uow.vacancies.list_by_statuses(statuses)
             return [_vacancy_to_list_item(vacancy) for vacancy in rows]
 
 
