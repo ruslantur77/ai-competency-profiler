@@ -48,6 +48,7 @@ docker-compose up -d --build
 # Or step by step:
 docker-compose up -d postgres
 docker-compose up -d api
+docker-compose up -d celery-worker
 docker-compose up -d airflow-init airflow-webserver airflow-scheduler airflow-triggerer
 ```
 
@@ -86,6 +87,9 @@ alembic upgrade head
 
 # Start API
 uvicorn competency_system.presentation.api.main:app --reload
+
+# Start Celery worker (LLM jobs)
+celery -A competency_system.presentation.worker.celery_worker:celery_app worker --loglevel info --queues llm_jobs
 ```
 
 ### Code Quality
@@ -121,6 +125,16 @@ CI mirrors the same quality gates with GitHub Actions:
 - `pytest`
 
 API and background jobs emit structured JSON logs.
+
+### LLM Queue Backends
+
+- `LLM_QUEUE_BACKEND=inmemory` (default): in-process queue for local/dev smoke usage.
+- `LLM_QUEUE_BACKEND=celery`: durable queue via Celery + Redis.
+
+Redis defaults for dev:
+- `REDIS_HOST=127.0.0.1`
+- `REDIS_PORT=6379`
+- `REDIS_PASSWORD=password`
 
 ### Project Structure Details
 

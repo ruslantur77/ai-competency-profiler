@@ -273,10 +273,12 @@ class ExtractVacancyGraphOperation:
             vacancy.sub_competency_nodes = graph.sub_competency_nodes
             vacancy.error_message = None
 
-            await uow.vacancies.add(vacancy)
-            for suggestion in graph.suggestions:
-                suggestion.vacancy_id = vacancy.id
-                await uow.vacancy_suggestions.add(suggestion)
+            async with self._uow as uow:
+                await uow.vacancies.add(vacancy)
+                for suggestion in graph.suggestions:
+                    suggestion.vacancy_id = vacancy.id
+                    await uow.vacancy_suggestions.add(suggestion)
+                await uow.commit()
         except Exception as exc:
             if not vacancy:
                 raise
@@ -284,6 +286,7 @@ class ExtractVacancyGraphOperation:
             vacancy.error_message = str(exc)
             async with self._uow as uow:
                 await uow.vacancies.add(vacancy)
+                await uow.commit()
 
     async def _map(
         self,

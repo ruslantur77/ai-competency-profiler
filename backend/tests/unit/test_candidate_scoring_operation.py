@@ -187,5 +187,7 @@ async def test_candidate_scoring_operation_reuses_existing_candidate_for_same_va
     assert candidate.id == existing_candidate.id
 
 
-def test_candidate_scoring_operation_raw_score_returns_zero_for_non_positive_total() -> None:
+def test_candidate_scoring_operation_raw_score_returns_zero_for_non_positive_total() -> (
+    None
+):
     assert CandidateScoringOperation._raw_score(3, 0) == 0.0

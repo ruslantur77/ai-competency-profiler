@@ -18,7 +18,7 @@ from competency_system.infrastructure.llm.openai_compatible import (
     OpenAICompatibleLLMGateway,
 )
 from competency_system.infrastructure.logging import configure_logging, get_logger
-from competency_system.infrastructure.settings import get_settings
+from competency_system.infrastructure.settings import LLMQueueBackend, get_settings
 from competency_system.presentation.api.exception_handlers import (
     application_exception_handler,
     unexpected_exception_handler,
@@ -59,7 +59,19 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     async def _noop_dispatcher(*_: object) -> None:
         return None
 
-    llm_job_queue = InMemoryLLMJobQueue(_noop_dispatcher)
+    llm_job_queue: Any
+    if settings.llm_queue_backend == LLMQueueBackend.CELERY:
+        from competency_system.infrastructure.llm.celery_app import create_celery_app
+        from competency_system.infrastructure.llm.celery_job_queue import (
+            CeleryLLMJobQueue,
+        )
+
+        llm_job_queue = CeleryLLMJobQueue(
+            create_celery_app(settings),
+            queue_name=settings.celery_queue_name,
+        )
+    else:
+        llm_job_queue = InMemoryLLMJobQueue(_noop_dispatcher)
 
     app.state.db_engine = db_engine
     app.state.session_factory = session_factory
@@ -69,7 +81,12 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     await ensure_bootstrap_admin(session_factory, settings)
 
-    logger.info("application_started", app_name=settings.app_name, debug=settings.debug)
+    logger.info(
+        "application_started",
+        app_name=settings.app_name,
+        debug=settings.debug,
+        llm_queue_backend=settings.llm_queue_backend,
+    )
 
     try:
         yield

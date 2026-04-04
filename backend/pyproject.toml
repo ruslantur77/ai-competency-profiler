@@ -17,6 +17,7 @@ dependencies = [
     # LLM
     "openai>=1.52.0",
     "httpx>=0.27.0",
+    "celery[redis]>=5.4.0",
     # Data Validation
     "pydantic>=2.9.0",
     "pydantic-settings>=2.5.0",

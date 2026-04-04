@@ -31,19 +31,13 @@ DEFAULT_ARGS = {
 def task_sync_dag() -> None:
     @task(task_id="sync_tasks")
     def sync_tasks() -> dict[str, object]:
-        payload = TaskSyncPayloadDTO.model_validate(get_dag_conf())
+        TaskSyncPayloadDTO.model_validate(get_dag_conf())
         result = run_logged_async(
             "task_sync.sync_tasks",
             lambda runtime: SyncTasksUseCase(
                 runtime.uow(),
                 runtime.testing_gateway(),
-                runtime.llm_gateway(),
                 runtime.llm_job_queue(),
-                max_parallel_requests=runtime.settings.llm_max_parallel_requests,
-                stage_timeout_seconds=runtime.settings.llm_stage_timeout_seconds,
-                prompt_version=(
-                    payload.prompt_version or runtime.settings.llm_task_prompt_version
-                ),
             ).execute(),
         )
         return result.model_dump(mode="json")

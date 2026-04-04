@@ -1,6 +1,21 @@
 version: "3.9"
 
 services:
+  redis:
+    image: redis:7-alpine
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:-password}",
+      ]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -35,8 +50,18 @@ services:
       API_KEY: ${API_KEY:-}
       BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
       MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      CODE_PROMPT_VERSION: ${CODE_PROMPT_VERSION:-v1}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DEBUG: ${DEBUG:-false}
+      LLM_QUEUE_BACKEND: ${LLM_QUEUE_BACKEND:-inmemory}
+      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+      CELERY_QUEUE_NAME: ${CELERY_QUEUE_NAME:-llm_jobs}
+      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
+      CELERY_RETRY_ATTEMPTS: ${CELERY_RETRY_ATTEMPTS:-3}
+      CELERY_RETRY_BACKOFF_SECONDS: ${CELERY_RETRY_BACKOFF_SECONDS:-2}
+      CELERY_RETRY_BACKOFF_MAX_SECONDS: ${CELERY_RETRY_BACKOFF_MAX_SECONDS:-30}
       TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
       TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
       PYTHONPATH: /app/src
@@ -46,6 +71,50 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: competency-system/api:latest
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: app
+      DB_USER: app
+      DB_PASS: app
+      API_KEY: ${API_KEY:-}
+      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
+      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
+      VACANCY_PROMPT_VERSION: ${VACANCY_PROMPT_VERSION:-v1}
+      TASK_PROMPT_VERSION: ${TASK_PROMPT_VERSION:-v1}
+      CODE_PROMPT_VERSION: ${CODE_PROMPT_VERSION:-v1}
+      LLM_MAX_PARALLEL_REQUESTS: ${LLM_MAX_PARALLEL_REQUESTS:-4}
+      LLM_STAGE_TIMEOUT_SECONDS: ${LLM_STAGE_TIMEOUT_SECONDS:-45}
+      LLM_MAX_SUGGESTED_NEW_PER_STAGE: ${LLM_MAX_SUGGESTED_NEW_PER_STAGE:-5}
+      LLM_QUEUE_BACKEND: celery
+      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+      CELERY_QUEUE_NAME: ${CELERY_QUEUE_NAME:-llm_jobs}
+      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
+      CELERY_RETRY_ATTEMPTS: ${CELERY_RETRY_ATTEMPTS:-3}
+      CELERY_RETRY_BACKOFF_SECONDS: ${CELERY_RETRY_BACKOFF_SECONDS:-2}
+      CELERY_RETRY_BACKOFF_MAX_SECONDS: ${CELERY_RETRY_BACKOFF_MAX_SECONDS:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-false}
+      PYTHONPATH: /app/src
+    volumes:
+      - ./src:/app/src:cached
+      - ./alembic:/app/alembic:cached
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      celery -A competency_system.presentation.worker.celery_worker:celery_app
+      worker --loglevel ${LOG_LEVEL:-info}
+      --queues ${CELERY_QUEUE_NAME:-llm_jobs}
     command: >
       uvicorn competency_system.presentation.api.main:app
       --host 0.0.0.0
@@ -210,3 +279,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

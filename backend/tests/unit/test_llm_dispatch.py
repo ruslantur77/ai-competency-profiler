@@ -8,11 +8,23 @@ import pytest
 from competency_system.application.llm_dispatch import dispatch_llm_job
 from competency_system.application.llm_dispatch_payload import (
     CodeAssessmentPayload,
+    TaskExtractionPayload,
     VacancyExtractionPayload,
 )
 from competency_system.application.ports.llm_jobs import LLMJobType
 
 pytestmark = pytest.mark.unit
+
+
+def _dispatch_kwargs() -> dict[str, object]:
+    return {
+        "vacancy_prompt_version": "v1",
+        "task_prompt_version": "v1",
+        "code_prompt_version": "v1",
+        "max_parallel_requests": 4,
+        "stage_timeout_seconds": 45.0,
+        "max_suggested_new_per_stage": 5,
+    }
 
 
 async def test_dispatch_llm_job_calls_candidate_code_assessment_operation(
@@ -48,7 +60,7 @@ async def test_dispatch_llm_job_calls_candidate_code_assessment_operation(
         payload,
         uow=mock_uow,
         llm_gateway=llm_gateway_mock,
-        prompt_version="v1",
+        **_dispatch_kwargs(),
     )
 
     run_mock.assert_awaited_once_with(
@@ -68,22 +80,73 @@ async def test_dispatch_llm_job_raises_for_unknown_job_type(
             {},
             uow=mock_uow,
             llm_gateway=llm_gateway_mock,
-            prompt_version="v1",
+            **_dispatch_kwargs(),
         )
 
 
-async def test_dispatch_llm_job_accepts_vacancy_extraction_payload(
-    mock_uow, llm_gateway_mock
+async def test_dispatch_llm_job_calls_vacancy_extraction_operation(
+    mock_uow, llm_gateway_mock, monkeypatch
 ) -> None:
-    payload = VacancyExtractionPayload(
+    run_mock = AsyncMock()
+
+    class _FakeOperation:
+        def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            self.args = args
+            self.kwargs = kwargs
+
+        async def run(self, vacancy_id) -> None:  # type: ignore[no-untyped-def]
+            await run_mock(vacancy_id)
+
+    monkeypatch.setattr(
+        "competency_system.application.llm_dispatch.ExtractVacancyGraphOperation",
+        _FakeOperation,
+    )
+    payload_model = VacancyExtractionPayload(
         vacancy_id=uuid4(),
         raw_text="Backend role",
-    ).model_dump(mode="json")
+    )
+    payload = payload_model.model_dump(mode="json")
 
     await dispatch_llm_job(
         LLMJobType.VACANCY_EXTRACTION,
         payload,
         uow=mock_uow,
         llm_gateway=llm_gateway_mock,
-        prompt_version="v1",
+        **_dispatch_kwargs(),
     )
+
+    run_mock.assert_awaited_once_with(payload_model.vacancy_id)
+
+
+async def test_dispatch_llm_job_calls_task_mapping_operation(
+    mock_uow, llm_gateway_mock, monkeypatch
+) -> None:
+    run_mock = AsyncMock()
+
+    class _FakeOperation:
+        def __init__(self, *args, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            self.args = args
+            self.kwargs = kwargs
+
+        async def run(self, task_id) -> None:  # type: ignore[no-untyped-def]
+            await run_mock(task_id)
+
+    monkeypatch.setattr(
+        "competency_system.application.llm_dispatch.MapTaskToCompetenciesOperation",
+        _FakeOperation,
+    )
+    payload_model = TaskExtractionPayload(
+        task_id=uuid4(),
+        raw_text="irrelevant",
+    )
+    payload = payload_model.model_dump(mode="json")
+
+    await dispatch_llm_job(
+        LLMJobType.TASK_MAPPING,
+        payload,
+        uow=mock_uow,
+        llm_gateway=llm_gateway_mock,
+        **_dispatch_kwargs(),
+    )
+
+    run_mock.assert_awaited_once_with(payload_model.task_id)

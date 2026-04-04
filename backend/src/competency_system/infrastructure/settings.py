@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import quote_plus
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -14,6 +15,11 @@ class LogLevels(StrEnum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
+
+
+class LLMQueueBackend(StrEnum):
+    INMEMORY = "inmemory"
+    CELERY = "celery"
 
 
 class Settings(BaseSettings):
@@ -46,10 +52,29 @@ class Settings(BaseSettings):
         default="v1", alias="VACANCY_PROMPT_VERSION"
     )
     llm_task_prompt_version: str = Field(default="v1", alias="TASK_PROMPT_VERSION")
+    llm_code_prompt_version: str = Field(default="v1", alias="CODE_PROMPT_VERSION")
     llm_max_suggested_new_per_stage: int = Field(
         default=5, alias="LLM_MAX_SUGGESTED_NEW_PER_STAGE"
     )
     llm_reasoning_max_tokens: int = Field(default=0, alias="LLM_REASONING_MAX_TOKENS")
+    llm_queue_backend: LLMQueueBackend = Field(
+        default=LLMQueueBackend.INMEMORY,
+        alias="LLM_QUEUE_BACKEND",
+    )
+    redis_host: str = Field(default="127.0.0.1", alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, alias="REDIS_PORT")
+    redis_password: str = Field(default="", alias="REDIS_PASSWORD")
+    celery_queue_name: str = Field(default="llm_jobs", alias="CELERY_QUEUE_NAME")
+    celery_result_expires_seconds: int = Field(
+        default=86400, alias="CELERY_RESULT_EXPIRES_SECONDS"
+    )
+    celery_retry_attempts: int = Field(default=3, alias="CELERY_RETRY_ATTEMPTS")
+    celery_retry_backoff_seconds: int = Field(
+        default=2, alias="CELERY_RETRY_BACKOFF_SECONDS"
+    )
+    celery_retry_backoff_max_seconds: int = Field(
+        default=30, alias="CELERY_RETRY_BACKOFF_MAX_SECONDS"
+    )
     testing_system_base_url: str = Field(
         default="http://localhost:9000",
         alias="TESTING_SYSTEM_BASE_URL",
@@ -99,6 +124,13 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return self.DB_URL
+
+    @property
+    def redis_url(self) -> str:
+        if self.redis_password:
+            encoded = quote_plus(self.redis_password)
+            return f"redis://:{encoded}@{self.redis_host}:{self.redis_port}/0"
+        return f"redis://{self.redis_host}:{self.redis_port}/0"
 
     @property
     def resolved_database_url_sync(self) -> str:

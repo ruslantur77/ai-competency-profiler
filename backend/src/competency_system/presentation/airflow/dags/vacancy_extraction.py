@@ -36,17 +36,7 @@ def vacancy_extraction_dag() -> None:
             "vacancy_extraction.extract_vacancy_graph",
             lambda runtime: CreateVacancyGraphUseCase(
                 runtime.uow(),
-                runtime.llm_gateway(),
                 runtime.llm_job_queue(),
-                max_parallel_requests=runtime.settings.llm_max_parallel_requests,
-                stage_timeout_seconds=runtime.settings.llm_stage_timeout_seconds,
-                max_suggested_new_per_stage=(
-                    runtime.settings.llm_max_suggested_new_per_stage
-                ),
-                prompt_version=(
-                    payload.prompt_version
-                    or runtime.settings.llm_vacancy_prompt_version
-                ),
             ).execute(payload),
         )
         return result.model_dump(mode="json")

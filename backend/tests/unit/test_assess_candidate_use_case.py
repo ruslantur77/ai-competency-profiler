@@ -111,7 +111,9 @@ async def test_assess_candidate_use_case_skips_enqueue_for_non_code_task(
 
 
 async def test_assess_candidate_use_case_skips_enqueue_for_empty_code(
-    use_case: AssessCandidateUseCase, job_queue_mock, command: CandidateTaskAssessmentDTO
+    use_case: AssessCandidateUseCase,
+    job_queue_mock,
+    command: CandidateTaskAssessmentDTO,
 ) -> None:
     command.code = ""
     result_dto = ApiDTOFactory().make_candidate_result()
