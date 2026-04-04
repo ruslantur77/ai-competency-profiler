@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from competency_system.application.dtos.auth import (
@@ -83,7 +82,7 @@ class RefreshTokenPairUseCase:
 
             if stored_token.revoked_at is not None:
                 return None
-            if stored_token.expires_at <= datetime.now(UTC):
+            if stored_token.is_expired():
                 await uow.refresh_tokens.revoke(stored_token.jti)
                 return None
             if not verify_password(refresh_token_raw, stored_token.token_hash):

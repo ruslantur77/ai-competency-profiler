@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# TODO maybe del
+
 
 class ApplicationError(Exception):
     pass

@@ -11,7 +11,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyCompetencyExtractionResultDTO,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
-from competency_system.application.use_cases.vacancy import ExtractVacancyGraphUseCase
+from competency_system.application.use_cases.vacancy import CreateVacancyGraphUseCase
 from competency_system.domain.entities import (
     Category,
     Competency,
@@ -69,7 +69,7 @@ def _catalog_fixture() -> list[Category]:
 @pytest.mark.asyncio
 async def test_build_graph_uses_target_levels_from_step3(mock_uow) -> None:
     catalog = _catalog_fixture()
-    use_case = ExtractVacancyGraphUseCase(
+    use_case = CreateVacancyGraphUseCase(
         mock_uow,
         _FakeLLMGateway(
             [
@@ -122,7 +122,7 @@ async def test_build_graph_caps_only_suggested_new(mock_uow) -> None:
         }
         for index in range(10)
     ]
-    use_case = ExtractVacancyGraphUseCase(
+    use_case = CreateVacancyGraphUseCase(
         mock_uow,
         _FakeLLMGateway(
             [

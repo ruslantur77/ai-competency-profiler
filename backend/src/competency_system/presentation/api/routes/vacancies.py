@@ -15,8 +15,8 @@ from competency_system.application.dtos.vacancy import (
     VacancySuggestionDecisionDTO,
 )
 from competency_system.application.use_cases.vacancy import (
+    CreateVacancyGraphUseCase,
     DecideVacancySuggestionUseCase,
-    ExtractVacancyGraphUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
     ListVacanciesForReviewUseCase,
@@ -66,7 +66,7 @@ async def create_vacancy(
     payload: VacancyCreateDTO,
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[
-        ExtractVacancyGraphUseCase,
+        CreateVacancyGraphUseCase,
         Depends(get_extract_vacancy_graph_use_case),
     ],
 ) -> VacancyDTO:

@@ -1,27 +1,27 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
-from competency_system.application.code_assessment_policy import (
-    DEFAULT_CODE_ASSESSMENT_POLICY,
-    CodeAssessmentPolicy,
-)
 from competency_system.application.dtos.candidate import (
     CandidateAssessmentResultDTO,
     CandidateProfileDTO,
-    CompetencyScoreDTO,
+)
+from competency_system.application.dtos.mappers import (
+    candidate_profile_dto_from_scoring,
+    test_result_dto_from_domain,
 )
 from competency_system.application.dtos.task import (
     CandidateTaskAssessmentDTO,
     LLMCodeAssessmentDTO,
-    TestResultDTO,
 )
 from competency_system.application.dtos.webhooks import (
     WebhookEvent,
     WebhookEventPayload,
     WebhookEventStatus,
 )
+from competency_system.application.llm_dispatch import CodeAssessmentPayload
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
 from competency_system.application.ports.llm_jobs import LLMJobQueuePort, LLMJobType
 from competency_system.application.ports.repositories import (
@@ -31,283 +31,156 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
+from competency_system.application.prompts import PromptCatalog
 from competency_system.domain.entities import (
     Candidate,
-    Competency,
-    CompetencyScore,
-    SubCompetency,
     Task,
     TestResult,
     TestResultLLMAssessment,
     TestResultLLMFeedbackItem,
     TestResultQuestionAnswer,
-    Vacancy,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
-from competency_system.domain.value_objects.enums import (
-    AssessmentStatus,
-    TaskType,
-)
+from competency_system.domain.value_objects.enums import AssessmentStatus, TaskType
 
 
-def _build_profile(
-    candidate: Candidate,
-    scores: list[CompetencyScore],
-) -> CandidateProfileDTO:
-    total_score = 0.0
-    if scores:
-        total_score = sum(score.confidence for score in scores) / len(scores) * 100
-    return CandidateProfileDTO(
-        candidate_id=candidate.id,
-        external_id=candidate.external_id,
-        competency_scores=[
-            CompetencyScoreDTO(
-                competency_id=score.competency_id,
-                level=score.level,
-                confidence=score.confidence,
-            )
-            for score in scores
-        ],
-        total_score=total_score,
-    )
+class _DuplicateWebhookEvent(Exception):
+    def __init__(self, result: CandidateAssessmentResultDTO) -> None:
+        super().__init__("Duplicate webhook event")
+        self.result = result
 
 
-class AssessCandidateUseCase:
-    def __init__(
-        self,
-        uow: UnitOfWork,
-        job_queue: LLMJobQueuePort,
-        llm_gateway: LLMGateway | None = None,
-        code_policy: CodeAssessmentPolicy = DEFAULT_CODE_ASSESSMENT_POLICY,
-    ) -> None:
+class WebhookEventOperation:
+    """Отвечает за создание, обновление и идемпотентную проверку webhook-событий."""
+
+    def __init__(self, uow: UnitOfWork, scorer: CandidateScorer) -> None:
         self._uow = uow
-        self._job_queue = job_queue
-        self._llm_gateway = llm_gateway
-        self._scorer = CandidateScorer()
-        self._code_policy = code_policy
+        self._scorer = scorer
 
-    async def execute(
-        self,
-        command: CandidateTaskAssessmentDTO,
-    ) -> CandidateAssessmentResultDTO:
-        try:
-            await self._ensure_processing_event(command)
-        except _DuplicateWebhookEvent as duplicate:
-            return duplicate.result
-        try:
-            result = await self._process_assessment(command)
-            await self._mark_event_processed(
-                command,
-                candidate_id=result.candidate_profile.candidate_id,
-                test_result_id=result.test_result.id,
-            )
-            return result
-        except Exception as exc:
-            await self._mark_event_failed(command, str(exc))
-            raise
+    async def ensure_processing(self, command: CandidateTaskAssessmentDTO) -> None:
+        """Создаёт событие со статусом PROCESSING.
 
-    async def _ensure_processing_event(
-        self, command: CandidateTaskAssessmentDTO
-    ) -> None:
+        Поднимает _DuplicateWebhookEvent, если событие уже успешно обработано.
+        Поднимает ValueError для любых других конфликтов.
+        """
         async with self._uow as uow:
             existing = await uow.webhook_events.get_by_event_id(command.event_id)
             if existing is not None:
-                if (
-                    existing.status == WebhookEventStatus.PROCESSED
-                    and existing.candidate_id is not None
-                    and existing.test_result_id is not None
-                ):
-                    candidate = await uow.candidates.get(
-                        existing.candidate_id,
-                        include={CandidateInclude.ACHIEVEMENTS},
-                    )
-                    test_result = await uow.test_results.get(
-                        existing.test_result_id,
-                        include={
-                            TestResultInclude.QUESTION_ANSWERS,
-                            TestResultInclude.LLM_ASSESSMENT,
-                        },
-                    )
-                    if candidate is None or test_result is None:
-                        raise ValueError(
-                            "Stored webhook event references missing result"
-                        )
-                    vacancy_competencies = await self._get_vacancy_competencies(
-                        uow, existing.vacancy_id
-                    )
-                    scores = self._scorer.calculate_scores(
-                        candidate, vacancy_competencies
-                    )
-                    raise _DuplicateWebhookEvent(
-                        CandidateAssessmentResultDTO(
-                            candidate_profile=_build_profile(candidate, scores),
-                            test_result=self._to_test_result_dto(test_result),
-                        )
-                    )
-                if existing.status == WebhookEventStatus.PROCESSING:
-                    raise ValueError(f"Webhook event {command.event_id} is processing")
-                raise ValueError(f"Webhook event {command.event_id} already handled")
+                await self._handle_existing(uow, existing, command)
 
-            event = WebhookEvent(
-                id=uuid4(),
-                event_id=command.event_id,
-                vacancy_id=command.vacancy_id,
-                candidate_external_id=command.candidate_external_id,
-                task_external_id=command.task_external_id,
-                status=WebhookEventStatus.PROCESSING,
-                payload=WebhookEventPayload(data=command.model_dump(mode="json")),
-            )
-            await uow.webhook_events.add(event)
-            await uow.commit()
-
-    async def _process_assessment(
-        self, command: CandidateTaskAssessmentDTO
-    ) -> CandidateAssessmentResultDTO:
-        async with self._uow as uow:
-            candidate = await uow.candidates.get_by_external_id(
-                command.candidate_external_id,
-                include={CandidateInclude.ACHIEVEMENTS},
-            )
-            if candidate is None:
-                candidate = Candidate(
+            await uow.webhook_events.add(
+                WebhookEvent(
                     id=uuid4(),
-                    external_id=command.candidate_external_id,
+                    event_id=command.event_id,
                     vacancy_id=command.vacancy_id,
+                    candidate_external_id=command.candidate_external_id,
+                    task_external_id=command.task_external_id,
+                    status=WebhookEventStatus.PROCESSING,
+                    payload=WebhookEventPayload(data=command.model_dump(mode="json")),
                 )
-            elif candidate.vacancy_id != command.vacancy_id:
-                raise ValueError("Candidate is already assigned to another vacancy")
-
-            task = await uow.tasks.get_by_external_id(
-                command.task_external_id,
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
             )
-            if task is None:
-                raise ValueError(f"Task {command.task_external_id} not found")
-
-            test_result = await self._assess_task(command, task, candidate.id)
-            await uow.test_results.add(test_result)
-
-            achievements = self._scorer.calculate_achievements(
-                [test_result],
-                [task],
-            )
-            candidate.achieved_subcompetency_ids |= achievements
-            candidate.assessment_status = AssessmentStatus.COMPLETED
-            candidate.last_assessment_at = datetime.now(UTC)
-            await uow.candidates.add(candidate)
-
-            vacancy_competencies = await self._get_vacancy_competencies(
-                uow, command.vacancy_id
-            )
-            scores = self._scorer.calculate_scores(candidate, vacancy_competencies)
             await uow.commit()
 
-            result = CandidateAssessmentResultDTO(
-                candidate_profile=_build_profile(candidate, scores),
-                test_result=self._to_test_result_dto(test_result),
-            )
-            if (
-                command.type == TaskType.CODE
-                and command.code
-                and self._llm_gateway is not None
-            ):
-                await self._job_queue.enqueue(
-                    # TODO: replace in-process runner with external queue producer.
-                    job_type=LLMJobType.CANDIDATE_CODE_ASSESSMENT,
-                    payload={"test_result_id": str(test_result.id)},
-                    runner=lambda: self._process_code_assessment_job(
-                        test_result.id,
-                        command.passed,
-                        command.total,
-                        command.duration_seconds,
-                    ),
-                )
-            return result
-
-    async def _mark_event_processed(
+    async def mark_processed(
         self,
         command: CandidateTaskAssessmentDTO,
         *,
         candidate_id: UUID,
         test_result_id: UUID,
     ) -> None:
-        async with self._uow as uow:
-            event = await uow.webhook_events.get_by_event_id(command.event_id)
-            if event is None:
-                return
-            event.status = WebhookEventStatus.PROCESSED
-            event.error_message = None
-            event.candidate_id = candidate_id
-            event.test_result_id = test_result_id
-            event.processed_at = datetime.now(UTC)
-            await uow.webhook_events.add(event)
-            await uow.commit()
+        await self._update(
+            command,
+            status=WebhookEventStatus.PROCESSED,
+            error_message=None,
+            candidate_id=candidate_id,
+            test_result_id=test_result_id,
+        )
 
-    async def _mark_event_failed(
+    async def mark_failed(
+        self, command: CandidateTaskAssessmentDTO, message: str
+    ) -> None:
+        await self._update(
+            command, status=WebhookEventStatus.FAILED, error_message=message
+        )
+
+    async def _handle_existing(
+        self,
+        uow: UnitOfWork,
+        existing: WebhookEvent,
+        command: CandidateTaskAssessmentDTO,
+    ) -> None:
+        if existing.status == WebhookEventStatus.PROCESSING:
+            raise ValueError(f"Webhook event {command.event_id} is processing")
+        if existing.status != WebhookEventStatus.PROCESSED:
+            raise ValueError(f"Webhook event {command.event_id} already handled")
+        if existing.candidate_id is None or existing.test_result_id is None:
+            raise ValueError("Stored webhook event references missing result")
+
+        candidate = await uow.candidates.get(
+            existing.candidate_id, include={CandidateInclude.ACHIEVEMENTS}
+        )
+        test_result = await uow.test_results.get(
+            existing.test_result_id,
+            include={
+                TestResultInclude.QUESTION_ANSWERS,
+                TestResultInclude.LLM_ASSESSMENT,
+            },
+        )
+        if candidate is None or test_result is None:
+            raise ValueError("Stored webhook event references missing result")
+
+        vacancy = await uow.vacancies.get(
+            existing.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
+        )
+        if vacancy is None:
+            raise ValueError(f"Vacancy {existing.vacancy_id} not found")
+
+        scores = self._scorer.calculate_scores(
+            candidate, vacancy.requirement_competencies
+        )
+        raise _DuplicateWebhookEvent(
+            CandidateAssessmentResultDTO(
+                candidate_profile=candidate_profile_dto_from_scoring(candidate, scores),
+                test_result=test_result_dto_from_domain(test_result),
+            )
+        )
+
+    async def _update(
         self,
         command: CandidateTaskAssessmentDTO,
-        message: str,
+        *,
+        status: WebhookEventStatus,
+        **fields: Any,
     ) -> None:
         async with self._uow as uow:
             event = await uow.webhook_events.get_by_event_id(command.event_id)
             if event is None:
                 return
-            event.status = WebhookEventStatus.FAILED
-            event.error_message = message
+            event.status = status
             event.processed_at = datetime.now(UTC)
+            for key, value in fields.items():
+                setattr(event, key, value)
             await uow.webhook_events.add(event)
             await uow.commit()
 
-    async def _assess_task(
+
+class LLMCodeAssessmentOperation:
+    def __init__(
         self,
-        command: CandidateTaskAssessmentDTO,
-        task: Task,
-        candidate_id: UUID,
-    ) -> TestResult:
-        raw_test_score = self._raw_test_score(command.passed, command.total)
-        penalized_test_score = self._apply_attempt_penalty(
-            raw_test_score, command.attempts
-        )
-        score = penalized_test_score
-        passed = (
-            command.passed > 0 and command.total > 0 and command.passed >= command.total
-        )
-        llm_assessment = TestResultLLMAssessment(
-            id=uuid4(),
-            test_result_id=UUID(int=0),
-            passed=passed,
-            score=score,
-            feedback="",
-            criteria_version=self._code_policy.version,
-            raw_test_score=raw_test_score,
-            penalized_test_score=penalized_test_score,
-            attempt_penalty_applied=command.attempts > 1,
-            final_score=score,
-            feedback_items=[],
-        )
+        uow: UnitOfWork,
+        llm_gateway: LLMGateway | None = None,
+        prompt_version: str = "v1",
+    ) -> None:
+        self._uow = uow
+        self._llm_gateway = llm_gateway
+        self._prompt_catalog = PromptCatalog()
+        self.prompt_version = prompt_version
 
-        return TestResult(
-            id=uuid4(),
-            candidate_id=candidate_id,
-            task_id=task.id,
-            passed=passed,
-            score=score,
-            attempts=command.attempts,
-            code_submitted=command.code,
-            question_answers=[
-                TestResultQuestionAnswer(
-                    id=uuid4(),
-                    test_result_id=UUID(int=0),
-                    question=item.get("question", ""),
-                    answer=item.get("answer", ""),
-                    position=index,
-                )
-                for index, item in enumerate(command.question_answers)
-            ],
-            llm_assessment=llm_assessment,
-        )
+        scorer = CandidateScorer()
+        self._webhook_op = WebhookEventOperation(uow, scorer)
+        self._scoring_op = CandidateScoringOperation(uow, scorer, prompt_version)
 
-    async def _process_code_assessment_job(
+    async def run(
         self,
         test_result_id: UUID,
         passed_tests: int,
@@ -327,7 +200,9 @@ class AssessCandidateUseCase:
                 [
                     LLMMessage(
                         role="system",
-                        content=self._code_policy.system_prompt,
+                        content=self._prompt_catalog.get_code_assessment_prompts(
+                            self.prompt_version
+                        ).prompt,
                     ),
                     LLMMessage(
                         role="user",
@@ -343,6 +218,75 @@ class AssessCandidateUseCase:
                 ],
                 LLMCodeAssessmentDTO,
             )
+        await self._scoring_op.apply_llm_assessment(test_result_id, assessment)
+
+
+class CandidateScoringOperation:
+    """Отвечает за оценку задания, обновление достижений кандидата и расчёт скоров."""
+
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        scorer: CandidateScorer,
+        prompt_version: str,
+    ) -> None:
+        self._uow = uow
+        self._scorer = scorer
+        self._prompt_version = prompt_version
+
+    async def run(
+        self, command: CandidateTaskAssessmentDTO
+    ) -> tuple[Candidate, TestResult, CandidateAssessmentResultDTO]:
+        async with self._uow as uow:
+            # TODO: test with not existing candidate
+            candidate = await self._get_or_create_candidate(uow, command)
+
+            task = await uow.tasks.get_by_external_id(
+                command.task_external_id, include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+            )
+            if task is None:
+                raise ValueError(f"Task {command.task_external_id} not found")
+
+            test_result = self._build_test_result(command, task, candidate.id)
+            await uow.test_results.add(test_result)
+
+            candidate.achieved_subcompetency_ids |= self._scorer.calculate_achievements(
+                [test_result], [task]
+            )
+            candidate.assessment_status = AssessmentStatus.COMPLETED
+            candidate.last_assessment_at = datetime.now(UTC)
+            await uow.candidates.add(candidate)
+
+            vacancy = await uow.vacancies.get(
+                command.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
+            )
+            if vacancy is None:
+                raise ValueError(f"Vacancy {command.vacancy_id} not found")
+
+            scores = self._scorer.calculate_scores(
+                candidate, vacancy.requirement_competencies
+            )
+            await uow.commit()
+
+        result_dto = CandidateAssessmentResultDTO(
+            candidate_profile=candidate_profile_dto_from_scoring(candidate, scores),
+            test_result=test_result_dto_from_domain(test_result),
+        )
+        return candidate, test_result, result_dto
+
+    async def apply_llm_assessment(
+        self,
+        test_result_id: UUID,
+        assessment: LLMCodeAssessmentDTO,
+    ) -> None:
+        async with self._uow as uow:
+            result = await uow.test_results.get(
+                test_result_id,
+                include={TestResultInclude.LLM_ASSESSMENT},
+            )
+            if result is None:
+                return
+
             base_raw = (
                 result.llm_assessment.raw_test_score
                 if result.llm_assessment
@@ -354,6 +298,7 @@ class AssessCandidateUseCase:
                 else result.score
             )
             final_score = max(base_penalized, assessment.score)
+
             result.score = final_score
             result.passed = bool(result.passed or assessment.passed)
             result.llm_assessment = TestResultLLMAssessment(
@@ -362,7 +307,7 @@ class AssessCandidateUseCase:
                 passed=result.passed,
                 score=assessment.score,
                 feedback=assessment.feedback,
-                criteria_version=self._code_policy.version,
+                criteria_version=self._prompt_version,
                 raw_test_score=base_raw,
                 penalized_test_score=base_penalized,
                 attempt_penalty_applied=result.attempts > 1,
@@ -381,73 +326,142 @@ class AssessCandidateUseCase:
             await uow.test_results.add(result)
             await uow.commit()
 
-    def _raw_test_score(self, passed: int, total: int) -> float:
+    @staticmethod
+    async def _get_or_create_candidate(
+        uow: UnitOfWork, command: CandidateTaskAssessmentDTO
+    ) -> Candidate:
+        candidate = await uow.candidates.get_by_external_id(
+            command.candidate_external_id, include={CandidateInclude.ACHIEVEMENTS}
+        )
+        if candidate is None:
+            return Candidate(
+                id=uuid4(),
+                external_id=command.candidate_external_id,
+                vacancy_id=command.vacancy_id,
+            )
+        if candidate.vacancy_id != command.vacancy_id:
+            raise ValueError("Candidate is already assigned to another vacancy")
+        return candidate
+
+    def _build_test_result(
+        self,
+        command: CandidateTaskAssessmentDTO,
+        task: Task,
+        candidate_id: UUID,
+    ) -> TestResult:
+        raw = self._raw_score(command.passed, command.total)
+        penalized = self._penalized_score(raw, command.attempts)
+        passed = (
+            command.passed > 0 and command.total > 0 and command.passed >= command.total
+        )
+
+        return TestResult(
+            id=uuid4(),
+            candidate_id=candidate_id,
+            task_id=task.id,
+            passed=passed,
+            score=penalized,
+            attempts=command.attempts,
+            code_submitted=command.code,
+            question_answers=[
+                TestResultQuestionAnswer(
+                    id=uuid4(),
+                    test_result_id=UUID(int=0),
+                    question=item.get("question", ""),
+                    answer=item.get("answer", ""),
+                    position=index,
+                )
+                for index, item in enumerate(command.question_answers)
+            ],
+            llm_assessment=TestResultLLMAssessment(
+                id=uuid4(),
+                test_result_id=UUID(int=0),
+                passed=passed,
+                score=penalized,
+                feedback="",
+                criteria_version=self._prompt_version,
+                raw_test_score=raw,
+                penalized_test_score=penalized,
+                attempt_penalty_applied=command.attempts > 1,
+                final_score=penalized,
+                feedback_items=[],
+            ),
+        )
+
+    @staticmethod
+    def _raw_score(passed: int, total: int) -> float:
         if total <= 0:
             return 0.0
-        return max(0.0, min(100.0, (passed / total) * 100.0))
+        return max(0.0, min(100.0, passed / total * 100.0))
 
-    def _apply_attempt_penalty(self, score: float, attempts: int) -> float:
-        base = max(0.0, min(100.0, score))
-        return base * (0.9 ** max(0, attempts - 1))
+    @staticmethod
+    def _penalized_score(score: float, attempts: int) -> float:
+        return max(0.0, min(100.0, score)) * (0.9 ** max(0, attempts - 1))
 
-    def _to_test_result_dto(self, result: TestResult) -> TestResultDTO:
-        llm_assessment_payload: dict[str, object] | None
-        if result.llm_assessment is None:
-            llm_assessment_payload = None
-        else:
-            llm_assessment_payload = {
-                "passed": result.llm_assessment.passed,
-                "score": result.llm_assessment.score,
-                "feedback": result.llm_assessment.feedback,
-                "criteria_version": result.llm_assessment.criteria_version,
-                "raw_test_score": result.llm_assessment.raw_test_score,
-                "penalized_test_score": result.llm_assessment.penalized_test_score,
-                "attempt_penalty_applied": result.llm_assessment.attempt_penalty_applied,  # noqa: E501
-                "final_score": result.llm_assessment.final_score,
-                "feedback_items": [
-                    {
-                        "type": item.type.value,
-                        "value": item.value,
-                        "position": item.position,
-                    }
-                    for item in result.llm_assessment.feedback_items
-                ],
-            }
-        return TestResultDTO(
-            id=result.id,
-            candidate_id=result.candidate_id,
-            task_id=result.task_id,
-            passed=result.passed,
-            score=result.score,
-            attempts=result.attempts,
-            code_submitted=result.code_submitted,
-            question_answers=[
-                {"question": item.question, "answer": item.answer}
-                for item in result.question_answers
-            ],
-            llm_assessment=llm_assessment_payload,
-            created_at=result.created_at,
-        )
 
-    async def _get_vacancy_competencies(
+# ---------------------------------------------------------------------------
+# Use cases
+# ---------------------------------------------------------------------------
+
+
+class AssessCandidateUseCase:
+    def __init__(
         self,
         uow: UnitOfWork,
-        vacancy_id: UUID,
-    ) -> list[Competency]:
-        vacancy = await uow.vacancies.get(
-            vacancy_id,
-            include={VacancyInclude.NORMALIZED_GRAPH},
+        job_queue: LLMJobQueuePort,
+        llm_gateway: LLMGateway | None = None,
+        prompt_version: str = "v1",
+    ) -> None:
+        self._uow = uow
+        self._job_queue = job_queue
+        self._llm_gateway = llm_gateway
+        self._prompt_catalog = PromptCatalog()
+        self.prompt_version = prompt_version
+
+        scorer = CandidateScorer()
+        self._webhook_op = WebhookEventOperation(uow, scorer)
+        self._scoring_op = CandidateScoringOperation(uow, scorer, prompt_version)
+
+    async def execute(
+        self, command: CandidateTaskAssessmentDTO
+    ) -> CandidateAssessmentResultDTO:
+        try:
+            await self._webhook_op.ensure_processing(command)
+        except _DuplicateWebhookEvent as duplicate:
+            return duplicate.result
+
+        try:
+            _, test_result, result = await self._scoring_op.run(command)
+        except Exception as exc:
+            await self._webhook_op.mark_failed(command, str(exc))
+            raise
+
+        await self._webhook_op.mark_processed(
+            command,
+            candidate_id=result.candidate_profile.candidate_id,
+            test_result_id=result.test_result.id,
         )
-        if vacancy is None:
-            raise ValueError(f"Vacancy {vacancy_id} not found")
-        return _build_requirement_competencies(vacancy)
+        await self._maybe_enqueue_code_assessment(command, test_result.id)
+        return result
 
-
-# TODO: вынести эксепшн
-class _DuplicateWebhookEvent(Exception):
-    def __init__(self, result: CandidateAssessmentResultDTO) -> None:
-        super().__init__("Duplicate webhook event")
-        self.result = result
+    async def _maybe_enqueue_code_assessment(
+        self, command: CandidateTaskAssessmentDTO, test_result_id: UUID
+    ) -> None:
+        if (
+            command.type != TaskType.CODE
+            or not command.code
+            or self._llm_gateway is None
+        ):
+            return
+        await self._job_queue.enqueue(
+            job_type=LLMJobType.CANDIDATE_CODE_ASSESSMENT,
+            payload=CodeAssessmentPayload(
+                test_result_id=test_result_id,
+                passed_tests=command.passed,
+                total_tests=command.total,
+                duration_seconds=command.duration_seconds,
+            ).model_dump(mode="json"),
+        )
 
 
 class GetCandidateProfileUseCase:
@@ -468,50 +482,12 @@ class GetCandidateProfileUseCase:
             if candidate is None:
                 raise ValueError(f"Candidate {candidate_id} not found")
             vacancy = await uow.vacancies.get(
-                candidate.vacancy_id,
-                include={VacancyInclude.NORMALIZED_GRAPH},
+                candidate.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
             )
             if vacancy is None:
                 raise ValueError(f"Vacancy {candidate.vacancy_id} not found")
+
             scores = self._scorer.calculate_scores(
-                candidate, _build_requirement_competencies(vacancy)
+                candidate, vacancy.requirement_competencies
             )
-            return _build_profile(candidate, scores)
-
-
-def _build_requirement_competencies(vacancy: Vacancy) -> list[Competency]:
-    competencies: list[Competency] = []
-    sub_by_competency: dict[UUID, list[SubCompetency]] = {}
-    for node in vacancy.sub_competency_nodes:
-        base = node.sub_competency
-        if base is None:
-            continue
-        sub_by_competency.setdefault(node.competency_id, []).append(
-            SubCompetency(
-                id=base.id,
-                competency_id=base.competency_id,
-                name=base.name,
-                description=base.description,
-                weight=node.weight,
-                created_at=base.created_at,
-                updated_at=base.updated_at,
-            )
-        )
-    for node_competency in vacancy.competency_nodes:
-        base_competency = node_competency.competency
-        if base_competency is None:
-            continue
-        competencies.append(
-            Competency(
-                id=base_competency.id,
-                category_id=base_competency.category_id,
-                name=base_competency.name,
-                description=base_competency.description,
-                sub_competencies=sub_by_competency.get(
-                    node_competency.competency_id, []
-                ),
-                created_at=base_competency.created_at,
-                updated_at=base_competency.updated_at,
-            )
-        )
-    return competencies
+            return candidate_profile_dto_from_scoring(candidate, scores)

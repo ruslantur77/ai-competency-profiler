@@ -15,20 +15,19 @@ from competency_system.application.ports.llm_jobs import (
 
 class InMemoryLLMJobQueue(LLMJobQueuePort):
     # TODO: replace with durable queue + separate worker process.
-    def __init__(self) -> None:
+    def __init__(
+        self, dispatcher: Callable[[LLMJobType, dict[str, object]], Awaitable[None]]
+    ) -> None:
         self._jobs: dict[UUID, LLMJob] = {}
         self._tasks: set[asyncio.Task[None]] = set()
+        self._dispatcher = dispatcher
 
     async def enqueue(
-        self,
-        *,
-        job_type: LLMJobType,
-        payload: dict[str, object],
-        runner: Callable[[], Awaitable[None]],
+        self, *, job_type: LLMJobType, payload: dict[str, object]
     ) -> UUID:
         job = LLMJob(type=job_type, payload=dict(payload))
         self._jobs[job.id] = job
-        task = asyncio.create_task(self._run(job.id, runner))
+        task = asyncio.create_task(self._run(job.id))
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
         return job.id
@@ -43,20 +42,15 @@ class InMemoryLLMJobQueue(LLMJobQueuePort):
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
 
-    async def _run(
-        self,
-        job_id: UUID,
-        runner: Callable[[], Awaitable[None]],
-    ) -> None:
+    async def _run(self, job_id: UUID) -> None:
         job = self._jobs[job_id]
         job.status = LLMJobStatus.PROCESSING
         job.updated_at = datetime.now(UTC)
         try:
-            await runner()
+            await self._dispatcher(job.type, job.payload)
+            job.status = LLMJobStatus.COMPLETED
         except Exception as exc:
             job.status = LLMJobStatus.FAILED
             job.error_message = str(exc)
+        finally:
             job.updated_at = datetime.now(UTC)
-            return
-        job.status = LLMJobStatus.COMPLETED
-        job.updated_at = datetime.now(UTC)

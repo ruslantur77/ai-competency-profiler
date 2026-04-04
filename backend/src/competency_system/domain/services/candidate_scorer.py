@@ -15,7 +15,6 @@ class CandidateScorer:
         pass_threshold: float = 0.5,
         mapping_coverage_threshold: float = 0.2,
     ) -> None:
-        """Инициализировать пороги расчета достижений."""
         self.pass_threshold = pass_threshold
         self.mapping_coverage_threshold = mapping_coverage_threshold
 
@@ -24,7 +23,7 @@ class CandidateScorer:
         test_results: list[TestResult],
         tasks: list[Task],
     ) -> set[UUID]:
-        """Вычислить достигнутые subcompetencies из результатов тестов."""
+        """Calculate achieved sub-competencies from test results."""
         task_map: dict[UUID, Task] = {t.id: t for t in tasks}
         achieved: set[UUID] = set()
 
@@ -34,7 +33,7 @@ class CandidateScorer:
                 continue
 
             if result.normalized_score >= self.pass_threshold:
-                for mapping in task.competency_mappings:
+                for mapping in task.sub_competency_mappings:
                     mapping_weight = min(max(mapping.weight, 0.0), 1.0)
                     coverage = result.normalized_score * mapping_weight
                     if coverage >= self.mapping_coverage_threshold:
@@ -47,7 +46,7 @@ class CandidateScorer:
         candidate: Candidate,
         competencies: list[Competency],
     ) -> list[CompetencyScore]:
-        """Рассчитать оценки по компетенциям для кандидата."""
+        """Calculate scores for each competency for the candidate."""
         scores: list[CompetencyScore] = []
 
         for comp in competencies:

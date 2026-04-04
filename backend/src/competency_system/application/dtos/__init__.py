@@ -45,6 +45,8 @@ from competency_system.application.dtos.vacancy import (
     VacancySuggestionDecisionDTO,
 )
 
+from .external_system import ExternalTaskAssessmentPayload, ExternalTaskRecord
+
 __all__ = [
     "AccessTokenDataDTO",
     "CandidateAssessmentResultDTO",
@@ -82,4 +84,6 @@ __all__ = [
     "VacancySubCompetencyExtractionResultDTO",
     "VacancyGraphSuggestionDTO",
     "VacancySuggestionDecisionDTO",
+    "ExternalTaskAssessmentPayload",
+    "ExternalTaskRecord",
 ]

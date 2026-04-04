@@ -48,8 +48,8 @@ from competency_system.application.use_cases.task import (
     ValidateTaskMappingUseCase,
 )
 from competency_system.application.use_cases.vacancy import (
+    CreateVacancyGraphUseCase,
     DecideVacancySuggestionUseCase,
-    ExtractVacancyGraphUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
     ListVacanciesForReviewUseCase,
@@ -127,8 +127,8 @@ def get_extract_vacancy_graph_use_case(
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
     job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
     settings: Annotated[Settings, Depends(get_app_settings)],
-) -> ExtractVacancyGraphUseCase:
-    return ExtractVacancyGraphUseCase(
+) -> CreateVacancyGraphUseCase:
+    return CreateVacancyGraphUseCase(
         uow,
         llm_gateway,
         job_queue,

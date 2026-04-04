@@ -6,8 +6,8 @@ from enum import StrEnum, auto
 class VacancyStatus(StrEnum):
     """Status of vacancy processing."""
 
+    PENDING = auto()
     DRAFT = auto()
-    EXTRACTING = auto()  # LLM pipeline running
     READY = auto()
     FAILED = auto()
 
@@ -31,7 +31,6 @@ class AssessmentStatus(StrEnum):
     """Status of candidate assessment."""
 
     PENDING = auto()
-    PROCESSING = auto()
     COMPLETED = auto()
     FAILED = auto()
 

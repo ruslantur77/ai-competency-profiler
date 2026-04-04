@@ -7,7 +7,7 @@ from competency_system.domain.entities.base import Entity
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class SubCompetency(Entity):
     """Sub-competency in the canonical ontology."""
 
@@ -15,10 +15,11 @@ class SubCompetency(Entity):
     name: str
     description: str = ""
     weight: float = 1.0
+    target_level: CompetencyLevel = CompetencyLevel.EXPERT
     competency: Competency | None = None
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class Competency(Entity):
     """Competency in the canonical ontology."""
 
@@ -29,6 +30,7 @@ class Competency(Entity):
     category: Category | None = None
 
     def calculate_level(self, achieved_subcompetency_ids: set[UUID]) -> CompetencyLevel:
+        # TODO: rewrite
         if not self.sub_competencies:
             return CompetencyLevel.NONE
 
@@ -47,7 +49,7 @@ class Competency(Entity):
         return _ratio_to_level(ratio)
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, eq=False)
 class Category(Entity):
     """Competency category."""
 

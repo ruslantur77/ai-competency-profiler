@@ -13,14 +13,14 @@ from competency_system.domain.value_objects import (
 )
 
 if TYPE_CHECKING:
-    from competency_system.domain.entities.competency import Category, Competency
-    from competency_system.domain.entities.vacancy import Vacancy
+    from competency_system.domain.entities import Category, Competency, Vacancy
 
 
 @dataclass(kw_only=True)
 class VacancyGraphSuggestion(Entity):
     """LLM proposal that requires expert decision."""
 
+    # TODO: а нахуя тут stage и entity_type
     vacancy_id: UUID
     stage: SuggestionStage
     entity_type: SuggestionEntityType

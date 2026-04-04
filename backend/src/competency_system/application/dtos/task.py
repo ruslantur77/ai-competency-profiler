@@ -24,12 +24,12 @@ class _StrictExtractionDTO(BaseDTO):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
-class _StrictSelectionItemDTO(_StrictExtractionDTO):
+class StrictSelectionItemDTO(_StrictExtractionDTO):
     id: UUID | None = None
     llm_id: int | None = Field(default=None, gt=0)
 
     @model_validator(mode="after")
-    def _validate_identity_fields(self) -> _StrictSelectionItemDTO:
+    def _validate_identity_fields(self) -> StrictSelectionItemDTO:
         if self.id is None and self.llm_id is None:
             raise ValueError("Either 'id' or 'llm_id' must be provided")
         if self.id is not None and self.llm_id is not None:
@@ -37,7 +37,7 @@ class _StrictSelectionItemDTO(_StrictExtractionDTO):
         return self
 
 
-class TaskCategorySelectionDTO(_StrictSelectionItemDTO):
+class TaskCategorySelectionDTO(StrictSelectionItemDTO):
     pass
 
 
@@ -45,7 +45,7 @@ class TaskCategoryExtractionResultDTO(_StrictExtractionDTO):
     categories: list[TaskCategorySelectionDTO]
 
 
-class TaskCompetencySelectionDTO(_StrictSelectionItemDTO):
+class TaskCompetencySelectionDTO(StrictSelectionItemDTO):
     pass
 
 
@@ -53,7 +53,7 @@ class TaskCompetencyExtractionResultDTO(_StrictExtractionDTO):
     competencies: list[TaskCompetencySelectionDTO]
 
 
-class TaskSubCompetencySelectionDTO(_StrictSelectionItemDTO):
+class TaskSubCompetencySelectionDTO(StrictSelectionItemDTO):
     weight: float = Field(default=1.0, ge=0.0, le=1.0)
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -34,12 +33,12 @@ class LLMJob:
 
 class LLMJobQueuePort(Protocol):
     # TODO: replace in-process runner with external queue + worker.
+    # TODO: refactor: auto dump pydantic models
     async def enqueue(
         self,
         *,
         job_type: LLMJobType,
         payload: dict[str, object],
-        runner: Callable[[], Awaitable[None]],
     ) -> UUID: ...
 
     async def get(self, job_id: UUID) -> LLMJob | None: ...

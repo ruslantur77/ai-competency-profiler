@@ -3,9 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+from competency_system.application.dtos.mappers import (
+    ranking_item_dto_from_ranking_score_domain,
+)
 from competency_system.application.dtos.ranking import (
-    RankingBreakdownItemDTO,
-    RankingItemDTO,
     VacancyRankingDTO,
 )
 from competency_system.application.dtos.webhooks import (
@@ -44,33 +45,7 @@ class RecalculateRankingUseCase:
             dto = VacancyRankingDTO(
                 vacancy_id=vacancy_id,
                 rankings=[
-                    RankingItemDTO(
-                        candidate_id=item.candidate_id,
-                        candidate_external_id=item.candidate_external_id,
-                        total_score=item.total_score,
-                        required_match=item.required_match,
-                        desired_match=item.desired_match,
-                        required_score=item.required_score,
-                        desired_score=item.desired_score,
-                        breakdown=[
-                            RankingBreakdownItemDTO(
-                                competency_id=breakdown.competency_id,
-                                competency_name=breakdown.competency_name,
-                                required=breakdown.required,
-                                matched_weight=breakdown.matched_weight,
-                                total_weight=breakdown.total_weight,
-                                coverage=breakdown.coverage,
-                                score_contribution=breakdown.score_contribution,
-                                matched_subcompetency_ids=list(
-                                    breakdown.matched_subcompetency_ids
-                                ),
-                                total_subcompetency_ids=list(
-                                    breakdown.total_subcompetency_ids
-                                ),
-                            )
-                            for breakdown in item.breakdown
-                        ],
-                    )
+                    ranking_item_dto_from_ranking_score_domain(item)
                     for item in ranking_scores
                 ],
             )

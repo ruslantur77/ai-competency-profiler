@@ -9,9 +9,7 @@ from competency_system.domain.entities.base import Entity
 from competency_system.domain.value_objects import AssessmentStatus, CompetencyLevel
 
 if TYPE_CHECKING:
-    from competency_system.domain.entities.competency import SubCompetency
-    from competency_system.domain.entities.task import TestResult
-    from competency_system.domain.entities.vacancy import Vacancy
+    from competency_system.domain.entities import SubCompetency, TestResult, Vacancy
 
 
 @dataclass(kw_only=True)
@@ -67,8 +65,6 @@ class Candidate(Entity):
 
 @dataclass(kw_only=True)
 class CompetencyScore:
-    """Оценка компетенции для кандидата."""
-
     competency_id: UUID
     level: CompetencyLevel
     confidence: float = 1.0

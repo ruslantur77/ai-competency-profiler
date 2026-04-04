@@ -20,14 +20,14 @@ from competency_system.application.use_cases.ranking import (
 from competency_system.application.use_cases.task import (
     GetTaskUseCase,
     ListTasksUseCase,
-    MapTaskToCompetenciesUseCase,
+    MapTaskToCompetenciesOperation,
     RebuildTaskMappingUseCase,
     SyncTasksUseCase,
     ValidateTaskMappingUseCase,
 )
 from competency_system.application.use_cases.vacancy import (
+    CreateVacancyGraphUseCase,
     DecideVacancySuggestionUseCase,
-    ExtractVacancyGraphUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
     ListVacanciesForReviewUseCase,
@@ -37,7 +37,7 @@ from competency_system.application.use_cases.vacancy import (
 )
 
 __all__ = [
-    "ExtractVacancyGraphUseCase",
+    "CreateVacancyGraphUseCase",
     "FinalizeVacancyGraphUseCase",
     "GetVacancyGraphUseCase",
     "ListVacancySuggestionsUseCase",
@@ -45,7 +45,7 @@ __all__ = [
     "ListVacanciesForReviewUseCase",
     "UpdateVacancyStatusUseCase",
     "DecideVacancySuggestionUseCase",
-    "MapTaskToCompetenciesUseCase",
+    "MapTaskToCompetenciesOperation",
     "SyncTasksUseCase",
     "RebuildTaskMappingUseCase",
     "ValidateTaskMappingUseCase",

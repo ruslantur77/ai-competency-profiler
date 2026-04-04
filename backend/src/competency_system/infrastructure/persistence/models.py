@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from competency_system.application.dtos.webhooks import WebhookEventStatus
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     AssessmentStatus,
     LLMFeedbackType,
@@ -140,6 +141,9 @@ class SubCompetencyOrm(Base):
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(500), default="")
     weight: Mapped[float] = mapped_column(Float, default=1.0)
+    target_level: Mapped[int] = mapped_column(
+        Integer, default=CompetencyLevel.EXPERT.value
+    )
 
     competency: Mapped[CompetencyOrm] = relationship(
         back_populates="sub_competencies", lazy="raise"

@@ -6,7 +6,7 @@ from typing import Any, cast
 from airflow.decorators import dag as airflow_dag  # type: ignore[attr-defined]
 from airflow.decorators import task as airflow_task  # type: ignore[attr-defined]
 
-from competency_system.application.use_cases.vacancy import ExtractVacancyGraphUseCase
+from competency_system.application.use_cases.vacancy import CreateVacancyGraphUseCase
 from competency_system.presentation.airflow.context import get_dag_conf
 from competency_system.presentation.airflow.payloads import VacancyExtractionPayloadDTO
 from competency_system.presentation.airflow.runtime import run_logged_async
@@ -34,7 +34,7 @@ def vacancy_extraction_dag() -> None:
         payload = VacancyExtractionPayloadDTO.model_validate(get_dag_conf())
         result = run_logged_async(
             "vacancy_extraction.extract_vacancy_graph",
-            lambda runtime: ExtractVacancyGraphUseCase(
+            lambda runtime: CreateVacancyGraphUseCase(
                 runtime.uow(),
                 runtime.llm_gateway(),
                 runtime.llm_job_queue(),

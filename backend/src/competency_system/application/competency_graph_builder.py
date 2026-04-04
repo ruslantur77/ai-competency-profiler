@@ -1,44 +1,16 @@
 from __future__ import annotations
 
-from typing import Protocol
-
+from competency_system.application.ports.competency_extractor import (
+    LLMCompetencyExtractor,
+)
 from competency_system.domain.entities.competency import (
     Category,
     Competency,
-    SubCompetency,
 )
 from competency_system.domain.entities.vacancy import Vacancy
 
 
-class LLMCompetencyExtractor(Protocol):
-    async def extract_categories(
-        self,
-        vacancy_name: str,
-        vacancy_description: str,
-        existing_categories: list[Category],
-    ) -> list[Category]: ...
-
-    async def extract_competencies(
-        self,
-        vacancy_name: str,
-        vacancy_description: str,
-        category: Category,
-    ) -> list[Competency]: ...
-
-    async def extract_subcompetencies(
-        self,
-        vacancy_name: str,
-        vacancy_description: str,
-        competency: Competency,
-    ) -> list[SubCompetency]: ...
-
-
 class CompetencyGraphBuilder:
-    """Сервис для построения графа компетенций из вакансии.
-
-    3-ступенчатый LLM пайплайн.
-    """
-
     def __init__(
         self,
         llm_extractor: LLMCompetencyExtractor,
@@ -56,13 +28,7 @@ class CompetencyGraphBuilder:
         vacancy: Vacancy,
         existing_categories: list[Category],
     ) -> tuple[list[Category], list[Competency]]:
-        """Построить граф компетенций для вакансии.
-
-        Returns:
-            (categories, competencies) - готовый граф
-
-        """
-        # Шаг 1: Извлечь категории
+        # Step 1: Extract categories from vacancy description
         categories = await self.llm_extractor.extract_categories(
             vacancy.name,
             vacancy.description,
@@ -70,7 +36,7 @@ class CompetencyGraphBuilder:
         )
         categories = categories[: self.max_categories]
 
-        # Шаг 2: Извлечь компетенции для каждой категории
+        # Step 2: Extract competencies for each category
         all_competencies: list[Competency] = []
         for category in categories:
             competencies = await self.llm_extractor.extract_competencies(
@@ -85,21 +51,13 @@ class CompetencyGraphBuilder:
 
             all_competencies.extend(competencies)
 
-        # Шаг 3: Извлечь подкомпетенции
+        # Step 3: Extract sub-competencies for each competency
         for competency in all_competencies:
             subcompetencies = await self.llm_extractor.extract_subcompetencies(
                 vacancy.name,
                 vacancy.description,
                 competency,
             )
-            subcompetencies = subcompetencies[: self.max_subcompetencies]
-
-            # Распределить веса равномерно
-            if subcompetencies:
-                weight = 1.0 / len(subcompetencies)
-                for sub in subcompetencies:
-                    sub.weight = weight
-
-            competency.sub_competencies = subcompetencies
+            competency.sub_competencies = subcompetencies[: self.max_subcompetencies]
 
         return categories, all_competencies

@@ -11,7 +11,7 @@ from competency_system.application.ports.external_testing_system import (
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
 from competency_system.application.use_cases.task import (
-    MapTaskToCompetenciesUseCase,
+    MapTaskToCompetenciesOperation,
     SyncTasksUseCase,
 )
 from competency_system.domain.entities import Category, Competency, SubCompetency, Task
@@ -87,8 +87,8 @@ async def test_map_task_to_competencies_normalizes_response() -> None:
         ]
     )
 
-    use_case = MapTaskToCompetenciesUseCase(fake_llm)
-    mappings = await use_case.execute(task, [category], tags=["api", "sql"])
+    use_case = MapTaskToCompetenciesOperation(fake_llm)
+    mappings = await use_case._map(task, [category], tags=["api", "sql"])
 
     assert len(mappings) == 2
     assert {mapping.sub_competency_id for mapping in mappings} == {sub1.id, sub2.id}
@@ -123,10 +123,10 @@ async def test_map_task_to_competencies_rejects_invalid_schema() -> None:
         type=TaskType.CODE,
     )
     fake_llm = FakeLLMGateway([{}])
-    use_case = MapTaskToCompetenciesUseCase(fake_llm)
+    use_case = MapTaskToCompetenciesOperation(fake_llm)
 
     with pytest.raises(ValidationError):
-        await use_case.execute(task, [category], tags=[])
+        await use_case._map(task, [category], tags=[])
 
 
 @pytest.mark.asyncio

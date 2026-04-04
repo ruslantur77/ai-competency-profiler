@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from competency_system.domain.entities.base import Entity
+from competency_system.domain.entities import Entity
 from competency_system.domain.value_objects import (
     LLMFeedbackType,
     TaskMappingStatus,
@@ -12,8 +12,7 @@ from competency_system.domain.value_objects import (
 )
 
 if TYPE_CHECKING:
-    from competency_system.domain.entities.candidate import Candidate
-    from competency_system.domain.entities.competency import SubCompetency
+    from competency_system.domain.entities import Candidate, Competency, SubCompetency
 
 
 @dataclass(kw_only=True)
@@ -24,6 +23,16 @@ class TaskSubCompetencyMapping(Entity):
     position: int = 0
     task: Task | None = None
     sub_competency: SubCompetency | None = None
+
+
+@dataclass(kw_only=True)
+class TaskCompetencyMapping(Entity):
+    task_id: UUID = UUID(int=0)
+    competency_id: UUID
+    weight: float = 1.0
+    position: int = 0
+    task: Task | None = None
+    competency: Competency | None = None
 
 
 @dataclass(kw_only=True)
@@ -41,14 +50,6 @@ class Task(Entity):
     sub_competency_mappings: list[TaskSubCompetencyMapping] = field(
         default_factory=list
     )
-
-    @property
-    def competency_mappings(self) -> list[TaskSubCompetencyMapping]:
-        return self.sub_competency_mappings
-
-    @competency_mappings.setter
-    def competency_mappings(self, value: list[TaskSubCompetencyMapping]) -> None:
-        self.sub_competency_mappings = value
 
 
 @dataclass(kw_only=True)

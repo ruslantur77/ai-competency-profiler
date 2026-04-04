@@ -8,13 +8,13 @@ from competency_system.domain.entities.base import Entity
 from competency_system.domain.value_objects import CompetencyLevel, VacancyStatus
 
 if TYPE_CHECKING:
-    from competency_system.domain.entities.candidate import Candidate
-    from competency_system.domain.entities.competency import (
+    from competency_system.domain.entities import (
+        Candidate,
         Category,
         Competency,
         SubCompetency,
+        VacancyGraphSuggestion,
     )
-    from competency_system.domain.entities.suggestion import VacancyGraphSuggestion
 
 
 @dataclass(kw_only=True)
@@ -68,3 +68,35 @@ class Vacancy(Entity):
     @property
     def is_ready(self) -> bool:
         return self.status == VacancyStatus.READY
+
+    @property
+    def requirement_competencies(self) -> list[Competency]:
+        sub_by_competency: dict[UUID, list[SubCompetency]] = {}
+        for node in self.sub_competency_nodes:
+            base = node.sub_competency
+            if base is None:
+                continue
+            sub_by_competency.setdefault(node.competency_id, []).append(
+                SubCompetency(
+                    id=base.id,
+                    competency_id=base.competency_id,
+                    name=base.name,
+                    description=base.description,
+                    weight=node.weight,
+                    created_at=base.created_at,
+                    updated_at=base.updated_at,
+                )
+            )
+        return [
+            Competency(
+                id=c.competency.id,
+                category_id=c.competency.category_id,
+                name=c.competency.name,
+                description=c.competency.description,
+                sub_competencies=sub_by_competency.get(c.competency_id, []),
+                created_at=c.competency.created_at,
+                updated_at=c.competency.updated_at,
+            )
+            for c in self.competency_nodes
+            if c.competency is not None
+        ]

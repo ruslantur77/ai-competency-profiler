@@ -10,6 +10,11 @@ class ThreeStagePrompts:
     step3_subcompetencies: str
 
 
+@dataclass(frozen=True)
+class LLMCodeAssessmentPrompts:
+    prompt: str
+
+
 class PromptCatalog:
     # TODO: move prompt storage and version management to DB.
     _VACANCY_PROMPTS: dict[str, ThreeStagePrompts] = {
@@ -78,6 +83,23 @@ class PromptCatalog:
         )
     }
 
+    _CODE_ASSESSMENT_PROMPTS: dict[str, LLMCodeAssessmentPrompts] = {
+        "v1": LLMCodeAssessmentPrompts(
+            prompt=(
+                "Assess the submitted code against the task requirements. "
+                "Return JSON with fields: passed, score, feedback, feedback_items.\n"
+                "feedback_items must be an array of objects: "
+                "{type: 'positive'|'negative', value: string, position: integer}.\n"
+                "Use these fixed criteria:\n"
+                "- Correctness against task intent and provided tests\n"
+                "- Code quality and readability\n"
+                "- Algorithmic and structural efficiency\n"
+                "- Reliability and edge-case handling\n"
+                "- Score range must be 0..100."
+            )
+        )
+    }
+
     def get_vacancy_prompts(self, version: str) -> ThreeStagePrompts:
         prompts = self._VACANCY_PROMPTS.get(version)
         if prompts is None:
@@ -88,4 +110,10 @@ class PromptCatalog:
         prompts = self._TASK_PROMPTS.get(version)
         if prompts is None:
             raise ValueError(f"Unknown task prompt version: {version}")
+        return prompts
+
+    def get_code_assessment_prompts(self, version: str) -> LLMCodeAssessmentPrompts:
+        prompts = self._CODE_ASSESSMENT_PROMPTS.get(version)
+        if prompts is None:
+            raise ValueError(f"Unknown code assessment prompt version: {version}")
         return prompts

@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel
 
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
-from competency_system.application.use_cases.task import MapTaskToCompetenciesUseCase
+from competency_system.application.use_cases.task import MapTaskToCompetenciesOperation
 from competency_system.domain.entities import Category, Competency, SubCompetency, Task
 from competency_system.domain.value_objects.enums import TaskType
 
@@ -58,7 +58,7 @@ async def test_task_pipeline_uses_task_prompt_catalog() -> None:
         ]
     )
 
-    result = await MapTaskToCompetenciesUseCase(llm).execute(task, [category], tags=[])
+    result = await MapTaskToCompetenciesOperation(llm)._map(task, [category], tags=[])
 
     assert len(result) == 1
     assert "assessment task" in llm.calls[0][0].content.lower()
