@@ -126,76 +126,60 @@ def _load_all[T](model: Any, domain_model: type[T]) -> T:
     return domain_model(**data)
 
 
-def category_to_orm(category: Category) -> CategoryOrm:
-    orm = CategoryOrm(
-        id=category.id,
-        name=category.name,
-        description=category.description,
-        emoji=category.emoji,
-    )
-    orm.competencies = [
-        competency_to_orm(competency) for competency in category.competencies
-    ]
-    return orm
+def category_to_orm(
+    category: Category,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> CategoryOrm:
+    return CategoryOrm.from_entity(category, present_fields=present_fields)
 
 
 def category_from_orm(category: CategoryOrm) -> Category:
     return _load_all(category, Category)
 
 
-def competency_to_orm(competency: Competency) -> CompetencyOrm:
-    orm = CompetencyOrm(
-        id=competency.id,
-        category_id=competency.category_id,
-        name=competency.name,
-        description=competency.description,
-    )
-    orm.sub_competencies = [
-        subcompetency_to_orm(subcompetency)
-        for subcompetency in competency.sub_competencies
-    ]
-    return orm
+def competency_to_orm(
+    competency: Competency,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> CompetencyOrm:
+    return CompetencyOrm.from_entity(competency, present_fields=present_fields)
 
 
 def competency_from_orm(competency: CompetencyOrm) -> Competency:
     return _load_all(competency, Competency)
 
 
-def subcompetency_to_orm(subcompetency: SubCompetency) -> SubCompetencyOrm:
-    return SubCompetencyOrm(
-        id=subcompetency.id,
-        competency_id=subcompetency.competency_id,
-        name=subcompetency.name,
-        description=subcompetency.description,
-        weight=subcompetency.weight,
-    )
+def subcompetency_to_orm(
+    subcompetency: SubCompetency,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> SubCompetencyOrm:
+    return SubCompetencyOrm.from_entity(subcompetency, present_fields=present_fields)
 
 
 def subcompetency_from_orm(subcompetency: SubCompetencyOrm) -> SubCompetency:
     return _load_all(subcompetency, SubCompetency)
 
 
-def vacancy_to_orm(vacancy: Vacancy) -> VacancyOrm:
-    return VacancyOrm(
-        id=vacancy.id,
-        name=vacancy.name,
-        description=vacancy.description,
-        status=vacancy.status,
-        error_message=vacancy.error_message,
-    )
+def vacancy_to_orm(
+    vacancy: Vacancy,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> VacancyOrm:
+    return VacancyOrm.from_entity(vacancy, present_fields=present_fields)
 
 
 def vacancy_from_orm(vacancy: VacancyOrm) -> Vacancy:
     return _load_all(vacancy, Vacancy)
 
 
-def vacancy_category_node_to_orm(node: VacancyCategoryNode) -> VacancyCategoryNodeOrm:
-    return VacancyCategoryNodeOrm(
-        id=node.id,
-        vacancy_id=node.vacancy_id,
-        category_id=node.category_id,
-        position=node.position,
-    )
+def vacancy_category_node_to_orm(
+    node: VacancyCategoryNode,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> VacancyCategoryNodeOrm:
+    return VacancyCategoryNodeOrm.from_entity(node, present_fields=present_fields)
 
 
 def vacancy_category_node_from_orm(node: VacancyCategoryNodeOrm) -> VacancyCategoryNode:
@@ -204,15 +188,10 @@ def vacancy_category_node_from_orm(node: VacancyCategoryNodeOrm) -> VacancyCateg
 
 def vacancy_competency_node_to_orm(
     node: VacancyCompetencyNode,
+    *,
+    present_fields: Collection[str] | None = None,
 ) -> VacancyCompetencyNodeOrm:
-    return VacancyCompetencyNodeOrm(
-        id=node.id,
-        vacancy_id=node.vacancy_id,
-        competency_id=node.competency_id,
-        category_id=node.category_id,
-        is_required=node.is_required,
-        position=node.position,
-    )
+    return VacancyCompetencyNodeOrm.from_entity(node, present_fields=present_fields)
 
 
 def vacancy_competency_node_from_orm(
@@ -223,16 +202,10 @@ def vacancy_competency_node_from_orm(
 
 def vacancy_sub_competency_node_to_orm(
     node: VacancySubCompetencyNode,
+    *,
+    present_fields: Collection[str] | None = None,
 ) -> VacancySubCompetencyNodeOrm:
-    return VacancySubCompetencyNodeOrm(
-        id=node.id,
-        vacancy_id=node.vacancy_id,
-        sub_competency_id=node.sub_competency_id,
-        competency_id=node.competency_id,
-        target_level=int(node.target_level),
-        weight=node.weight,
-        position=node.position,
-    )
+    return VacancySubCompetencyNodeOrm.from_entity(node, present_fields=present_fields)
 
 
 def vacancy_sub_competency_node_from_orm(
@@ -241,108 +214,84 @@ def vacancy_sub_competency_node_from_orm(
     return _load_all(node, VacancySubCompetencyNode)
 
 
-def candidate_to_orm(candidate: Candidate) -> CandidateOrm:
-    return CandidateOrm(
-        id=candidate.id,
-        external_id=candidate.external_id,
-        vacancy_id=candidate.vacancy_id,
-        status=candidate.status,
-        last_assessment_at=candidate.last_assessment_at,
-    )
+def candidate_to_orm(
+    candidate: Candidate,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> CandidateOrm:
+    return CandidateOrm.from_entity(candidate, present_fields=present_fields)
 
 
 def candidate_from_orm(candidate: CandidateOrm) -> Candidate:
     return _load_all(candidate, Candidate)
 
 
-def user_to_orm(user: User) -> UserOrm:
-    return UserOrm(
-        id=user.id,
-        email=user.email,
-        role=user.role,
-        is_active=user.is_active,
-    )
+def user_to_orm(
+    user: User,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> UserOrm:
+    return UserOrm.from_entity(user, present_fields=present_fields)
 
 
 def user_from_orm(user: UserOrm) -> User:
     return _load_all(user, User)
 
 
-def refresh_token_to_orm(refresh_token: RefreshToken) -> RefreshTokenOrm:
-    return RefreshTokenOrm(
-        jti=refresh_token.jti,
-        user_id=refresh_token.user_id,
-        token_hash=refresh_token.token_hash,
-        expires_at=refresh_token.expires_at,
-        revoked_at=refresh_token.revoked_at,
-        created_at=refresh_token.created_at,
-    )
+def refresh_token_to_orm(
+    refresh_token: RefreshToken,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> RefreshTokenOrm:
+    return RefreshTokenOrm.from_entity(refresh_token, present_fields=present_fields)
 
 
 def refresh_token_from_orm(refresh_token: RefreshTokenOrm) -> RefreshToken:
     return _load_all(refresh_token, RefreshToken)
 
 
-def task_to_orm(task: Task) -> TaskOrm:
-    return TaskOrm(
-        id=task.id,
-        external_id=task.external_id,
-        title=task.title,
-        description=task.description,
-        type=task.type,
-        mapping_validated=task.mapping_validated,
-        mapping_status=task.mapping_status,
-        mapping_error_message=task.mapping_error_message,
-    )
+def task_to_orm(
+    task: Task,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> TaskOrm:
+    return TaskOrm.from_entity(task, present_fields=present_fields)
 
 
 def task_from_orm(task: TaskOrm) -> Task:
     return _load_all(task, Task)
 
 
-def test_result_to_orm(test_result: TestResult) -> TestResultOrm:
-    return TestResultOrm(
-        id=test_result.id,
-        candidate_id=test_result.candidate_id,
-        task_id=test_result.task_id,
-        passed=test_result.passed,
-        score=test_result.score,
-        attempts=test_result.attempts,
-        code_submitted=test_result.code_submitted,
-    )
+def test_result_to_orm(
+    test_result: TestResult,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> TestResultOrm:
+    return TestResultOrm.from_entity(test_result, present_fields=present_fields)
 
 
 def test_result_from_orm(test_result: TestResultOrm) -> TestResult:
     return _load_all(test_result, TestResult)
 
 
-def webhook_event_to_orm(event: WebhookEvent) -> WebhookEventOrm:
-    return WebhookEventOrm(
-        id=event.id,
-        event_id=event.event_id,
-        vacancy_id=event.vacancy_id,
-        candidate_external_id=event.candidate_external_id,
-        task_external_id=event.task_external_id,
-        status=event.status,
-        error_message=event.error_message,
-        candidate_id=event.candidate_id,
-        test_result_id=event.test_result_id,
-        payload=event.payload.data,
-        processed_at=event.processed_at,
-    )
+def webhook_event_to_orm(
+    event: WebhookEvent,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> WebhookEventOrm:
+    return WebhookEventOrm.from_entity(event, present_fields=present_fields)
 
 
 def webhook_event_from_orm(event: WebhookEventOrm) -> WebhookEvent:
     return _load_all(event, WebhookEvent)
 
 
-def ranking_snapshot_to_orm(snapshot: RankingSnapshot) -> RankingSnapshotOrm:
-    return RankingSnapshotOrm(
-        id=snapshot.id,
-        vacancy_id=snapshot.vacancy_id,
-        payload=snapshot.payload.data,
-        calculated_at=snapshot.calculated_at,
-    )
+def ranking_snapshot_to_orm(
+    snapshot: RankingSnapshot,
+    *,
+    present_fields: Collection[str] | None = None,
+) -> RankingSnapshotOrm:
+    return RankingSnapshotOrm.from_entity(snapshot, present_fields=present_fields)
 
 
 def ranking_snapshot_from_orm(snapshot: RankingSnapshotOrm) -> RankingSnapshot:
@@ -351,26 +300,10 @@ def ranking_snapshot_from_orm(snapshot: RankingSnapshotOrm) -> RankingSnapshot:
 
 def vacancy_suggestion_to_orm(
     suggestion: VacancyGraphSuggestion,
+    *,
+    present_fields: Collection[str] | None = None,
 ) -> VacancySuggestionOrm:
-    return VacancySuggestionOrm(
-        id=suggestion.id,
-        vacancy_id=suggestion.vacancy_id,
-        stage=suggestion.stage,
-        entity_type=suggestion.entity_type,
-        status=suggestion.status,
-        name=suggestion.name,
-        description=suggestion.description,
-        reason=suggestion.reason,
-        parent_category_id=suggestion.parent_category_id,
-        parent_competency_id=suggestion.parent_competency_id,
-        is_required=suggestion.is_required,
-        target_level=(
-            int(suggestion.target_level)
-            if suggestion.target_level is not None
-            else None
-        ),
-        weight=suggestion.weight,
-    )
+    return VacancySuggestionOrm.from_entity(suggestion, present_fields=present_fields)
 
 
 def vacancy_suggestion_from_orm(

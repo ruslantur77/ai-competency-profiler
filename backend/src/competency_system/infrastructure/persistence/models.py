@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Collection, Mapping
+from dataclasses import is_dataclass
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import Any, Self
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -17,7 +20,13 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    RelationshipProperty,
+    mapped_column,
+    relationship,
+)
 
 from competency_system.application.dtos.webhooks import WebhookEventStatus
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
@@ -34,6 +43,7 @@ from competency_system.domain.value_objects.enums import (
 )
 
 JSON_PAYLOAD = JSON().with_variant(JSONB, "postgresql")
+UNSET = object()
 
 
 def _enum_values(enum_cls: type[PyEnum]) -> list[str]:
@@ -41,7 +51,106 @@ def _enum_values(enum_cls: type[PyEnum]) -> list[str]:
 
 
 class Base(DeclarativeBase):
-    pass
+    _entity_field_adapters: Mapping[str, Callable[[Any], Any]] = {}
+
+    @classmethod
+    def _resolve_present_field(
+        cls,
+        name: str,
+        present_fields: frozenset[str] | None,
+    ) -> tuple[bool, frozenset[str] | None]:
+        if present_fields is None:
+            return True, None
+        if name in present_fields:
+            return True, None
+        prefix = f"{name}."
+        nested = frozenset(
+            value.removeprefix(prefix)
+            for value in present_fields
+            if value.startswith(prefix)
+        )
+        if nested:
+            return True, nested
+        return False, None
+
+    @classmethod
+    def from_entity(
+        cls,
+        entity: Any,
+        *,
+        present_fields: Collection[str] | None = None,
+        _visited: dict[int, Self] | None = None,
+    ) -> Self:
+        if not is_dataclass(entity):
+            raise TypeError("entity must be a dataclass instance")
+
+        present = frozenset(present_fields) if present_fields is not None else None
+        visited = _visited or {}
+        cached = visited.get(id(entity))
+        if cached is not None:
+            return cached
+
+        orm = cls()
+        visited[id(entity)] = orm
+        mapper = cls.__mapper__
+        adapters = getattr(cls, "_entity_field_adapters", {})
+
+        for attr in mapper.attrs:
+            name = attr.key
+            is_present, nested_fields = cls._resolve_present_field(name, present)
+            if not is_present or not hasattr(entity, name):
+                continue
+
+            value = getattr(entity, name, UNSET)
+            if value is UNSET:
+                continue
+            if name in adapters:
+                value = adapters[name](value)
+
+            if isinstance(attr, RelationshipProperty):
+                related_model = attr.mapper.class_
+                if value is None:
+                    setattr(orm, name, None)
+                    continue
+                if attr.uselist:
+                    items = []
+                    for item in value: # type: ignore
+                        if item is None:
+                            continue
+                        if hasattr(item, "__mapper__"):
+                            items.append(item)
+                            continue
+                        if is_dataclass(item) and hasattr(related_model, "from_entity"):
+                            items.append(
+                                related_model.from_entity(
+                                    item,
+                                    present_fields=nested_fields,
+                                    _visited=visited,
+                                )
+                            )
+                            continue
+                        items.append(item)
+                    setattr(orm, name, items)
+                    continue
+
+                if hasattr(value, "__mapper__"):
+                    setattr(orm, name, value)
+                    continue
+                if is_dataclass(value) and hasattr(related_model, "from_entity"):
+                    setattr(
+                        orm,
+                        name,
+                        related_model.from_entity(
+                            value,
+                            present_fields=nested_fields,
+                            _visited=visited,
+                        ),
+                    )
+                    continue
+
+            setattr(orm, name, value)
+
+        return orm
 
 
 class UserOrm(Base):
@@ -581,6 +690,7 @@ class TestResultLLMFeedbackOrm(Base):
 
 class WebhookEventOrm(Base):
     __tablename__ = "webhook_events"
+    _entity_field_adapters = {"payload": lambda payload: payload.data}
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     event_id: Mapped[str] = mapped_column(String(200), unique=True)
@@ -629,6 +739,7 @@ class WebhookEventOrm(Base):
 
 class RankingSnapshotOrm(Base):
     __tablename__ = "ranking_snapshots"
+    _entity_field_adapters = {"payload": lambda payload: payload.data}
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     vacancy_id: Mapped[UUID] = mapped_column(
