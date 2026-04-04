@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from types import SimpleNamespace
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,42 +12,17 @@ from competency_system.application.dtos.auth import (
     RefreshTokenDataDTO,
     TokenPairDTO,
 )
-from competency_system.application.dtos.candidate import (
-    CandidateAssessmentResultDTO,
-    CandidateProfileDTO,
-    CompetencyScoreDTO,
-)
-from competency_system.application.dtos.competency import (
-    CategoryDTO,
-    CompetencyDTO,
-    SubCompetencyDTO,
-)
-from competency_system.application.dtos.ranking import (
-    RankingBreakdownItemDTO,
-    RankingItemDTO,
-    VacancyRankingDTO,
-)
-from competency_system.application.dtos.task import (
-    SyncTasksResultDTO,
-    TaskCompetencyMappingDTO,
-    TaskDTO,
-    TestResultDTO,
-)
+from competency_system.application.dtos.task import SyncTasksResultDTO
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
-    VacancyDTO,
     VacancyGraphSuggestionDTO,
     VacancyGraphUpdateDTO,
 )
-from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
-    TaskMappingStatus,
-    TaskType,
     UserRole,
-    VacancyStatus,
 )
 from competency_system.presentation.api.dependencies import (
     get_assess_candidate_use_case,
@@ -75,13 +49,9 @@ from competency_system.presentation.api.dependencies import (
     verify_testing_system_webhook_secret,
 )
 from competency_system.presentation.api.main import app
+from tests.factories.dto import ApiDTOFactory
 
-
-@pytest.fixture(autouse=True)
-def _clear_overrides() -> None:
-    app.dependency_overrides.clear()
-    yield
-    app.dependency_overrides.clear()
+pytestmark = pytest.mark.contract
 
 
 @dataclass
@@ -96,135 +66,6 @@ class _StaticUseCase:
 class _LogoutUseCase:
     async def execute(self, *args: object, **kwargs: object) -> None:
         return None
-
-
-def _sample_vacancy() -> VacancyDTO:
-    now = datetime.now(UTC)
-    category_id = uuid4()
-    competency_id = uuid4()
-    sub_id = uuid4()
-    sub = SubCompetencyDTO(
-        id=sub_id,
-        name="REST",
-        description="REST APIs",
-        target_level=CompetencyLevel.INTERMEDIATE,
-        weight=1.0,
-    )
-    competency = CompetencyDTO(
-        id=competency_id,
-        category_id=category_id,
-        name="Backend",
-        description="Core backend",
-        is_required=True,
-        sub_competencies=[sub],
-    )
-    category = CategoryDTO(
-        id=category_id,
-        name="Engineering",
-        description="Engineering skills",
-        emoji="E",
-        competencies=[competency],
-    )
-    return VacancyDTO(
-        id=uuid4(),
-        name="Backend Engineer",
-        description="Build APIs",
-        status=VacancyStatus.READY,
-        categories=[category],
-        competencies=[competency],
-        error_message=None,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-def _sample_task() -> TaskDTO:
-    now = datetime.now(UTC)
-    return TaskDTO(
-        id=uuid4(),
-        external_id="task-1",
-        title="API Task",
-        description="Implement API",
-        type=TaskType.CODE,
-        competency_mappings=[
-            TaskCompetencyMappingDTO(sub_competency_id=uuid4(), weight=1.0)
-        ],
-        mapping_validated=False,
-        mapping_status=TaskMappingStatus.COMPLETED,
-        mapping_error_message=None,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-def _sample_candidate_profile() -> CandidateProfileDTO:
-    return CandidateProfileDTO(
-        candidate_id=uuid4(),
-        external_id="candidate-1",
-        competency_scores=[
-            CompetencyScoreDTO(
-                competency_id=uuid4(),
-                level=CompetencyLevel.ADVANCED,
-                confidence=0.8,
-            )
-        ],
-        total_score=80.0,
-    )
-
-
-def _sample_candidate_result() -> CandidateAssessmentResultDTO:
-    now = datetime.now(UTC)
-    profile = _sample_candidate_profile()
-    return CandidateAssessmentResultDTO(
-        candidate_profile=profile,
-        test_result=TestResultDTO(
-            id=uuid4(),
-            candidate_id=profile.candidate_id,
-            task_id=uuid4(),
-            passed=True,
-            score=85.0,
-            attempts=1,
-            code_submitted="print('ok')",
-            question_answers=[],
-            llm_assessment={
-                "score": 85,
-                "feedback_items": [
-                    {"type": "positive", "value": "clear structure", "position": 0}
-                ],
-            },
-            created_at=now,
-        ),
-    )
-
-
-def _sample_ranking(vacancy_id: UUID) -> VacancyRankingDTO:
-    return VacancyRankingDTO(
-        vacancy_id=vacancy_id,
-        rankings=[
-            RankingItemDTO(
-                candidate_id=uuid4(),
-                candidate_external_id="candidate-1",
-                total_score=79.0,
-                required_match=0.7,
-                desired_match=1.0,
-                required_score=49.0,
-                desired_score=30.0,
-                breakdown=[
-                    RankingBreakdownItemDTO(
-                        competency_id=uuid4(),
-                        competency_name="Backend",
-                        required=True,
-                        matched_weight=0.7,
-                        total_weight=1.0,
-                        coverage=0.7,
-                        score_contribution=49.0,
-                        matched_subcompetency_ids=[uuid4()],
-                        total_subcompetency_ids=[uuid4()],
-                    )
-                ],
-            )
-        ],
-    )
 
 
 def test_auth_routes_contract() -> None:
@@ -261,8 +102,8 @@ def test_auth_routes_contract() -> None:
         assert logout.status_code == 204
 
 
-def test_vacancy_routes_contract() -> None:
-    vacancy = _sample_vacancy()
+def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
+    vacancy = api_dto_factory.make_vacancy()
     suggestion = VacancyGraphSuggestionDTO(
         id=uuid4(),
         vacancy_id=vacancy.id,
@@ -308,7 +149,7 @@ def test_vacancy_routes_contract() -> None:
         assert graph.status_code == 200
 
         patch_payload = VacancyGraphUpdateDTO(
-            categories=vacancy.categories,
+            categories=[],
             suggestion_decisions=[],
             error_message=None,
         ).model_dump(mode="json")
@@ -331,9 +172,11 @@ def test_vacancy_routes_contract() -> None:
         assert decision.status_code == 200
 
 
-def test_tasks_admin_and_webhook_routes_contract() -> None:
-    task = _sample_task()
-    candidate_result = _sample_candidate_result()
+def test_tasks_admin_and_webhook_routes_contract(
+    api_dto_factory: ApiDTOFactory,
+) -> None:
+    task = api_dto_factory.make_task()
+    candidate_result = api_dto_factory.make_candidate_result()
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
         user_id=uuid4(), role=UserRole.ADMIN
@@ -394,10 +237,12 @@ def test_tasks_admin_and_webhook_routes_contract() -> None:
         assert webhook.status_code == 200
 
 
-def test_candidates_and_ranking_routes_contract() -> None:
+def test_candidates_and_ranking_routes_contract(
+    api_dto_factory: ApiDTOFactory,
+) -> None:
     vacancy_id = uuid4()
-    ranking = _sample_ranking(vacancy_id)
-    profile = _sample_candidate_profile()
+    ranking = api_dto_factory.make_ranking(vacancy_id)
+    profile = api_dto_factory.make_candidate_profile()
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
         user_id=uuid4(), role=UserRole.ADMIN

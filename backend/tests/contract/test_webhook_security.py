@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 from competency_system.infrastructure.settings import get_settings
 from competency_system.presentation.api import dependencies
 
+pytestmark = pytest.mark.contract
+
 
 def _build_app() -> FastAPI:
     app = FastAPI()

@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import fields
 from typing import Any
 
+import pytest
+
 from competency_system.domain.entities import (
     Candidate,
     Category,
     Competency,
-    RankingSnapshot,
     RefreshToken,
     SubCompetency,
     Task,
@@ -15,14 +16,12 @@ from competency_system.domain.entities import (
     User,
     Vacancy,
     VacancyGraphSuggestion,
-    WebhookEvent,
 )
 from competency_system.infrastructure.persistence.models import (
     Base,
     CandidateOrm,
     CategoryOrm,
     CompetencyOrm,
-    RankingSnapshotOrm,
     RefreshTokenOrm,
     SubCompetencyOrm,
     TaskOrm,
@@ -30,8 +29,9 @@ from competency_system.infrastructure.persistence.models import (
     UserOrm,
     VacancyOrm,
     VacancySuggestionOrm,
-    WebhookEventOrm,
 )
+
+pytestmark = pytest.mark.contract
 
 BASE_ENTITY_FIELDS = {"id", "created_at", "updated_at"}
 
@@ -89,14 +89,6 @@ DOMAIN_DB_SPECS: list[dict[str, Any]] = [
     {
         "domain": RefreshToken,
         "orm": RefreshTokenOrm,
-    },
-    {
-        "domain": WebhookEvent,
-        "orm": WebhookEventOrm,
-    },
-    {
-        "domain": RankingSnapshot,
-        "orm": RankingSnapshotOrm,
     },
 ]
 

@@ -114,7 +114,7 @@ class Base(DeclarativeBase):
                     continue
                 if attr.uselist:
                     items = []
-                    for item in value: # type: ignore
+                    for item in value:  # type: ignore
                         if item is None:
                             continue
                         if hasattr(item, "__mapper__"):

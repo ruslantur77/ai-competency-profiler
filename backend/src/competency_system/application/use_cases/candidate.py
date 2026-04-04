@@ -21,7 +21,9 @@ from competency_system.application.dtos.webhooks import (
     WebhookEventPayload,
     WebhookEventStatus,
 )
-from competency_system.application.llm_dispatch import CodeAssessmentPayload
+from competency_system.application.llm_dispatch_payload import (
+    CodeAssessmentPayload,
+)
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
 from competency_system.application.ports.llm_jobs import LLMJobQueuePort, LLMJobType
 from competency_system.application.ports.repositories import (

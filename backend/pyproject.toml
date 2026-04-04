@@ -127,8 +127,11 @@ disable_error_code = ["untyped-decorator"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "-v --tb=short --cov=src"
+addopts = "-ra -q --tb=short --strict-markers --cov=src --cov-report=term-missing --cov-fail-under=70"
+xfail_strict = true
 markers = [
     "unit: unit tests with mocked dependencies and no database access",
     "integration_repo: integration tests for persistence repositories and SQLAlchemyUnitOfWork on PostgreSQL",
+    "contract: API and boundary contract tests",
+    "optional_dep: tests that require optional dependencies",
 ]

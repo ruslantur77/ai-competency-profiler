@@ -1,6 +1,4 @@
 from competency_system.application.ports.external_testing_system import (
-    ExternalTaskAssessmentPayload,
-    ExternalTaskRecord,
     ExternalTestingSystemGateway,
 )
 from competency_system.application.ports.health import HealthCheckPort
@@ -39,8 +37,6 @@ __all__ = [
     "LLMJobType",
     "LLMJobStatus",
     "LLMJobQueuePort",
-    "ExternalTaskRecord",
-    "ExternalTaskAssessmentPayload",
     "ExternalTestingSystemGateway",
     "HealthCheckPort",
     "RankingEnginePort",

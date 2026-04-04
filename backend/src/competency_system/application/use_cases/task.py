@@ -7,7 +7,9 @@ from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
 )
-from competency_system.application.llm_dispatch import TaskExtractionPayload
+from competency_system.application.llm_dispatch_payload import (
+    TaskExtractionPayload,
+)
 from competency_system.application.llm_orchestrator import (
     StructuredLLMOrchestrator,
 )

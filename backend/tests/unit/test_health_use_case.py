@@ -5,6 +5,8 @@ import pytest
 from competency_system.application.ports.health import HealthCheckPort
 from competency_system.application.use_cases.health import HealthCheckUseCase
 
+pytestmark = pytest.mark.unit
+
 
 class HealthyPort(HealthCheckPort):
     async def check_database(self) -> bool:

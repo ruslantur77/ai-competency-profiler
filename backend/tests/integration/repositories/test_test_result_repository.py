@@ -19,8 +19,8 @@ from competency_system.infrastructure.persistence.repositories import (
     CandidateRepository,
     CategoryRepository,
     TaskRepository,
-    TestResultRepository,
     VacancyRepository,
+    _TestResultRepository,
 )
 
 from .helpers import build_taxonomy
@@ -36,7 +36,7 @@ async def test_test_result_repository_hydration_and_replacement(
     vacancy_repo = VacancyRepository(pg_session)
     candidate_repo = CandidateRepository(pg_session)
     task_repo = TaskRepository(pg_session)
-    repo = TestResultRepository(pg_session)
+    repo = _TestResultRepository(pg_session)
 
     category, _, sub1, _ = build_taxonomy()
     await category_repo.add(category)
@@ -122,7 +122,7 @@ async def test_test_result_repository_hydration_and_replacement(
 
 @pytest.mark.asyncio
 async def test_test_result_repository_fk_constraints(pg_session: AsyncSession) -> None:
-    repo = TestResultRepository(pg_session)
+    repo = _TestResultRepository(pg_session)
 
     with pytest.raises(IntegrityError):
         await repo.add(TestResult(candidate_id=uuid4(), task_id=uuid4(), score=10.0))

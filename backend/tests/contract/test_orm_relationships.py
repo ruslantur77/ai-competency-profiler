@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import inspect
 
 from competency_system.infrastructure.persistence import models
+
+pytestmark = pytest.mark.contract
 
 ORM_CLASSES_WITH_FK = [
     models.RefreshTokenOrm,

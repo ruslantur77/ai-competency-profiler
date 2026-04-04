@@ -21,15 +21,25 @@ from competency_system.infrastructure.persistence.mappers import (
     task_from_orm,
     task_to_orm,
     test_result_from_orm,
-    test_result_to_orm,
+)
+from competency_system.infrastructure.persistence.mappers import (
+    test_result_to_orm as test_result_to_orm,
 )
 from competency_system.infrastructure.persistence.models import (
     TaskOrm,
     TaskSubCompetencyMappingOrm,
-    TestResultLLMAssessmentOrm,
-    TestResultLLMFeedbackOrm,
-    TestResultOrm,
-    TestResultQuestionAnswerOrm,
+)
+from competency_system.infrastructure.persistence.models import (
+    TestResultLLMAssessmentOrm as TestResultLLMAssessmentOrm,
+)
+from competency_system.infrastructure.persistence.models import (
+    TestResultLLMFeedbackOrm as TestResultLLMFeedbackOrm,
+)
+from competency_system.infrastructure.persistence.models import (
+    TestResultOrm as TestResultOrm,
+)
+from competency_system.infrastructure.persistence.models import (
+    TestResultQuestionAnswerOrm as TestResultQuestionAnswerOrm,
 )
 from competency_system.infrastructure.persistence.repositories.base import (
     SQLAlchemyRepository,
@@ -94,7 +104,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm, TaskInclude], ITaskRepo
         return task_to_orm(entity)
 
 
-class TestResultRepository(
+class _TestResultRepository(
     SQLAlchemyRepository[TestResult, TestResultOrm, TestResultInclude],
     ITestResultRepository,
 ):

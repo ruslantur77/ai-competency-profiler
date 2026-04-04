@@ -43,13 +43,10 @@ jobs:
         run: mypy src
 
       - name: Pytest
-        run: pytest -m "not integration_repo"
-
-      - name: Repository Integration Tests (PostgreSQL)
         env:
           TEST_DB_HOST: 127.0.0.1
           TEST_DB_PORT: 5432
           TEST_DB_NAME: app
           TEST_DB_USER: app
           TEST_DB_PASS: app
-        run: pytest -m integration_repo
+        run: pytest

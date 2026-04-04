@@ -49,11 +49,11 @@ from competency_system.infrastructure.persistence.repositories import (
     RefreshTokenRepository,
     SubCompetencyRepository,
     TaskRepository,
-    TestResultRepository,
     UserRepository,
     VacancyRepository,
     VacancySuggestionRepository,
     WebhookEventRepository,
+    _TestResultRepository,
 )
 
 
@@ -82,7 +82,7 @@ class SQLAlchemyUnitOfWork(UnitOfWork):
         self.vacancies = VacancyRepository(self.session)
         self.candidates = CandidateRepository(self.session)
         self.tasks = TaskRepository(self.session)
-        self.test_results = TestResultRepository(self.session)
+        self.test_results = _TestResultRepository(self.session)
         self.vacancy_suggestions = VacancySuggestionRepository(self.session)
         self.webhook_events = WebhookEventRepository(self.session)
         self.ranking_snapshots = RankingSnapshotRepository(self.session)

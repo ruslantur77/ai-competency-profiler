@@ -10,6 +10,7 @@ from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
@@ -17,29 +18,29 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from alembic import command
-from competency_system.infrastructure.persistence.models import Base
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 from competency_system.infrastructure.settings import get_settings
-from tests.config import resolve_test_db_config
+from tests.config import ResolvedTestDBConfig, resolve_test_db_config
 
 
-def _test_db_availability_error(sync_url: str, *, details: str) -> str | None:
-    engine = create_engine(sync_url, pool_pre_ping=True)
+def _assert_test_db_available(db_config: ResolvedTestDBConfig) -> None:
+    engine = create_engine(db_config.sync_url, pool_pre_ping=True)
+    details = (
+        f"host={db_config.host} port={db_config.port} "
+        f"db={db_config.name} user={db_config.user}"
+    )
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
     except SQLAlchemyError as exc:
-        return (
+        message = (
             "Integration DB connection failed. "
-            "Provide test DB credentials via TEST_DB_HOST/TEST_DB_PORT/"
-            "TEST_DB_NAME/TEST_DB_USER/TEST_DB_PASS, "
-            "or pytest options --test-db-* (optionally --test-db-url). "
-            f"Attempted {details}. "
-            f"Original error: {exc}"
+            "Set TEST_DB_HOST/TEST_DB_PORT/TEST_DB_NAME/TEST_DB_USER/TEST_DB_PASS. "
+            f"Attempted {details}. Original error: {exc}"
         )
+        raise RuntimeError(message) from exc
     finally:
         engine.dispose()
-    return None
 
 
 def _prepare_test_database_for_migrations(sync_url: str) -> None:
@@ -61,19 +62,14 @@ def _prepare_test_database_for_migrations(sync_url: str) -> None:
         engine.dispose()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def apply_postgres_migrations(request: pytest.FixtureRequest) -> None:
-    db_config = resolve_test_db_config(request.config)
-    details = (
-        f"host={db_config.host} port={db_config.port} "
-        f"db={db_config.name} user={db_config.user}"
-    )
-    availability_error = _test_db_availability_error(
-        db_config.sync_url, details=details
-    )
-    if availability_error is not None:
-        pytest.skip(f"Skipping integration tests: {availability_error}")
+@pytest.fixture(scope="session")
+def db_config() -> ResolvedTestDBConfig:
+    return resolve_test_db_config()
 
+
+@pytest.fixture(scope="session", autouse=True)
+def apply_postgres_migrations(db_config: ResolvedTestDBConfig) -> None:
+    _assert_test_db_available(db_config)
     _prepare_test_database_for_migrations(db_config.sync_url)
 
     runtime_env = db_config.runtime_env
@@ -97,9 +93,8 @@ def apply_postgres_migrations(request: pytest.FixtureRequest) -> None:
         get_settings.cache_clear()
 
 
-@pytest_asyncio.fixture()
-async def pg_engine(request: pytest.FixtureRequest) -> AsyncEngine:
-    db_config = resolve_test_db_config(request.config)
+@pytest_asyncio.fixture(scope="session")
+async def pg_engine(db_config: ResolvedTestDBConfig) -> AsyncEngine:
     engine = create_async_engine(db_config.async_url, pool_pre_ping=True)
     try:
         yield engine
@@ -108,21 +103,24 @@ async def pg_engine(request: pytest.FixtureRequest) -> AsyncEngine:
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def clean_database(pg_engine: AsyncEngine) -> None:
-    table_names = ", ".join(f'"{table.name}"' for table in Base.metadata.sorted_tables)
-    if table_names:
-        async with pg_engine.begin() as connection:
-            await connection.execute(
-                text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE")
-            )
-    yield
+async def pg_connection(pg_engine: AsyncEngine) -> AsyncConnection:
+    async with pg_engine.connect() as connection:
+        transaction = await connection.begin()
+        try:
+            yield connection
+        finally:
+            await transaction.rollback()
 
 
 @pytest.fixture()
 def pg_session_factory(
-    pg_engine: AsyncEngine,
+    pg_connection: AsyncConnection,
 ) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(pg_engine, expire_on_commit=False)
+    return async_sessionmaker(
+        bind=pg_connection,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
 
 
 @pytest_asyncio.fixture()

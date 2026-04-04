@@ -22,7 +22,7 @@ from competency_system.infrastructure.persistence.repositories.suggestion import
 )
 from competency_system.infrastructure.persistence.repositories.task import (
     TaskRepository,
-    TestResultRepository,
+    _TestResultRepository,
 )
 from competency_system.infrastructure.persistence.repositories.vacancy import (
     VacancyRepository,
@@ -36,7 +36,7 @@ __all__ = [
     "VacancyRepository",
     "CandidateRepository",
     "TaskRepository",
-    "TestResultRepository",
+    "_TestResultRepository",
     "VacancySuggestionRepository",
     "UserRepository",
     "RefreshTokenRepository",

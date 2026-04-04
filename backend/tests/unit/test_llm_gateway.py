@@ -13,6 +13,8 @@ from competency_system.infrastructure.llm.openai_compatible import (
 )
 from competency_system.infrastructure.settings import Settings
 
+pytestmark = pytest.mark.unit
+
 llm_module = import_module("competency_system.infrastructure.llm.openai_compatible")
 
 
