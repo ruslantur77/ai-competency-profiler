@@ -31,6 +31,7 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
+from competency_system.application.prompts import PromptCatalog, ThreeStagePrompts
 from competency_system.application.use_cases.llm_orchestrator import (
     LLMCallSpec,
     StructuredLLMOrchestrator,
@@ -260,6 +261,8 @@ class ExtractVacancyGraphUseCase:
         max_parallel_requests: int = 4,
         stage_timeout_seconds: float = 45.0,
         max_suggested_new_per_stage: int = 5,
+        prompt_version: str = "v1",
+        prompt_catalog: PromptCatalog | None = None,
     ) -> None:
         self._uow = uow
         self._job_queue = job_queue
@@ -269,6 +272,10 @@ class ExtractVacancyGraphUseCase:
             stage_timeout_seconds=stage_timeout_seconds,
         )
         self._max_suggested_new_per_stage = max(0, max_suggested_new_per_stage)
+        self._prompt_catalog = prompt_catalog or PromptCatalog()
+        self._prompts: ThreeStagePrompts = self._prompt_catalog.get_vacancy_prompts(
+            prompt_version
+        )
 
     async def execute(self, command: VacancyCreateDTO) -> VacancyDTO:
         vacancy = Vacancy(
@@ -305,8 +312,6 @@ class ExtractVacancyGraphUseCase:
                 vacancy.sub_competency_nodes = graph.sub_competency_nodes
                 vacancy.error_message = None
 
-                for category in graph.categories:
-                    await uow.categories.add(category)
                 await uow.vacancies.add(vacancy)
                 for suggestion in graph.suggestions:
                     suggestion.vacancy_id = vacancy.id
@@ -506,14 +511,7 @@ class ExtractVacancyGraphUseCase:
         return [
             LLMMessage(
                 role="system",
-                content=(
-                    "You extract existing competency categories for an IT vacancy.\n"
-                    "Output MUST be a single JSON object and nothing else.\n"
-                    "Allowed top-level key: categories.\n"
-                    "Each item in categories must reference exactly one existing "
-                    "category using one field: llm_id.\n"
-                    "Do not propose new categories. Do not add extra keys."
-                ),
+                content=self._prompts.step1_categories,
             ),
             LLMMessage(
                 role="user",
@@ -540,16 +538,7 @@ class ExtractVacancyGraphUseCase:
         return [
             LLMMessage(
                 role="system",
-                content=(
-                    "You extract competencies inside one category for an IT vacancy.\n"
-                    "Output MUST be a single JSON object and nothing else.\n"
-                    "Allowed top-level keys: competencies, suggested_new.\n"
-                    "For competencies: each item references exactly one existing "
-                    "competency using one field: llm_id.\n"
-                    "For suggested_new: omit id/llm_id and provide name, "
-                    "description, is_required, weight (0..1), reason.\n"
-                    "Do not add extra keys."
-                ),
+                content=self._prompts.step2_competencies,
             ),
             LLMMessage(
                 role="user",
@@ -583,18 +572,7 @@ class ExtractVacancyGraphUseCase:
         return [
             LLMMessage(
                 role="system",
-                content=(
-                    "You extract subcompetencies inside one competency for an IT "
-                    "vacancy.\n"
-                    "Output MUST be a single JSON object and nothing else.\n"
-                    "Allowed top-level keys: sub_competencies, suggested_new.\n"
-                    "For sub_competencies: each item references exactly one existing "
-                    "subcompetency using one field: llm_id, and includes target_level "
-                    "(0..5) and weight (0..1).\n"
-                    "For suggested_new: omit id/llm_id and provide name, "
-                    "description, target_level (0..5), weight (0..1), reason.\n"
-                    "Do not add extra keys."
-                ),
+                content=self._prompts.step3_subcompetencies,
             ),
             LLMMessage(
                 role="user",

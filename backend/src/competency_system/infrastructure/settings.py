@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     llm_stage_timeout_seconds: float = Field(
         default=45.0, alias="LLM_STAGE_TIMEOUT_SECONDS"
     )
+    llm_vacancy_prompt_version: str = Field(
+        default="v1", alias="VACANCY_PROMPT_VERSION"
+    )
+    llm_task_prompt_version: str = Field(default="v1", alias="TASK_PROMPT_VERSION")
     llm_max_suggested_new_per_stage: int = Field(
         default=5, alias="LLM_MAX_SUGGESTED_NEW_PER_STAGE"
     )

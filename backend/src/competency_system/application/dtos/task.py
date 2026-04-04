@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from competency_system.application.dtos.base import BaseDTO
 from competency_system.domain.value_objects.enums import (
@@ -20,31 +20,44 @@ class TaskCompetencyMappingDTO(BaseDTO):
     weight: float
 
 
-class TaskCategorySelectionDTO(BaseDTO):
+class _StrictExtractionDTO(BaseDTO):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+class _StrictSelectionItemDTO(_StrictExtractionDTO):
     id: UUID | None = None
-    llm_id: int | None = None
+    llm_id: int | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _validate_identity_fields(self) -> _StrictSelectionItemDTO:
+        if self.id is None and self.llm_id is None:
+            raise ValueError("Either 'id' or 'llm_id' must be provided")
+        if self.id is not None and self.llm_id is not None:
+            raise ValueError("Only one of 'id' or 'llm_id' can be provided")
+        return self
 
 
-class TaskCategoryExtractionResultDTO(BaseDTO):
+class TaskCategorySelectionDTO(_StrictSelectionItemDTO):
+    pass
+
+
+class TaskCategoryExtractionResultDTO(_StrictExtractionDTO):
     categories: list[TaskCategorySelectionDTO]
 
 
-class TaskCompetencySelectionDTO(BaseDTO):
-    id: UUID | None = None
-    llm_id: int | None = None
+class TaskCompetencySelectionDTO(_StrictSelectionItemDTO):
+    pass
 
 
-class TaskCompetencyExtractionResultDTO(BaseDTO):
+class TaskCompetencyExtractionResultDTO(_StrictExtractionDTO):
     competencies: list[TaskCompetencySelectionDTO]
 
 
-class TaskSubCompetencySelectionDTO(BaseDTO):
-    id: UUID | None = None
-    llm_id: int | None = None
-    weight: float = 1.0
+class TaskSubCompetencySelectionDTO(_StrictSelectionItemDTO):
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
-class TaskSubCompetencyExtractionResultDTO(BaseDTO):
+class TaskSubCompetencyExtractionResultDTO(_StrictExtractionDTO):
     sub_competencies: list[TaskSubCompetencySelectionDTO]
 
 

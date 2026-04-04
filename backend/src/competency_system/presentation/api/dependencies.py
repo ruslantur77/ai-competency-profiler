@@ -135,6 +135,7 @@ def get_extract_vacancy_graph_use_case(
         max_parallel_requests=settings.llm_max_parallel_requests,
         stage_timeout_seconds=settings.llm_stage_timeout_seconds,
         max_suggested_new_per_stage=settings.llm_max_suggested_new_per_stage,
+        prompt_version=settings.llm_vacancy_prompt_version,
     )
 
 
@@ -190,8 +191,17 @@ def get_sync_tasks_use_case(
     ],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
     job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> SyncTasksUseCase:
-    return SyncTasksUseCase(uow, gateway, llm_gateway, job_queue)
+    return SyncTasksUseCase(
+        uow,
+        gateway,
+        llm_gateway,
+        job_queue,
+        max_parallel_requests=settings.llm_max_parallel_requests,
+        stage_timeout_seconds=settings.llm_stage_timeout_seconds,
+        prompt_version=settings.llm_task_prompt_version,
+    )
 
 
 def get_get_task_use_case(
@@ -218,8 +228,16 @@ def get_rebuild_task_mapping_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
     job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> RebuildTaskMappingUseCase:
-    return RebuildTaskMappingUseCase(uow, llm_gateway, job_queue)
+    return RebuildTaskMappingUseCase(
+        uow,
+        llm_gateway,
+        job_queue,
+        max_parallel_requests=settings.llm_max_parallel_requests,
+        stage_timeout_seconds=settings.llm_stage_timeout_seconds,
+        prompt_version=settings.llm_task_prompt_version,
+    )
 
 
 def get_validate_task_mapping_use_case(

@@ -25,6 +25,11 @@ from competency_system.application.ports.repositories import (
     TaskInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
+from competency_system.application.prompts import PromptCatalog, ThreeStagePrompts
+from competency_system.application.use_cases.llm_orchestrator import (
+    LLMCallSpec,
+    StructuredLLMOrchestrator,
+)
 from competency_system.domain.entities import (
     Category,
     Competency,
@@ -62,10 +67,22 @@ class MapTaskToCompetenciesUseCase:
         self,
         llm_gateway: LLMGateway,
         *,
-        max_mappings: int = 8,
+        max_mappings: int = 12,
+        max_parallel_requests: int = 4,
+        stage_timeout_seconds: float = 45.0,
+        prompt_version: str = "v1",
+        prompt_catalog: PromptCatalog | None = None,
     ) -> None:
-        self._llm = llm_gateway
         self._max_mappings = max_mappings
+        self._llm_orchestrator = StructuredLLMOrchestrator(
+            llm_gateway,
+            max_parallel_requests=max_parallel_requests,
+            stage_timeout_seconds=stage_timeout_seconds,
+        )
+        self._prompt_catalog = prompt_catalog or PromptCatalog()
+        self._prompts: ThreeStagePrompts = self._prompt_catalog.get_task_prompts(
+            prompt_version
+        )
 
     async def execute(
         self,
@@ -108,38 +125,13 @@ class MapTaskToCompetenciesUseCase:
         *,
         tags: list[str],
     ) -> list[Category]:
-        response = await self._llm.generate(
-            [
-                LLMMessage(
-                    role="system",
-                    content=(
-                        "Select matching competency categories for a testing task. "
-                        "Return JSON with key 'categories'. "
-                        "Each item must include llm_id from provided options."
-                    ),
-                ),
-                LLMMessage(
-                    role="user",
-                    content=json.dumps(
-                        {
-                            "task": self._task_payload(task, tags),
-                            "available_categories": [
-                                {
-                                    "llm_id": index,
-                                    "id": str(category.id),
-                                    "name": category.name,
-                                    "description": category.description,
-                                }
-                                for index, category in enumerate(categories, start=1)
-                            ],
-                        },
-                        ensure_ascii=False,
-                        indent=2,
-                    ),
-                ),
-            ],
-            TaskCategoryExtractionResultDTO,
-            temperature=0.1,
+        response = await self._llm_orchestrator.run(
+            LLMCallSpec(
+                stage="task_categories",
+                messages=self._category_messages(task, categories, tags),
+                response_model=TaskCategoryExtractionResultDTO,
+                temperature=0.1,
+            )
         )
         selected_ids = self._resolve_ids(response.categories, categories)
         return [category for category in categories if category.id in selected_ids]
@@ -150,15 +142,23 @@ class MapTaskToCompetenciesUseCase:
         categories: list[Category],
         tags: list[str],
     ) -> list[Competency]:
-        selected: list[Competency] = []
+        specs: list[LLMCallSpec[TaskCompetencyExtractionResultDTO]] = []
+        context: list[Category] = []
         for category in categories:
             if not category.competencies:
                 continue
-            response = await self._llm.generate(
-                self._competency_messages(task, category, tags),
-                TaskCompetencyExtractionResultDTO,
-                temperature=0.1,
+            context.append(category)
+            specs.append(
+                LLMCallSpec(
+                    stage="task_competencies",
+                    messages=self._competency_messages(task, category, tags),
+                    response_model=TaskCompetencyExtractionResultDTO,
+                    temperature=0.1,
+                )
             )
+        responses = await self._llm_orchestrator.run_many(specs)
+        selected: list[Competency] = []
+        for category, response in zip(context, responses, strict=False):
             selected_ids = self._resolve_ids(
                 response.competencies,
                 category.competencies,
@@ -176,15 +176,24 @@ class MapTaskToCompetenciesUseCase:
         competencies: list[Competency],
         tags: list[str],
     ) -> TaskSubCompetencyExtractionResultDTO:
-        payload: list[TaskCompetencyMappingDTO] = []
+        specs: list[LLMCallSpec[TaskSubCompetencyExtractionResultDTO]] = []
+        context: list[Competency] = []
         for competency in competencies:
             if not competency.sub_competencies:
                 continue
-            response = await self._llm.generate(
-                self._subcompetency_messages(task, competency, tags),
-                TaskSubCompetencyExtractionResultDTO,
-                temperature=0.1,
+            context.append(competency)
+            specs.append(
+                LLMCallSpec(
+                    stage="task_subcompetencies",
+                    messages=self._subcompetency_messages(task, competency, tags),
+                    response_model=TaskSubCompetencyExtractionResultDTO,
+                    temperature=0.1,
+                )
             )
+        responses = await self._llm_orchestrator.run_many(specs)
+
+        payload: list[TaskCompetencyMappingDTO] = []
+        for competency, response in zip(context, responses, strict=False):
             resolved_ids = self._resolve_ids(
                 response.sub_competencies,
                 competency.sub_competencies,
@@ -227,12 +236,7 @@ class MapTaskToCompetenciesUseCase:
         return [
             LLMMessage(
                 role="system",
-                content=(
-                    "Select matching competencies within a category "
-                    "for a testing task. "
-                    "Return JSON with key 'competencies'. "
-                    "Each item must include llm_id from provided options."
-                ),
+                content=self._prompts.step2_competencies,
             ),
             LLMMessage(
                 role="user",
@@ -271,11 +275,7 @@ class MapTaskToCompetenciesUseCase:
         return [
             LLMMessage(
                 role="system",
-                content=(
-                    "Select matching subcompetencies for a testing task. "
-                    "Return JSON with key 'sub_competencies'. "
-                    "Each item must include llm_id and weight in range [0,1]."
-                ),
+                content=self._prompts.step3_subcompetencies,
             ),
             LLMMessage(
                 role="user",
@@ -298,6 +298,38 @@ class MapTaskToCompetenciesUseCase:
                             for index, sub in enumerate(
                                 competency.sub_competencies, start=1
                             )
+                        ],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+            ),
+        ]
+
+    def _category_messages(
+        self,
+        task: Task,
+        categories: list[Category],
+        tags: list[str],
+    ) -> list[LLMMessage]:
+        return [
+            LLMMessage(
+                role="system",
+                content=self._prompts.step1_categories,
+            ),
+            LLMMessage(
+                role="user",
+                content=json.dumps(
+                    {
+                        "task": self._task_payload(task, tags),
+                        "available_categories": [
+                            {
+                                "llm_id": index,
+                                "id": str(category.id),
+                                "name": category.name,
+                                "description": category.description,
+                            }
+                            for index, category in enumerate(categories, start=1)
                         ],
                     },
                     ensure_ascii=False,
@@ -382,10 +414,19 @@ class SyncTasksUseCase:
         gateway: ExternalTestingSystemGateway,
         llm_gateway: LLMGateway,
         job_queue: LLMJobQueuePort,
+        *,
+        max_parallel_requests: int = 4,
+        stage_timeout_seconds: float = 45.0,
+        prompt_version: str = "v1",
     ) -> None:
         self._uow = uow
         self._gateway = gateway
-        self._mapper = MapTaskToCompetenciesUseCase(llm_gateway)
+        self._mapper = MapTaskToCompetenciesUseCase(
+            llm_gateway,
+            max_parallel_requests=max_parallel_requests,
+            stage_timeout_seconds=stage_timeout_seconds,
+            prompt_version=prompt_version,
+        )
         self._job_queue = job_queue
 
     async def execute(self) -> SyncTasksResultDTO:
@@ -468,9 +509,18 @@ class RebuildTaskMappingUseCase:
         uow: UnitOfWork,
         llm_gateway: LLMGateway,
         job_queue: LLMJobQueuePort,
+        *,
+        max_parallel_requests: int = 4,
+        stage_timeout_seconds: float = 45.0,
+        prompt_version: str = "v1",
     ) -> None:
         self._uow = uow
-        self._mapper = MapTaskToCompetenciesUseCase(llm_gateway)
+        self._mapper = MapTaskToCompetenciesUseCase(
+            llm_gateway,
+            max_parallel_requests=max_parallel_requests,
+            stage_timeout_seconds=stage_timeout_seconds,
+            prompt_version=prompt_version,
+        )
         self._job_queue = job_queue
 
     async def execute(self, task_id: UUID) -> TaskDTO:

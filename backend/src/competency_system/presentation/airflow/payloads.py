@@ -10,6 +10,12 @@ from competency_system.application.dtos.vacancy import VacancyCreateDTO
 class VacancyExtractionPayloadDTO(VacancyCreateDTO):
     """Payload for the vacancy extraction DAG."""
 
+    prompt_version: str | None = None
+
+
+class TaskSyncPayloadDTO(BaseDTO):
+    prompt_version: str | None = None
+
 
 class CandidateAssessmentTriggerDTO(CandidateTaskAssessmentDTO):
     pass

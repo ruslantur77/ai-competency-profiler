@@ -43,6 +43,10 @@ def vacancy_extraction_dag() -> None:
                 max_suggested_new_per_stage=(
                     runtime.settings.llm_max_suggested_new_per_stage
                 ),
+                prompt_version=(
+                    payload.prompt_version
+                    or runtime.settings.llm_vacancy_prompt_version
+                ),
             ).execute(payload),
         )
         return result.model_dump(mode="json")

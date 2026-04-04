@@ -51,7 +51,6 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    configure_logging(settings)
 
     db_engine, session_factory = create_engine_and_session_factory(settings)
     llm_gateway = OpenAICompatibleLLMGateway(settings)
@@ -80,6 +79,7 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    configure_logging(settings)
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=app_lifespan)
 
     app.add_middleware(
