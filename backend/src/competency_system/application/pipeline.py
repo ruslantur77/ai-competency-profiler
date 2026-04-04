@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from competency_system.application.id_mapper import IDMapper
 from competency_system.application.llm_orchestrator import (
@@ -26,6 +27,8 @@ from competency_system.domain.value_objects import (
     SuggestionStage,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class LLMSelectionCategoriesOutput(BaseModel):
     categories: list[int]
@@ -42,7 +45,7 @@ class LLMSelectionCompetenciesOutput(BaseModel):
 
     competencies: list[int]
     competencies_uuid: list[UUID] = Field(default_factory=list)
-    suggested_new: list[_SuggestedItem]
+    suggested_new: list[_SuggestedItem] = Field(default_factory=list)
 
 
 class LLMSelectionSubCompetenciesOutput(BaseModel):
@@ -55,12 +58,22 @@ class LLMSelectionSubCompetenciesOutput(BaseModel):
 
     class _SubCompetencyItem(BaseModel):
         id: UUID | None = None
-        llm_id: int
+        llm_id: int | None = None
         target_level: int
         weight: float
 
+        @model_validator(mode="after")
+        def _validate_identity_fields(
+            self,
+        ) -> LLMSelectionSubCompetenciesOutput._SubCompetencyItem:
+            if self.id is None and self.llm_id is None:
+                raise ValueError("Either 'id' or 'llm_id' must be provided")
+            if self.id is not None and self.llm_id is not None:
+                raise ValueError("Only one of 'id' or 'llm_id' can be provided")
+            return self
+
     sub_competencies: list[_SubCompetencyItem]
-    suggested_new: list[_SuggestedItem]
+    suggested_new: list[_SuggestedItem] = Field(default_factory=list)
 
 
 @dataclass
@@ -118,7 +131,7 @@ class ThreeStagePipeline[
             competencies_by_category, selected_categories[0], payload
         )
         if not selected_competencies:
-            return [], []
+            return [], comp_suggestions
 
         sub_competencies, _, sub_suggestions = await self._stage3(
             sub_competencies_by_competency, selected_competencies, payload
@@ -131,6 +144,7 @@ class ThreeStagePipeline[
         self, categories: Sequence[Category], payload: dict[str, Any]
     ) -> tuple[list[Category], LLMSelectionCategoriesOutput]:
         cat_mapper = IDMapper(categories)
+        category_ids = {item.id for item in categories}
         response = await self._orchestrator.run(
             LLMCallSpec[LLMSelectionCategoriesOutput](
                 stage="stage1_categories",
@@ -147,17 +161,33 @@ class ThreeStagePipeline[
                 temperature=self._cfg.stage1.temperature,
             )
         )
-        selected_category_ids = cat_mapper.get_item_ids(
-            [i for i in response.categories]
+        selected_category_ids = set(cat_mapper.get_item_ids([*response.categories]))
+        selected_category_ids.update(
+            category_id
+            for category_id in response.categories_uuid
+            if category_id in category_ids
         )
-        selected_categories = [
-            c
-            for c in categories
-            if (
-                (_uuid := cat_mapper.get_llm_id(c.id))
-                and _uuid in selected_category_ids
-            )
-        ]
+        for llm_id in response.categories:
+            if cat_mapper.get_item_id(llm_id) is None:
+                logger.warning(
+                    "pipeline_invalid_reference",
+                    extra={
+                        "stage": "stage1_categories",
+                        "kind": "category_llm_id",
+                        "raw_id": llm_id,
+                    },
+                )
+        for category_id in response.categories_uuid:
+            if category_id not in category_ids:
+                logger.warning(
+                    "pipeline_invalid_reference",
+                    extra={
+                        "stage": "stage1_categories",
+                        "kind": "category_uuid",
+                        "raw_id": str(category_id),
+                    },
+                )
+        selected_categories = [c for c in categories if c.id in selected_category_ids]
         return selected_categories, response
 
     async def _stage2(
@@ -205,12 +235,44 @@ class ThreeStagePipeline[
             return [], [], []
 
         responses = await self._orchestrator.run_many(specs)
+        if len(responses) != len(specs):
+            raise RuntimeError(
+                "Stage2 response/spec mismatch: "
+                f"{len(responses)} responses for {len(specs)} specs"
+            )
         selected_competencies: list[Competency] = []
         suggestions: list[VacancyGraphSuggestion] = []
 
-        for cat, response_c in zip(cats_with_specs, responses, strict=False):
+        for cat, response_c in zip(cats_with_specs, responses, strict=True):
             mapper = comp_mapper_by_cat[cat.id]
-            resolved = mapper.get_item_ids([i for i in response_c.competencies])
+            known_competency_ids = {item.id for item in comp_by_cat[cat.id]}
+            resolved = set(mapper.get_item_ids([*response_c.competencies]))
+            resolved.update(
+                competency_id
+                for competency_id in response_c.competencies_uuid
+                if competency_id in known_competency_ids
+            )
+
+            for llm_id in response_c.competencies:
+                if mapper.get_item_id(llm_id) is None:
+                    logger.warning(
+                        "pipeline_invalid_reference",
+                        extra={
+                            "stage": "stage2_competencies",
+                            "kind": "competency_llm_id",
+                            "raw_id": llm_id,
+                        },
+                    )
+            for competency_id in response_c.competencies_uuid:
+                if competency_id not in known_competency_ids:
+                    logger.warning(
+                        "pipeline_invalid_reference",
+                        extra={
+                            "stage": "stage2_competencies",
+                            "kind": "competency_uuid",
+                            "raw_id": str(competency_id),
+                        },
+                    )
             selected_competencies.extend(
                 c for c in comp_by_cat[cat.id] if c.id in resolved
             )
@@ -279,17 +341,76 @@ class ThreeStagePipeline[
             return [], [], []
 
         responses = await self._orchestrator.run_many(specs)
+        if len(responses) != len(specs):
+            raise RuntimeError(
+                "Stage3 response/spec mismatch: "
+                f"{len(responses)} responses for {len(specs)} specs"
+            )
         selected_sub_competencies: list[SubCompetency] = []
         suggestions: list[VacancyGraphSuggestion] = []
 
-        for comp, response in zip(comps_with_specs, responses, strict=False):
+        for comp, response in zip(comps_with_specs, responses, strict=True):
             mapper = sub_mapper_by_comp[comp.id]
-            resolved = mapper.get_item_ids(
-                [i.llm_id for i in response.sub_competencies]
-            )
-            selected_sub_competencies.extend(
-                c for c in sub_by_comp[comp.id] if c.id in resolved
-            )
+            sub_by_id = {item.id: item for item in sub_by_comp[comp.id]}
+            selected_for_comp: dict[UUID, SubCompetency] = {}
+
+            for item in response.sub_competencies:
+                sub_id = item.id
+                if sub_id is None:
+                    if item.llm_id is None:
+                        logger.warning(
+                            "pipeline_invalid_reference",
+                            extra={
+                                "stage": "stage3_subcompetencies",
+                                "kind": "sub_competency_llm_id",
+                                "raw_id": None,
+                            },
+                        )
+                        continue
+                    sub_id = mapper.get_item_id(item.llm_id)
+                    if sub_id is None:
+                        logger.warning(
+                            "pipeline_invalid_reference",
+                            extra={
+                                "stage": "stage3_subcompetencies",
+                                "kind": "sub_competency_llm_id",
+                                "raw_id": item.llm_id,
+                            },
+                        )
+                        continue
+                if sub_id not in sub_by_id:
+                    logger.warning(
+                        "pipeline_invalid_reference",
+                        extra={
+                            "stage": "stage3_subcompetencies",
+                            "kind": "sub_competency_uuid",
+                            "raw_id": str(sub_id),
+                        },
+                    )
+                    continue
+                try:
+                    target_level = CompetencyLevel(item.target_level)
+                except ValueError:
+                    logger.warning(
+                        "pipeline_invalid_reference",
+                        extra={
+                            "stage": "stage3_subcompetencies",
+                            "kind": "target_level",
+                            "raw_id": item.target_level,
+                        },
+                    )
+                    continue
+                source = sub_by_id[sub_id]
+                selected_for_comp[sub_id] = SubCompetency(
+                    id=source.id,
+                    competency_id=source.competency_id,
+                    name=source.name,
+                    description=source.description,
+                    weight=item.weight,
+                    target_level=target_level,
+                    competency=source.competency,
+                )
+            selected_sub_competencies.extend(selected_for_comp.values())
             for item in response.suggested_new:
                 suggestions.append(
                     VacancyGraphSuggestion(
