@@ -128,3 +128,77 @@ async def test_webhook_event_operation_mark_processed_updates_existing_event(
     assert event.test_result_id == result_id
     mock_uow.webhook_events.add.assert_awaited_once_with(event)
     mock_uow.commit.assert_awaited_once()
+
+
+async def test_webhook_event_operation_mark_failed_noops_when_event_missing(
+    operation: WebhookEventOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    mock_uow.webhook_events.get_by_event_id.return_value = None
+
+    await operation.mark_failed(command, "boom")
+
+    mock_uow.webhook_events.add.assert_not_awaited()
+    mock_uow.commit.assert_not_awaited()
+
+
+async def test_webhook_event_operation_rejects_processed_event_with_missing_references(
+    operation: WebhookEventOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    mock_uow.webhook_events.get_by_event_id.return_value = WebhookEvent(
+        id=uuid4(),
+        event_id=command.event_id,
+        vacancy_id=command.vacancy_id,
+        candidate_external_id=command.candidate_external_id,
+        task_external_id=command.task_external_id,
+        status=WebhookEventStatus.PROCESSED,
+        candidate_id=None,
+        test_result_id=uuid4(),
+    )
+
+    with pytest.raises(ValueError, match="missing result"):
+        await operation.ensure_processing(command)
+
+
+async def test_webhook_event_operation_rejects_processed_event_with_missing_entities(
+    operation: WebhookEventOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    event = WebhookEvent(
+        id=uuid4(),
+        event_id=command.event_id,
+        vacancy_id=command.vacancy_id,
+        candidate_external_id=command.candidate_external_id,
+        task_external_id=command.task_external_id,
+        status=WebhookEventStatus.PROCESSED,
+        candidate_id=uuid4(),
+        test_result_id=uuid4(),
+    )
+    mock_uow.webhook_events.get_by_event_id.return_value = event
+    mock_uow.candidates.get.return_value = None
+    mock_uow.test_results.get.return_value = None
+
+    with pytest.raises(ValueError, match="missing result"):
+        await operation.ensure_processing(command)
+
+
+async def test_webhook_event_operation_rejects_when_vacancy_not_found(
+    operation: WebhookEventOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    candidate = CandidateFactory().make({"vacancy_id": command.vacancy_id})
+    test_result = TestResultFactory().make({"candidate_id": candidate.id})
+    event = WebhookEvent(
+        id=uuid4(),
+        event_id=command.event_id,
+        vacancy_id=command.vacancy_id,
+        candidate_external_id=command.candidate_external_id,
+        task_external_id=command.task_external_id,
+        status=WebhookEventStatus.PROCESSED,
+        candidate_id=candidate.id,
+        test_result_id=test_result.id,
+    )
+    mock_uow.webhook_events.get_by_event_id.return_value = event
+    mock_uow.candidates.get.return_value = candidate
+    mock_uow.test_results.get.return_value = test_result
+    mock_uow.vacancies.get.return_value = None
+
+    with pytest.raises(ValueError, match="Vacancy"):
+        await operation.ensure_processing(command)

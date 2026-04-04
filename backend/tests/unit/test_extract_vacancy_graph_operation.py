@@ -24,6 +24,7 @@ async def test_extract_vacancy_graph_operation_sets_draft_status_on_success(
     vacancy = VacancyFactory().make({"status": VacancyStatus.PENDING})
     mock_uow.vacancies.get.return_value = vacancy
     mock_uow.categories.get_list.return_value = []
+    suggestion = type("Suggestion", (), {"vacancy_id": None})()
     operation._map = AsyncMock(
         return_value=type(
             "_Graph",
@@ -32,7 +33,7 @@ async def test_extract_vacancy_graph_operation_sets_draft_status_on_success(
                 "category_nodes": [],
                 "competency_nodes": [],
                 "sub_competency_nodes": [],
-                "suggestions": [],
+                "suggestions": [suggestion],
             },
         )()
     )
@@ -40,7 +41,9 @@ async def test_extract_vacancy_graph_operation_sets_draft_status_on_success(
     await operation.run(vacancy.id)
 
     assert vacancy.status == VacancyStatus.DRAFT
+    assert suggestion.vacancy_id == vacancy.id
     mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
+    mock_uow.vacancy_suggestions.add.assert_awaited_once_with(suggestion)
 
 
 async def test_extract_vacancy_graph_operation_sets_failed_status_on_error(

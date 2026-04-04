@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from uuid import uuid4
 
 import pytest
 
@@ -275,3 +276,40 @@ async def test_pipeline_logs_and_ignores_invalid_references(
     assert selected_subs == []
     assert suggestions == []
     assert "pipeline_invalid_reference" in caplog.text
+
+
+async def test_pipeline_stage3_logs_invalid_uuid_and_invalid_target_level(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    _, competency, sub = _graph()
+    stage3 = LLMSelectionSubCompetenciesOutput(
+        sub_competencies=[
+            {"id": uuid4(), "target_level": 3, "weight": 1.0},
+            {"id": sub.id, "target_level": 99, "weight": 1.0},
+        ],
+        suggested_new=[],
+    )
+    pipeline = ThreeStagePipeline(
+        orchestrator=_Orchestrator(
+            LLMSelectionCategoriesOutput(categories=[1]),
+            [stage3],
+        ),
+        config=_config(),
+    )
+
+    async def _subs(_competency_id):
+        return [sub]
+
+    with caplog.at_level(logging.WARNING):
+        selected_subs, _, _ = await pipeline._stage3(_subs, [competency], {"task": "x"})
+
+    assert selected_subs == []
+    assert "pipeline_invalid_reference" in caplog.text
+
+
+def test_pipeline_make_messages_serializes_payload() -> None:
+    messages = ThreeStagePipeline._make_messages("system", {"k": "v"})
+
+    assert messages[0].role == "system"
+    assert messages[1].role == "user"
+    assert '"k": "v"' in messages[1].content

@@ -160,3 +160,32 @@ async def test_candidate_scoring_operation_apply_llm_assessment_updates_existing
     assert result.llm_assessment.feedback_items[0].position == 0
     mock_uow.test_results.add.assert_awaited_once_with(result)
     mock_uow.commit.assert_awaited_once()
+
+
+async def test_candidate_scoring_operation_reuses_existing_candidate_for_same_vacancy(
+    operation: CandidateScoringOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    vacancy, _, _, sub1, _ = build_vacancy_with_graph()
+    command.vacancy_id = vacancy.id
+    existing_candidate = CandidateFactory().make({"vacancy_id": vacancy.id})
+    task = TaskFactory().make(
+        {
+            "external_id": command.task_external_id,
+            "sub_competency_mappings": [
+                TaskSubCompetencyMappingFactory().make(
+                    {"task_id": uuid4(), "sub_competency_id": sub1.id, "weight": 1.0}
+                )
+            ],
+        }
+    )
+    mock_uow.candidates.get_by_external_id.return_value = existing_candidate
+    mock_uow.tasks.get_by_external_id.return_value = task
+    mock_uow.vacancies.get.return_value = vacancy
+
+    candidate, _, _ = await operation.run(command)
+
+    assert candidate.id == existing_candidate.id
+
+
+def test_candidate_scoring_operation_raw_score_returns_zero_for_non_positive_total() -> None:
+    assert CandidateScoringOperation._raw_score(3, 0) == 0.0

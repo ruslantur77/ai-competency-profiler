@@ -40,6 +40,12 @@ class _SlowLLM:
         return response_model.model_validate({"value": 1})
 
 
+class _FastLLM:
+    async def generate(self, messages, response_model, *, temperature=0.2):  # type: ignore[no-untyped-def]
+        payload = int(messages[0].content)
+        return response_model.model_validate({"value": payload})
+
+
 async def test_structured_llm_orchestrator_retries_and_returns_result() -> None:
     llm = _FlakyLLM()
     orchestrator = StructuredLLMOrchestrator(
@@ -87,6 +93,28 @@ async def test_structured_llm_orchestrator_run_many_handles_empty_specs() -> Non
     result = await orchestrator.run_many([])
 
     assert result == []
+
+
+async def test_structured_llm_orchestrator_run_many_preserves_result_order() -> None:
+    orchestrator = StructuredLLMOrchestrator(
+        _FastLLM(), max_parallel_requests=2, stage_timeout_seconds=1.0
+    )
+    specs = [
+        LLMCallSpec(
+            stage="s1",
+            messages=[LLMMessage(role="user", content="1")],
+            response_model=_Response,
+        ),
+        LLMCallSpec(
+            stage="s2",
+            messages=[LLMMessage(role="user", content="2")],
+            response_model=_Response,
+        ),
+    ]
+
+    result = await orchestrator.run_many(specs)
+
+    assert [item.value for item in result] == [1, 2]
 
 
 def test_normalize_weighted_items_assigns_equal_weights_when_total_zero() -> None:

@@ -133,3 +133,71 @@ async def test_finalize_vacancy_graph_use_case_skips_decision_for_foreign_sugges
     await use_case.execute(vacancy.id, graph_update)
 
     mock_uow.vacancy_suggestions.add.assert_not_awaited()
+
+
+async def test_finalize_vacancy_graph_use_case_auto_approves_stage_specific_pending_suggestions(
+    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+) -> None:
+    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
+    vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
+    decision_target = VacancyGraphSuggestionFactory().make(
+        {
+            "id": graph_update.suggestion_decisions[0].suggestion_id,
+            "vacancy_id": vacancy.id,
+            "stage": SuggestionStage.CATEGORY,
+            "entity_type": SuggestionEntityType.CATEGORY,
+            "name": "Engineering",
+            "status": SuggestionStatus.PENDING,
+        }
+    )
+    pending_comp = VacancyGraphSuggestionFactory().make(
+        {
+            "vacancy_id": vacancy.id,
+            "stage": SuggestionStage.COMPETENCY,
+            "entity_type": SuggestionEntityType.COMPETENCY,
+            "name": "Backend",
+            "status": SuggestionStatus.PENDING,
+        }
+    )
+    pending_sub = VacancyGraphSuggestionFactory().make(
+        {
+            "vacancy_id": vacancy.id,
+            "stage": SuggestionStage.SUB_COMPETENCY,
+            "entity_type": SuggestionEntityType.SUB_COMPETENCY,
+            "name": "REST",
+            "status": SuggestionStatus.PENDING,
+        }
+    )
+    rejected = VacancyGraphSuggestionFactory().make(
+        {
+            "vacancy_id": vacancy.id,
+            "stage": SuggestionStage.CATEGORY,
+            "entity_type": SuggestionEntityType.CATEGORY,
+            "name": "Engineering",
+            "status": SuggestionStatus.REJECTED,
+        }
+    )
+    mismatch = VacancyGraphSuggestionFactory().make(
+        {
+            "vacancy_id": vacancy.id,
+            "stage": SuggestionStage.COMPETENCY,
+            "entity_type": SuggestionEntityType.COMPETENCY,
+            "name": "Other",
+            "status": SuggestionStatus.PENDING,
+        }
+    )
+    mock_uow.vacancies.get.return_value = vacancy
+    mock_uow.vacancy_suggestions.get.return_value = decision_target
+    mock_uow.vacancy_suggestions.list_by_vacancy.return_value = [
+        pending_comp,
+        pending_sub,
+        rejected,
+        mismatch,
+    ]
+
+    await use_case.execute(vacancy.id, graph_update)
+
+    assert pending_comp.status == SuggestionStatus.APPROVED
+    assert pending_sub.status == SuggestionStatus.APPROVED
+    assert rejected.status == SuggestionStatus.REJECTED
+    assert mismatch.status == SuggestionStatus.PENDING

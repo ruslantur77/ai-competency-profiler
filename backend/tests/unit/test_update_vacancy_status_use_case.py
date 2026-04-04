@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 
 from competency_system.application.dtos.vacancy import VacancyStatusUpdateDTO
@@ -42,4 +44,15 @@ async def test_update_vacancy_status_use_case_rejects_invalid_transition(
     with pytest.raises(ValueError, match="Invalid status transition"):
         await use_case.execute(
             vacancy.id, VacancyStatusUpdateDTO(status=VacancyStatus.PENDING)
+        )
+
+
+async def test_update_vacancy_status_use_case_raises_when_vacancy_not_found(
+    use_case: UpdateVacancyStatusUseCase, mock_uow
+) -> None:
+    mock_uow.vacancies.get.return_value = None
+
+    with pytest.raises(ValueError, match="not found"):
+        await use_case.execute(
+            uuid4(), VacancyStatusUpdateDTO(status=VacancyStatus.DRAFT)
         )

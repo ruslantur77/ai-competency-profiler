@@ -108,3 +108,33 @@ async def test_assess_candidate_use_case_skips_enqueue_for_non_code_task(
     await use_case.execute(command)
 
     job_queue_mock.enqueue.assert_not_awaited()
+
+
+async def test_assess_candidate_use_case_skips_enqueue_for_empty_code(
+    use_case: AssessCandidateUseCase, job_queue_mock, command: CandidateTaskAssessmentDTO
+) -> None:
+    command.code = ""
+    result_dto = ApiDTOFactory().make_candidate_result()
+    test_result = TestResultFactory().make({"id": result_dto.test_result.id})
+    use_case._webhook_op.ensure_processing = AsyncMock()
+    use_case._webhook_op.mark_processed = AsyncMock()
+    use_case._scoring_op.run = AsyncMock(return_value=(None, test_result, result_dto))
+
+    await use_case.execute(command)
+
+    job_queue_mock.enqueue.assert_not_awaited()
+
+
+async def test_assess_candidate_use_case_skips_enqueue_when_gateway_missing(
+    mock_uow, job_queue_mock, command: CandidateTaskAssessmentDTO
+) -> None:
+    use_case = AssessCandidateUseCase(mock_uow, job_queue_mock, llm_gateway=None)
+    result_dto = ApiDTOFactory().make_candidate_result()
+    test_result = TestResultFactory().make({"id": result_dto.test_result.id})
+    use_case._webhook_op.ensure_processing = AsyncMock()
+    use_case._webhook_op.mark_processed = AsyncMock()
+    use_case._scoring_op.run = AsyncMock(return_value=(None, test_result, result_dto))
+
+    await use_case.execute(command)
+
+    job_queue_mock.enqueue.assert_not_awaited()
