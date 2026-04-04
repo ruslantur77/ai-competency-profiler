@@ -21,10 +21,7 @@ from competency_system.domain.entities import RefreshToken, User
 from competency_system.domain.value_objects.enums import UserRole
 from competency_system.infrastructure.security import create_refresh_token, hash_value
 
-pytestmark = [
-    pytest.mark.unit,
-    pytest.mark.xfail(reason="Legacy use-case tests pending rewrite"),
-]
+pytestmark = pytest.mark.unit
 
 
 @pytest.mark.asyncio
@@ -36,7 +33,7 @@ async def test_authenticate_user_returns_none_for_inactive_user(mock_uow) -> Non
     )
     mock_uow.users.get_by_email.return_value = user
 
-    result = await AuthenticateUserUseCase(mock_uow.users).execute(
+    result = await AuthenticateUserUseCase(uow=mock_uow).execute(
         LoginDTO(email="inactive@example.com", password="secret")
     )
 
@@ -53,7 +50,7 @@ async def test_authenticate_user_returns_user_for_valid_credentials(mock_uow) ->
     )
     mock_uow.users.get_by_email.return_value = user
 
-    result = await AuthenticateUserUseCase(mock_uow.users).execute(
+    result = await AuthenticateUserUseCase(uow=mock_uow).execute(
         LoginDTO(email="admin@example.com", password="secret")
     )
 
@@ -66,12 +63,8 @@ async def test_authenticate_user_returns_user_for_valid_credentials(mock_uow) ->
 async def test_issue_token_pair_persists_refresh_token(mock_uow) -> None:
     user = User(email="user@example.com", hashed_password=hash_value("secret"))
     mock_uow.users.get.return_value = user
-    use_case = IssueTokenPairUseCase(
-        user_repo=mock_uow.users,
-        refresh_token_repo=mock_uow.refresh_tokens,
-    )
 
-    token_pair = await use_case.execute(user_id=user.id)
+    token_pair = await IssueTokenPairUseCase(uow=mock_uow).execute(user_id=user.id)
 
     assert token_pair is not None
     assert token_pair.access_token
@@ -91,12 +84,8 @@ async def test_refresh_token_pair_revokes_expired_token(mock_uow) -> None:
         expires_at=datetime.now(UTC) - timedelta(minutes=1),
     )
     mock_uow.refresh_tokens.get_by_jti.return_value = stored
-    use_case = RefreshTokenPairUseCase(
-        user_repo=mock_uow.users,
-        refresh_token_repo=mock_uow.refresh_tokens,
-    )
 
-    result = await use_case.execute(
+    result = await RefreshTokenPairUseCase(uow=mock_uow).execute(
         refresh_token_raw=raw_token,
         token_data=RefreshTokenDataDTO(user_id=user_id, jti=jti),
     )
@@ -120,12 +109,8 @@ async def test_refresh_token_pair_rotates_tokens_for_valid_token(mock_uow) -> No
     )
     mock_uow.refresh_tokens.get_by_jti.return_value = stored
     mock_uow.users.get.return_value = user
-    use_case = RefreshTokenPairUseCase(
-        user_repo=mock_uow.users,
-        refresh_token_repo=mock_uow.refresh_tokens,
-    )
 
-    result = await use_case.execute(
+    result = await RefreshTokenPairUseCase(uow=mock_uow).execute(
         refresh_token_raw=raw_token,
         token_data=RefreshTokenDataDTO(user_id=user.id, jti=old_jti),
     )
@@ -143,10 +128,9 @@ async def test_create_user_rejects_duplicate_email(mock_uow) -> None:
         email="duplicate@example.com",
         hashed_password=hash_value("secret"),
     )
-    use_case = CreateUserUseCase(mock_uow.users)
 
     with pytest.raises(ValueError, match="already exists"):
-        await use_case.execute(
+        await CreateUserUseCase(uow=mock_uow).execute(
             UserCreateDTO(
                 email="duplicate@example.com",
                 password="secret",
@@ -158,8 +142,7 @@ async def test_create_user_rejects_duplicate_email(mock_uow) -> None:
 @pytest.mark.asyncio
 async def test_logout_revokes_refresh_token(mock_uow) -> None:
     token_data = RefreshTokenDataDTO(user_id=uuid4(), jti=uuid4())
-    use_case = LogoutUseCase(mock_uow.refresh_tokens)
 
-    await use_case.execute(token_data)
+    await LogoutUseCase(uow=mock_uow).execute(token_data)
 
     mock_uow.refresh_tokens.revoke.assert_awaited_once_with(token_data.jti)

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import os
-from pathlib import Path
 from typing import Any
 
 import pytest
 import pytest_asyncio
-from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
@@ -17,10 +16,19 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from alembic import command
+from competency_system.infrastructure.persistence.models import Base
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 from competency_system.infrastructure.settings import get_settings
 from tests.config import ResolvedTestDBConfig, resolve_test_db_config
+
+
+@pytest.fixture(scope="session")
+def event_loop() -> Any:
+    loop = asyncio.new_event_loop()
+    try:
+        yield loop
+    finally:
+        loop.close()
 
 
 def _assert_test_db_available(db_config: ResolvedTestDBConfig) -> None:
@@ -43,21 +51,22 @@ def _assert_test_db_available(db_config: ResolvedTestDBConfig) -> None:
         engine.dispose()
 
 
-def _prepare_test_database_for_migrations(sync_url: str) -> None:
+def _prepare_test_database(sync_url: str) -> None:
     engine = create_engine(sync_url, pool_pre_ping=True)
     try:
         with engine.begin() as connection:
+            connection.execute(
+                text("""
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                AND pid <> pg_backend_pid();
+            """)
+            )
+
             connection.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
             connection.execute(text("CREATE SCHEMA public"))
-            connection.execute(
-                text(
-                    """
-                    CREATE TABLE IF NOT EXISTS alembic_version (
-                        version_num VARCHAR(255) NOT NULL PRIMARY KEY
-                    )
-                    """
-                )
-            )
+            Base.metadata.create_all(bind=connection)
     finally:
         engine.dispose()
 
@@ -68,9 +77,9 @@ def db_config() -> ResolvedTestDBConfig:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def apply_postgres_migrations(db_config: ResolvedTestDBConfig) -> None:
+def prepare_postgres_schema(db_config: ResolvedTestDBConfig) -> None:
     _assert_test_db_available(db_config)
-    _prepare_test_database_for_migrations(db_config.sync_url)
+    _prepare_test_database(db_config.sync_url)
 
     runtime_env = db_config.runtime_env
     tracked_keys = tuple(runtime_env.keys())
@@ -79,9 +88,6 @@ def apply_postgres_migrations(db_config: ResolvedTestDBConfig) -> None:
         os.environ[key] = value
 
     get_settings.cache_clear()
-    root = Path(__file__).resolve().parents[2]
-    alembic_cfg = Config(str(root / "alembic.ini"))
-    command.upgrade(alembic_cfg, "head")
     try:
         yield
     finally:
@@ -93,7 +99,7 @@ def apply_postgres_migrations(db_config: ResolvedTestDBConfig) -> None:
         get_settings.cache_clear()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture()
 async def pg_engine(db_config: ResolvedTestDBConfig) -> AsyncEngine:
     engine = create_async_engine(db_config.async_url, pool_pre_ping=True)
     try:

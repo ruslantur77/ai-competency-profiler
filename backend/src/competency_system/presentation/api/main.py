@@ -55,7 +55,11 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     db_engine, session_factory = create_engine_and_session_factory(settings)
     llm_gateway = OpenAICompatibleLLMGateway(settings)
     testing_gateway = HTTPTestingSystemGateway(settings)
-    llm_job_queue = InMemoryLLMJobQueue()
+
+    async def _noop_dispatcher(*_: object) -> None:
+        return None
+
+    llm_job_queue = InMemoryLLMJobQueue(_noop_dispatcher)
 
     app.state.db_engine = db_engine
     app.state.session_factory = session_factory

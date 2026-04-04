@@ -12,9 +12,12 @@ from competency_system.domain.entities import (
     Task,
     TaskSubCompetencyMapping,
     TestResult,
+    TestResultLLMAssessment,
+    TestResultLLMFeedbackItem,
     TestResultQuestionAnswer,
     Vacancy,
 )
+from competency_system.domain.value_objects.enums import LLMFeedbackType
 from competency_system.infrastructure.persistence.repositories import (
     CandidateRepository,
     CategoryRepository,
@@ -69,20 +72,31 @@ async def test_test_result_repository_hydration_and_replacement(
                 position=0,
             )
         ],
-        llm_assessment={
-            "passed": True,
-            "score": 90.0,
-            "feedback": "great",
-            "criteria_version": "v1",
-            "raw_test_score": 95.0,
-            "penalized_test_score": 90.0,
-            "attempt_penalty_applied": True,
-            "final_score": 90.0,
-            "feedback_items": [
-                {"type": "positive", "value": "structure", "position": 0},
-                {"type": "negative", "value": "none", "position": 1},
+        llm_assessment=TestResultLLMAssessment(
+            test_result_id=uuid4(),
+            passed=True,
+            score=90.0,
+            feedback="great",
+            criteria_version="v1",
+            raw_test_score=95.0,
+            penalized_test_score=90.0,
+            attempt_penalty_applied=True,
+            final_score=90.0,
+            feedback_items=[
+                TestResultLLMFeedbackItem(
+                    assessment_id=uuid4(),
+                    type=LLMFeedbackType.POSITIVE,
+                    value="structure",
+                    position=0,
+                ),
+                TestResultLLMFeedbackItem(
+                    assessment_id=uuid4(),
+                    type=LLMFeedbackType.NEGATIVE,
+                    value="none",
+                    position=1,
+                ),
             ],
-        },
+        ),
     )
     await repo.add(result)
     await pg_session.commit()

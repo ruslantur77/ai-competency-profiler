@@ -229,6 +229,16 @@ def candidate_to_orm(
     *,
     present_fields: Collection[str] | None = None,
 ) -> CandidateOrm:
+    if present_fields is None:
+        present_fields = {
+            "id",
+            "external_id",
+            "vacancy_id",
+            "status",
+            "last_assessment_at",
+            "created_at",
+            "updated_at",
+        }
     return CandidateOrm.from_entity(candidate, present_fields=present_fields)
 
 
@@ -313,6 +323,24 @@ def vacancy_suggestion_to_orm(
     *,
     present_fields: Collection[str] | None = None,
 ) -> VacancySuggestionOrm:
+    if present_fields is None:
+        present_fields = {
+            "id",
+            "vacancy_id",
+            "stage",
+            "entity_type",
+            "status",
+            "name",
+            "description",
+            "reason",
+            "parent_category_id",
+            "parent_competency_id",
+            "is_required",
+            "target_level",
+            "weight",
+            "created_at",
+            "updated_at",
+        }
     return VacancySuggestionOrm.from_entity(suggestion, present_fields=present_fields)
 
 

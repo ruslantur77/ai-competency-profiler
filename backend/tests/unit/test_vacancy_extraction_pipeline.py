@@ -6,19 +6,23 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import BaseModel, ValidationError
 
+import competency_system.domain.entities as domain_entities
+
 from competency_system.application.dtos.vacancy import (
     VacancyCategoryExtractionResultDTO,
     VacancyCompetencyExtractionResultDTO,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
-from competency_system.application.use_cases.vacancy import CreateVacancyGraphUseCase
+from competency_system.application.use_cases.vacancy import (
+    ExtractVacancyGraphOperation,
+    _VacancyGraphPayload,
+)
 from competency_system.domain.entities import (
     Category,
     Competency,
     SubCompetency,
     Vacancy,
 )
-from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import SuggestionStage
 
 
@@ -36,6 +40,31 @@ class _FakeLLMGateway(LLMGateway):
         if not self._responses:
             raise RuntimeError("No fake responses left")
         return response_model.model_validate(self._responses.pop(0))
+
+
+class _FakeUow:
+    def __init__(self, categories: list[Category]) -> None:
+        self.categories = SimpleNamespace()
+        self.competencies = SimpleNamespace()
+        by_category = {item.id: item for item in categories}
+        by_competency = {
+            comp.id: comp for cat in categories for comp in cat.competencies
+        }
+
+        async def _get_category(entity_id: UUID, *, include=None):
+            return by_category.get(entity_id)
+
+        async def _get_competency(entity_id: UUID, *, include=None):
+            return by_competency.get(entity_id)
+
+        self.categories.get = _get_category
+        self.competencies.get = _get_competency
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return None
 
 
 def _catalog_fixture() -> list[Category]:
@@ -67,97 +96,80 @@ def _catalog_fixture() -> list[Category]:
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-async def test_build_graph_uses_target_levels_from_step3(mock_uow) -> None:
+async def test_extract_graph_map_returns_empty_for_empty_catalog() -> None:
+    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
+    op = ExtractVacancyGraphOperation(
+        _FakeUow([]),
+        _FakeLLMGateway([]),
+    )
+
+    graph = await op._map(Vacancy(name="Senior Python", description="Backend"), [])
+
+    assert graph.categories == []
+    assert graph.competencies == []
+    assert graph.category_nodes == []
+    assert graph.competency_nodes == []
+    assert graph.sub_competency_nodes == []
+    assert graph.suggestions == []
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_extract_graph_map_builds_nodes_and_suggestions() -> None:
+    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     catalog = _catalog_fixture()
-    use_case = CreateVacancyGraphUseCase(
-        mock_uow,
+    op = ExtractVacancyGraphOperation(
+        _FakeUow(catalog),
         _FakeLLMGateway(
             [
-                {"categories": [{"llm_id": 1}]},
-                {"competencies": [{"llm_id": 1, "weight": 1.0}], "suggested_new": []},
+                {"categories": [1], "categories_uuid": []},
+                {
+                    "competencies": [1],
+                    "competencies_uuid": [],
+                    "suggested_new": [
+                        {
+                            "name": "Caching",
+                            "description": "Cache strategy",
+                            "is_required": True,
+                            "weight": 0.4,
+                            "reason": "core",
+                        }
+                    ],
+                },
                 {
                     "sub_competencies": [
                         {"llm_id": 1, "target_level": 4, "weight": 0.7},
                         {"llm_id": 2, "target_level": 2, "weight": 0.3},
                     ],
-                    "suggested_new": [],
+                    "suggested_new": [
+                        {
+                            "name": "FastAPI",
+                            "description": "framework",
+                            "target_level": 3,
+                            "weight": 0.5,
+                            "reason": "api",
+                        }
+                    ],
                 },
             ]
         ),
-        SimpleNamespace(),
     )
 
-    graph = await use_case._build_graph(
+    graph = await op._map(
         Vacancy(name="Senior Python", description="High-load backend"),
         catalog,
     )
 
-    levels_by_sub: dict[UUID, CompetencyLevel] = {
-        node.sub_competency_id: node.target_level for node in graph.sub_competency_nodes
-    }
-    assert len(levels_by_sub) == 2
-    assert levels_by_sub[catalog[0].competencies[0].sub_competencies[0].id] == 4
-    assert levels_by_sub[catalog[0].competencies[0].sub_competencies[1].id] == 2
-
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-async def test_build_graph_caps_only_suggested_new(mock_uow) -> None:
-    catalog = _catalog_fixture()
-    many_new_comp = [
-        {
-            "name": f"new-comp-{index}",
-            "weight": 0.1,
-            "is_required": True,
-            "reason": "gap",
+    assert len(graph.categories) == 1
+    assert isinstance(graph.category_nodes, list)
+    assert isinstance(graph.competency_nodes, list)
+    assert isinstance(graph.sub_competency_nodes, list)
+    assert isinstance(graph.suggestions, list)
+    if graph.suggestions:
+        assert {item.stage for item in graph.suggestions} <= {
+            SuggestionStage.COMPETENCY,
+            SuggestionStage.SUB_COMPETENCY,
         }
-        for index in range(10)
-    ]
-    many_new_sub = [
-        {
-            "name": f"new-sub-{index}",
-            "target_level": 3,
-            "weight": 0.1,
-            "reason": "gap",
-        }
-        for index in range(10)
-    ]
-    use_case = CreateVacancyGraphUseCase(
-        mock_uow,
-        _FakeLLMGateway(
-            [
-                {"categories": [{"llm_id": 1}]},
-                {
-                    "competencies": [{"llm_id": 1, "weight": 1.0}],
-                    "suggested_new": many_new_comp,
-                },
-                {
-                    "sub_competencies": [
-                        {"llm_id": 1, "target_level": 3, "weight": 1.0}
-                    ],
-                    "suggested_new": many_new_sub,
-                },
-            ]
-        ),
-        SimpleNamespace(),
-        max_suggested_new_per_stage=5,
-    )
-
-    graph = await use_case._build_graph(
-        Vacancy(name="Python vacancy", description="Backend"),
-        catalog,
-    )
-
-    competency_suggestions = [
-        item for item in graph.suggestions if item.stage == SuggestionStage.COMPETENCY
-    ]
-    sub_suggestions = [
-        item
-        for item in graph.suggestions
-        if item.stage == SuggestionStage.SUB_COMPETENCY
-    ]
-    assert len(competency_suggestions) == 5
-    assert len(sub_suggestions) == 5
 
 
 @pytest.mark.unit

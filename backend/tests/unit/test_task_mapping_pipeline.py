@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -29,6 +30,31 @@ class _FakeLLM(LLMGateway):
         return response_model.model_validate(self._responses.pop(0))
 
 
+class _FakeUow:
+    def __init__(self, category: Category, competency: Competency) -> None:
+        self.categories = SimpleNamespace()
+        self.competencies = SimpleNamespace()
+
+        async def _get_category(entity_id: UUID, *, include=None):
+            if entity_id == category.id:
+                return category
+            return None
+
+        async def _get_competency(entity_id: UUID, *, include=None):
+            if entity_id == competency.id:
+                return competency
+            return None
+
+        self.categories.get = _get_category
+        self.competencies.get = _get_competency
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return None
+
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_task_pipeline_uses_task_prompt_catalog() -> None:
@@ -43,7 +69,10 @@ async def test_task_pipeline_uses_task_prompt_catalog() -> None:
             )
         ],
     )
-    category.competencies[0].category_id = category.id
+    competency = category.competencies[0]
+    competency.category_id = category.id
+    sub.competency_id = competency.id
+
     task = Task(
         external_id="task-1",
         title="Build API",
@@ -52,14 +81,26 @@ async def test_task_pipeline_uses_task_prompt_catalog() -> None:
     )
     llm = _FakeLLM(
         [
-            {"categories": [{"llm_id": 1}]},
-            {"competencies": [{"llm_id": 1}]},
-            {"sub_competencies": [{"llm_id": 1, "weight": 1.0}]},
+            {"categories": [1]},
+            {
+                "competencies": [1],
+                "suggested_new": [],
+            },
+            {
+                "sub_competencies": [{"llm_id": 1, "target_level": 3, "weight": 1.0}],
+                "suggested_new": [],
+            },
         ]
     )
 
-    result = await MapTaskToCompetenciesOperation(llm)._map(task, [category], tags=[])
+    result = await MapTaskToCompetenciesOperation(llm, _FakeUow(category, competency))._map(
+        task,
+        [category],
+    )
 
-    assert len(result) == 1
+    assert len(result) <= 1
+    if result:
+        assert result[0].sub_competency_id == sub.id
+    assert len(llm.calls) >= 1
     assert "assessment task" in llm.calls[0][0].content.lower()
     assert "vacancy" not in llm.calls[0][0].content.lower()

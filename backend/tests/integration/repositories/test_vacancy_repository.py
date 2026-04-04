@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from competency_system.application.ports.repositories import VacancyInclude
-from competency_system.domain.entities import SubCompetency
+from competency_system.domain.entities import VacancySubCompetencyNode
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import VacancyStatus
 from competency_system.infrastructure.persistence.models import (
@@ -33,18 +31,15 @@ async def test_vacancy_repository_status_filter_and_normalized_graph(
     repo = VacancyRepository(pg_session)
 
     vacancy_a, category_a, competency_a, sub_a1, sub_a2 = build_vacancy_with_graph()
-    vacancy_b, _, _, _, _ = build_vacancy_with_graph()
+    vacancy_b, category_b, _, _, _ = build_vacancy_with_graph()
     vacancy_b.name = "Data Engineer"
     vacancy_b.status = VacancyStatus.DRAFT
 
     await category_repo.add(category_a)
-    await category_repo.add(vacancy_b.categories[0])
+    await category_repo.add(category_b)
     await pg_session.commit()
 
     await repo.add(vacancy_a)
-    await pg_session.commit()
-    await asyncio.sleep(0.01)
-
     await repo.add(vacancy_b)
     await pg_session.commit()
 
@@ -56,9 +51,9 @@ async def test_vacancy_repository_status_filter_and_normalized_graph(
     assert loaded is not None
     assert len(loaded.category_nodes) == 1
     assert loaded.category_nodes[0].category_id == category_a.id
-    assert len(loaded.competencies) == 1
-    assert loaded.competencies[0].id == competency_a.id
-    assert {sub.id for sub in loaded.competencies[0].sub_competencies} == {
+    assert len(loaded.competency_nodes) == 1
+    assert loaded.competency_nodes[0].competency_id == competency_a.id
+    assert {node.sub_competency_id for node in loaded.sub_competency_nodes} == {
         sub_a1.id,
         sub_a2.id,
     }
@@ -70,36 +65,31 @@ async def test_vacancy_repository_replaces_normalized_nodes_on_update(
 ) -> None:
     category_repo = CategoryRepository(pg_session)
     repo = VacancyRepository(pg_session)
-    vacancy, _, competency, sub1, sub2 = build_vacancy_with_graph()
+    vacancy, category, competency, sub1, sub2 = build_vacancy_with_graph()
 
-    await category_repo.add(vacancy.categories[0])
+    await category_repo.add(category)
     await pg_session.commit()
 
     await repo.add(vacancy)
     await pg_session.commit()
 
-    competency.sub_competencies = [
-        SubCompetency(
-            id=sub2.id,
-            name=sub2.name,
-            description=sub2.description,
+    vacancy.sub_competency_nodes = [
+        VacancySubCompetencyNode(
+            vacancy_id=vacancy.id,
+            sub_competency_id=sub2.id,
+            competency_id=competency.id,
             target_level=CompetencyLevel.EXPERT,
             weight=1.0,
+            position=0,
         )
     ]
-    vacancy.competencies = [competency]
-    vacancy.categories = []
-    vacancy.category_nodes = []
-    vacancy.competency_nodes = []
-    vacancy.sub_competency_nodes = []
-
     await repo.add(vacancy)
     await pg_session.commit()
 
     loaded = await repo.get(vacancy.id, include={VacancyInclude.NORMALIZED_GRAPH})
     assert loaded is not None
-    assert [sub.id for sub in loaded.competencies[0].sub_competencies] == [sub2.id]
-    assert sub1.id not in {sub.id for sub in loaded.competencies[0].sub_competencies}
+    assert [node.sub_competency_id for node in loaded.sub_competency_nodes] == [sub2.id]
+    assert sub1.id not in {node.sub_competency_id for node in loaded.sub_competency_nodes}
 
     category_nodes = await pg_session.scalar(
         select(func.count()).select_from(VacancyCategoryNodeOrm)

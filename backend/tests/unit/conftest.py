@@ -46,23 +46,59 @@ class MockUnitOfWork:
 @pytest.fixture()
 def mock_uow() -> MockUnitOfWork:
     return MockUnitOfWork(
-        categories=_repo_mock("get", "list", "add", "delete"),
-        competencies=_repo_mock("get", "list", "add", "delete"),
-        sub_competencies=_repo_mock("get", "list", "add", "delete"),
-        vacancies=_repo_mock("get", "list", "add", "delete", "list_by_statuses"),
+        categories=_repo_mock("get", "get_list", "add", "delete", "list"),
+        competencies=_repo_mock("get", "get_list", "add", "delete", "list"),
+        sub_competencies=_repo_mock("get", "get_list", "add", "delete", "list"),
+        vacancies=_repo_mock(
+            "get",
+            "get_list",
+            "add",
+            "delete",
+            "list_by_statuses",
+            "list",
+        ),
         candidates=_repo_mock(
-            "get", "list", "add", "delete", "get_by_external_id", "list_by_vacancy"
+            "get",
+            "get_list",
+            "add",
+            "delete",
+            "get_by_external_id",
+            "list_by_vacancy",
+            "list",
         ),
-        tasks=_repo_mock("get", "list", "add", "delete", "get_by_external_id"),
-        test_results=_repo_mock("get", "list", "add", "delete"),
+        tasks=_repo_mock(
+            "get",
+            "get_list",
+            "add",
+            "delete",
+            "get_by_external_id",
+            "list",
+        ),
+        test_results=_repo_mock("get", "get_list", "add", "delete", "list"),
         vacancy_suggestions=_repo_mock(
-            "get", "list", "add", "delete", "list_by_vacancy"
+            "get",
+            "get_list",
+            "add",
+            "delete",
+            "list_by_vacancy",
+            "list",
         ),
-        webhook_events=_repo_mock("get", "list", "add", "delete", "get_by_event_id"),
-        ranking_snapshots=_repo_mock("get", "list", "add", "delete", "get_by_vacancy"),
-        users=_repo_mock("get", "list", "add", "delete", "get_by_email"),
+        webhook_events=_repo_mock(
+            "get", "get_list", "add", "delete", "get_by_event_id", "list"
+        ),
+        ranking_snapshots=_repo_mock(
+            "get", "get_list", "add", "delete", "get_by_vacancy", "list"
+        ),
+        users=_repo_mock("get", "get_list", "add", "delete", "get_by_email", "list"),
         refresh_tokens=_repo_mock(
-            "get", "list", "add", "delete", "add_token", "get_by_jti", "revoke"
+            "get",
+            "get_list",
+            "add",
+            "delete",
+            "add_token",
+            "get_by_jti",
+            "revoke",
+            "list",
         ),
         commit=AsyncMock(),
         rollback=AsyncMock(),

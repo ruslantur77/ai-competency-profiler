@@ -58,13 +58,17 @@ async def build_runtime() -> AsyncIterator[AirflowRuntime]:
     settings = get_settings()
     configure_logging(settings)
     db_engine, session_factory = create_engine_and_session_factory(settings)
+
+    async def _noop_dispatcher(*_: object) -> None:
+        return None
+
     runtime = AirflowRuntime(
         settings=settings,
         db_engine=db_engine,
         session_factory=session_factory,
         llm_gateway_client=OpenAICompatibleLLMGateway(settings),
         testing_gateway_client=HTTPTestingSystemGateway(settings),
-        llm_job_queue_client=InMemoryLLMJobQueue(),
+        llm_job_queue_client=InMemoryLLMJobQueue(_noop_dispatcher),
     )
     try:
         yield runtime

@@ -6,30 +6,14 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from competency_system.domain.entities import (
-    Candidate,
-    Category,
-    Competency,
-    SubCompetency,
-    Vacancy,
-)
+from competency_system.domain.entities import Candidate, Vacancy
 from competency_system.domain.value_objects.enums import VacancyStatus
 from competency_system.infrastructure.persistence.models import CategoryOrm, VacancyOrm
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 
+from tests.integration.repositories.helpers import build_taxonomy, build_vacancy_with_graph
+
 pytestmark = pytest.mark.integration_repo
-
-
-def _build_category() -> Category:
-    sub = SubCompetency(name="REST", weight=1.0)
-    competency = Competency(
-        category_id=uuid4(),
-        name="Backend",
-        sub_competencies=[sub],
-    )
-    category = Category(name="Engineering", competencies=[competency])
-    competency.category_id = category.id
-    return category
 
 
 @pytest.mark.asyncio
@@ -113,14 +97,8 @@ async def test_uow_flush_makes_pending_data_queryable_within_transaction(
 async def test_uow_atomicity_across_multiple_repositories(
     pg_session_factory: async_sessionmaker,
 ) -> None:
-    category = _build_category()
-    vacancy = Vacancy(
-        name="Backend",
-        description="Role",
-        status=VacancyStatus.READY,
-        categories=[category],
-        competencies=category.competencies,
-    )
+    category, _, _, _ = build_taxonomy()
+    vacancy, _, _, _, _ = build_vacancy_with_graph()
     candidate = Candidate(external_id="cand-uow", vacancy_id=vacancy.id)
 
     async with SQLAlchemyUnitOfWork(pg_session_factory) as uow:
@@ -141,14 +119,8 @@ async def test_uow_atomicity_across_multiple_repositories(
 async def test_uow_rollback_keeps_state_consistent_for_multiple_repositories(
     pg_session_factory: async_sessionmaker,
 ) -> None:
-    category = _build_category()
-    vacancy = Vacancy(
-        name="Backend",
-        description="Role",
-        status=VacancyStatus.READY,
-        categories=[category],
-        competencies=category.competencies,
-    )
+    category, _, _, _ = build_taxonomy()
+    vacancy, _, _, _, _ = build_vacancy_with_graph()
 
     with pytest.raises(RuntimeError):
         async with SQLAlchemyUnitOfWork(pg_session_factory) as uow:

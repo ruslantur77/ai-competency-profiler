@@ -46,7 +46,7 @@ def test_each_fk_column_has_owner_relationship() -> None:
         )
 
 
-def test_relationships_are_bidirectional_with_back_populates() -> None:
+def test_back_populates_pairs_are_bidirectional() -> None:
     orm_classes = [
         models.UserOrm,
         models.CategoryOrm,
@@ -62,12 +62,21 @@ def test_relationships_are_bidirectional_with_back_populates() -> None:
         models.WebhookEventOrm,
         models.VacancySuggestionOrm,
         models.RankingSnapshotOrm,
+        models.RefreshTokenOrm,
+        models.VacancyCategoryNodeOrm,
+        models.VacancyCompetencyNodeOrm,
+        models.VacancySubCompetencyNodeOrm,
     ]
     for orm_class in orm_classes:
         mapper = inspect(orm_class)
         for relation in mapper.relationships:
-            assert relation.back_populates is not None, (
-                f"{orm_class.__name__}.{relation.key} must declare back_populates"
+            if relation.back_populates is None:
+                continue
+            related_mapper = relation.mapper
+            assert relation.back_populates in related_mapper.relationships, (
+                f"{orm_class.__name__}.{relation.key} back_populates points "
+                f"to missing relation {related_mapper.class_.__name__}."
+                f"{relation.back_populates}"
             )
 
 

@@ -12,10 +12,12 @@ from competency_system.domain.entities import (
     RefreshToken,
     SubCompetency,
     Task,
-    TestResult,
     User,
     Vacancy,
     VacancyGraphSuggestion,
+)
+from competency_system.domain.entities import (
+    TestResult as _TestResult,
 )
 from competency_system.infrastructure.persistence.models import (
     Base,
@@ -25,10 +27,12 @@ from competency_system.infrastructure.persistence.models import (
     RefreshTokenOrm,
     SubCompetencyOrm,
     TaskOrm,
-    TestResultOrm,
     UserOrm,
     VacancyOrm,
     VacancySuggestionOrm,
+)
+from competency_system.infrastructure.persistence.models import (
+    TestResultOrm as _TestResultOrm,
 )
 
 pytestmark = pytest.mark.contract
@@ -44,43 +48,50 @@ DOMAIN_DB_SPECS: list[dict[str, Any]] = [
     {
         "domain": Competency,
         "orm": CompetencyOrm,
-        "derived": {"sub_competencies", "is_required"},
+        "derived": {"sub_competencies", "category"},
     },
     {
         "domain": SubCompetency,
         "orm": SubCompetencyOrm,
-        "derived": {"target_level", "weight"},
+        "derived": {"competency"},
     },
     {
         "domain": Vacancy,
         "orm": VacancyOrm,
         "derived": {
-            "categories",
-            "competencies",
+            "candidates",
             "category_nodes",
             "competency_nodes",
             "sub_competency_nodes",
+            "suggestions",
         },
     },
     {
         "domain": Candidate,
         "orm": CandidateOrm,
-        "derived": {"achievements", "achieved_subcompetency_ids"},
+        "derived": {
+            "vacancy",
+            "achievements",
+            "test_results",
+            "achieved_subcompetency_ids",
+            "assessment_status",
+        },
         "aliases": {"assessment_status": "status"},
     },
     {
         "domain": Task,
         "orm": TaskOrm,
-        "derived": {"competency_mappings", "sub_competency_mappings"},
+        "derived": {"sub_competency_mappings"},
     },
     {
-        "domain": TestResult,
-        "orm": TestResultOrm,
-        "derived": {"question_answers", "llm_assessment"},
+        "domain": _TestResult,
+        "orm": _TestResultOrm,
+        "derived": {"question_answers", "llm_assessment", "task", "candidate"},
     },
     {
         "domain": VacancyGraphSuggestion,
         "orm": VacancySuggestionOrm,
+        "derived": {"vacancy", "parent_category", "parent_competency"},
     },
     {
         "domain": User,
@@ -89,6 +100,7 @@ DOMAIN_DB_SPECS: list[dict[str, Any]] = [
     {
         "domain": RefreshToken,
         "orm": RefreshTokenOrm,
+        "derived": {"user", "is_expired"},
     },
 ]
 
@@ -122,28 +134,17 @@ def test_domain_fields_are_backed_by_db_or_explicitly_derived() -> None:
 
 def test_derived_fields_use_existing_tables() -> None:
     known_tables = set(Base.metadata.tables.keys())
-    # Документируем, из каких таблиц собираются derived-поля.
     derived_sources = {
         "Category.competencies": {"competencies", "sub_competencies"},
         "Competency.sub_competencies": {"sub_competencies"},
-        "Competency.is_required": {"vacancy_competency_nodes"},
-        "SubCompetency.target_level": {"vacancy_sub_competency_nodes"},
-        "SubCompetency.weight": {"vacancy_sub_competency_nodes"},
-        "Vacancy.categories": {"vacancy_category_nodes", "categories"},
-        "Vacancy.competencies": {
-            "vacancy_competency_nodes",
-            "vacancy_sub_competency_nodes",
-            "competencies",
-            "sub_competencies",
-        },
         "Vacancy.category_nodes": {"vacancy_category_nodes"},
         "Vacancy.competency_nodes": {"vacancy_competency_nodes"},
         "Vacancy.sub_competency_nodes": {"vacancy_sub_competency_nodes"},
+        "Vacancy.suggestions": {"vacancy_graph_suggestions"},
         "Candidate.achieved_subcompetency_ids": {
             "candidate_sub_competency_achievements"
         },
         "Candidate.achievements": {"candidate_sub_competency_achievements"},
-        "Task.competency_mappings": {"task_sub_competency_mappings"},
         "Task.sub_competency_mappings": {"task_sub_competency_mappings"},
         "TestResult.question_answers": {"test_result_question_answers"},
         "TestResult.llm_assessment": {

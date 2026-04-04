@@ -11,14 +11,9 @@ from competency_system.domain.entities import (
     TestResult,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
-from competency_system.domain.value_objects.enums import (
-    TaskType,
-)
+from competency_system.domain.value_objects.enums import TaskType
 
-pytestmark = [
-    pytest.mark.unit,
-    pytest.mark.xfail(reason="Legacy use-case tests pending rewrite"),
-]
+pytestmark = pytest.mark.unit
 
 
 def test_candidate_scorer_requires_sufficient_result_quality() -> None:
@@ -42,7 +37,7 @@ def test_candidate_scorer_requires_sufficient_result_quality() -> None:
         attempts=1,
     )
 
-    scorer = CandidateScorer()
+    scorer = CandidateScorer(pass_threshold=0.5, mapping_coverage_threshold=0.5)
     achieved = scorer.calculate_achievements([result], [task])
 
     assert achieved == set()

@@ -39,8 +39,8 @@ async def test_candidate_repository_special_methods_and_replace_achievements(
     candidate = Candidate(
         external_id="cand-1",
         vacancy_id=vacancy.id,
-        achieved_subcompetency_ids={sub1.id},
     )
+    candidate.achieved_subcompetency_ids = {sub1.id}
     await repo.add(candidate)
     await pg_session.commit()
 
