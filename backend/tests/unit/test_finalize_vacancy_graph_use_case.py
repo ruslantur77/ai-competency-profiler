@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from uuid import uuid4
+
+import pytest
+
+import competency_system.domain.entities as domain_entities
+from competency_system.application.dtos.vacancy import (
+    VacancyGraphCategoryInputDTO,
+    VacancyGraphCompetencyInputDTO,
+    VacancyGraphSubCompetencyInputDTO,
+    VacancyGraphUpdateDTO,
+    VacancySuggestionDecisionDTO,
+)
+from competency_system.application.use_cases.vacancy import (
+    FinalizeVacancyGraphUseCase,
+    _VacancyGraphPayload,
+)
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
+from competency_system.domain.value_objects.enums import (
+    SuggestionEntityType,
+    SuggestionStage,
+    SuggestionStatus,
+    VacancyStatus,
+)
+from tests.factories import VacancyFactory, VacancyGraphSuggestionFactory
+
+pytestmark = pytest.mark.unit
+
+
+@pytest.fixture
+def use_case(mock_uow):
+    return FinalizeVacancyGraphUseCase(mock_uow)
+
+
+@pytest.fixture
+def graph_update() -> VacancyGraphUpdateDTO:
+    category_id = uuid4()
+    competency_id = uuid4()
+    sub_id = uuid4()
+    suggestion_id = uuid4()
+    return VacancyGraphUpdateDTO(
+        categories=[
+            VacancyGraphCategoryInputDTO(
+                id=category_id,
+                name="Engineering",
+                description="Core",
+                emoji="E",
+                competencies=[
+                    VacancyGraphCompetencyInputDTO(
+                        id=competency_id,
+                        category_id=category_id,
+                        name="Backend",
+                        description="APIs",
+                        is_required=True,
+                        sub_competencies=[
+                            VacancyGraphSubCompetencyInputDTO(
+                                id=sub_id,
+                                name="REST",
+                                description="HTTP APIs",
+                                target_level=CompetencyLevel.ADVANCED,
+                                weight=0.9,
+                            )
+                        ],
+                    )
+                ],
+            )
+        ],
+        suggestion_decisions=[
+            VacancySuggestionDecisionDTO(
+                suggestion_id=suggestion_id, status=SuggestionStatus.APPROVED
+            )
+        ],
+    )
+
+
+async def test_finalize_vacancy_graph_use_case_updates_graph_and_suggestions(
+    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+) -> None:
+    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
+    vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
+    suggestion = VacancyGraphSuggestionFactory().make(
+        {
+            "id": graph_update.suggestion_decisions[0].suggestion_id,
+            "vacancy_id": vacancy.id,
+            "stage": SuggestionStage.CATEGORY,
+            "entity_type": SuggestionEntityType.CATEGORY,
+            "name": "Engineering",
+            "status": SuggestionStatus.PENDING,
+        }
+    )
+    mock_uow.vacancies.get.return_value = vacancy
+    mock_uow.vacancy_suggestions.get.return_value = suggestion
+    mock_uow.vacancy_suggestions.list_by_vacancy.return_value = [suggestion]
+
+    result = await use_case.execute(vacancy.id, graph_update)
+
+    assert result.status == VacancyStatus.READY
+    mock_uow.vacancy_suggestions.add.assert_awaited()
+    mock_uow.categories.add.assert_awaited()
+    mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
+    mock_uow.commit.assert_awaited_once()
+
+
+async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing(
+    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+) -> None:
+    mock_uow.vacancies.get.return_value = None
+
+    with pytest.raises(ValueError, match="not found"):
+        await use_case.execute(uuid4(), graph_update)

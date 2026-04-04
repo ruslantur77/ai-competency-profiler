@@ -7,6 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, create_autospec
 
 import pytest
 
+from competency_system.application.ports.external_testing_system import (
+    ExternalTestingSystemGateway,
+)
+from competency_system.application.ports.llm import LLMGateway
+from competency_system.application.ports.llm_jobs import LLMJobQueuePort
 from competency_system.infrastructure.persistence.repositories import (
     CandidateRepository,
     CategoryRepository,
@@ -34,6 +39,28 @@ def _make_async_aware_autospec(cls: type[Any]) -> Any:
 @pytest.fixture
 def repos_mock_factory() -> Any:
     return _make_async_aware_autospec
+
+
+@pytest.fixture
+def llm_gateway_mock() -> Any:
+    mock = create_autospec(LLMGateway, instance=True, spec_set=True)
+    mock.generate = AsyncMock()
+    return mock
+
+
+@pytest.fixture
+def job_queue_mock() -> Any:
+    mock = create_autospec(LLMJobQueuePort, instance=True, spec_set=True)
+    mock.enqueue = AsyncMock()
+    mock.get = AsyncMock()
+    return mock
+
+
+@pytest.fixture
+def external_testing_gateway_mock() -> Any:
+    mock = create_autospec(ExternalTestingSystemGateway, instance=True, spec_set=True)
+    mock.list_tasks = AsyncMock()
+    return mock
 
 
 @pytest.fixture

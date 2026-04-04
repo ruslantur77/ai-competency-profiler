@@ -71,6 +71,8 @@ class Vacancy(Entity):
 
     @property
     def requirement_competencies(self) -> list[Competency]:
+        from competency_system.domain.entities import Competency, SubCompetency
+
         sub_by_competency: dict[UUID, list[SubCompetency]] = {}
         for node in self.sub_competency_nodes:
             base = node.sub_competency
