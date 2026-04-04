@@ -11,7 +11,6 @@ from competency_system.infrastructure.persistence.repositories import UserReposi
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_user_repository_crud_and_uniqueness(pg_session: AsyncSession) -> None:
     repo = UserRepository(pg_session)
 

@@ -14,13 +14,11 @@ from competency_system.infrastructure.persistence.repositories import (
     CategoryRepository,
     VacancyRepository,
 )
-
-from .helpers import build_taxonomy
+from tests.fixtures.domain_graph import build_taxonomy
 
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_candidate_repository_special_methods_and_replace_achievements(
     pg_session: AsyncSession,
 ) -> None:
@@ -70,7 +68,6 @@ async def test_candidate_repository_special_methods_and_replace_achievements(
     assert updated.achieved_subcompetency_ids == {sub2.id}
 
 
-@pytest.mark.asyncio
 async def test_candidate_repository_constraints(pg_session: AsyncSession) -> None:
     vacancy_repo = VacancyRepository(pg_session)
     repo = CandidateRepository(pg_session)

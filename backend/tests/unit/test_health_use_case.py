@@ -18,7 +18,6 @@ class UnhealthyPort(HealthCheckPort):
         return False
 
 
-@pytest.mark.asyncio
 async def test_health_use_case_returns_ok_when_database_available() -> None:
     result = await HealthCheckUseCase(HealthyPort()).execute()
 
@@ -26,7 +25,6 @@ async def test_health_use_case_returns_ok_when_database_available() -> None:
     assert result.database == "ok"
 
 
-@pytest.mark.asyncio
 async def test_health_use_case_returns_unavailable_when_database_unavailable() -> None:
     result = await HealthCheckUseCase(UnhealthyPort()).execute()
 

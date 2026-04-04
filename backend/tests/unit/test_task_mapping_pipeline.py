@@ -56,7 +56,6 @@ class _FakeUow:
 
 
 @pytest.mark.unit
-@pytest.mark.asyncio
 async def test_task_pipeline_uses_task_prompt_catalog() -> None:
     sub = SubCompetency(name="SQL")
     category = Category(

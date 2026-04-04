@@ -17,7 +17,6 @@ from competency_system.infrastructure.persistence.repositories import (
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_refresh_token_repository_flow_and_constraints(
     pg_session: AsyncSession,
 ) -> None:
@@ -77,7 +76,6 @@ async def test_refresh_token_repository_flow_and_constraints(
         await pg_session.flush()
 
 
-@pytest.mark.asyncio
 async def test_refresh_token_cascade_on_user_delete(pg_session: AsyncSession) -> None:
     user_repo = UserRepository(pg_session)
     repo = RefreshTokenRepository(pg_session)

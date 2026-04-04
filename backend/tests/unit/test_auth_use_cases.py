@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -24,14 +24,43 @@ from competency_system.infrastructure.security import create_refresh_token, hash
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.asyncio
-async def test_authenticate_user_returns_none_for_inactive_user(mock_uow) -> None:
-    user = User(
+@pytest.fixture
+def inactive_user() -> User:
+    return User(
         email="inactive@example.com",
         hashed_password=hash_value("secret"),
         is_active=False,
     )
-    mock_uow.users.get_by_email.return_value = user
+
+
+@pytest.fixture
+def active_admin_user() -> User:
+    return User(
+        email="admin@example.com",
+        hashed_password=hash_value("secret"),
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
+
+
+@pytest.fixture
+def active_user() -> User:
+    return User(email="user@example.com", hashed_password=hash_value("secret"))
+
+
+@pytest.fixture
+def old_refresh_token_data(active_user: User) -> tuple[UUID, str]:
+    old_jti = uuid4()
+    raw_token = create_refresh_token(
+        RefreshTokenDataDTO(user_id=active_user.id, jti=old_jti)
+    ).token
+    return old_jti, raw_token
+
+
+async def test_authenticate_user_returns_none_for_inactive_user(
+    mock_uow, inactive_user: User
+) -> None:
+    mock_uow.users.get_by_email.return_value = inactive_user
 
     result = await AuthenticateUserUseCase(uow=mock_uow).execute(
         LoginDTO(email="inactive@example.com", password="secret")
@@ -40,31 +69,28 @@ async def test_authenticate_user_returns_none_for_inactive_user(mock_uow) -> Non
     assert result is None
 
 
-@pytest.mark.asyncio
-async def test_authenticate_user_returns_user_for_valid_credentials(mock_uow) -> None:
-    user = User(
-        email="admin@example.com",
-        hashed_password=hash_value("secret"),
-        role=UserRole.ADMIN,
-        is_active=True,
-    )
-    mock_uow.users.get_by_email.return_value = user
+async def test_authenticate_user_returns_user_for_valid_credentials(
+    mock_uow, active_admin_user: User
+) -> None:
+    mock_uow.users.get_by_email.return_value = active_admin_user
 
     result = await AuthenticateUserUseCase(uow=mock_uow).execute(
         LoginDTO(email="admin@example.com", password="secret")
     )
 
     assert result is not None
-    assert result.id == user.id
+    assert result.id == active_admin_user.id
     assert result.role == UserRole.ADMIN
 
 
-@pytest.mark.asyncio
-async def test_issue_token_pair_persists_refresh_token(mock_uow) -> None:
-    user = User(email="user@example.com", hashed_password=hash_value("secret"))
-    mock_uow.users.get.return_value = user
+async def test_issue_token_pair_persists_refresh_token(
+    mock_uow, active_user: User
+) -> None:
+    mock_uow.users.get.return_value = active_user
 
-    token_pair = await IssueTokenPairUseCase(uow=mock_uow).execute(user_id=user.id)
+    token_pair = await IssueTokenPairUseCase(uow=mock_uow).execute(
+        user_id=active_user.id
+    )
 
     assert token_pair is not None
     assert token_pair.access_token
@@ -72,7 +98,6 @@ async def test_issue_token_pair_persists_refresh_token(mock_uow) -> None:
     mock_uow.refresh_tokens.add_token.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_refresh_token_pair_revokes_expired_token(mock_uow) -> None:
     user_id = uuid4()
     jti = uuid4()
@@ -94,25 +119,24 @@ async def test_refresh_token_pair_revokes_expired_token(mock_uow) -> None:
     mock_uow.refresh_tokens.revoke.assert_awaited_once_with(jti)
 
 
-@pytest.mark.asyncio
-async def test_refresh_token_pair_rotates_tokens_for_valid_token(mock_uow) -> None:
-    user = User(email="user@example.com", hashed_password=hash_value("secret"))
-    old_jti = uuid4()
-    raw_token = create_refresh_token(
-        RefreshTokenDataDTO(user_id=user.id, jti=old_jti)
-    ).token
+async def test_refresh_token_pair_rotates_tokens_for_valid_token(
+    mock_uow,
+    active_user: User,
+    old_refresh_token_data: tuple[UUID, str],
+) -> None:
+    old_jti, raw_token = old_refresh_token_data
     stored = RefreshToken(
         jti=old_jti,
-        user_id=user.id,
+        user_id=active_user.id,
         token_hash=hash_value(raw_token),
         expires_at=datetime.now(UTC) + timedelta(days=1),
     )
     mock_uow.refresh_tokens.get_by_jti.return_value = stored
-    mock_uow.users.get.return_value = user
+    mock_uow.users.get.return_value = active_user
 
     result = await RefreshTokenPairUseCase(uow=mock_uow).execute(
         refresh_token_raw=raw_token,
-        token_data=RefreshTokenDataDTO(user_id=user.id, jti=old_jti),
+        token_data=RefreshTokenDataDTO(user_id=active_user.id, jti=old_jti),
     )
 
     assert result is not None
@@ -122,7 +146,6 @@ async def test_refresh_token_pair_rotates_tokens_for_valid_token(mock_uow) -> No
     assert mock_uow.refresh_tokens.add_token.await_count == 1
 
 
-@pytest.mark.asyncio
 async def test_create_user_rejects_duplicate_email(mock_uow) -> None:
     mock_uow.users.get_by_email.return_value = User(
         email="duplicate@example.com",
@@ -139,7 +162,6 @@ async def test_create_user_rejects_duplicate_email(mock_uow) -> None:
         )
 
 
-@pytest.mark.asyncio
 async def test_logout_revokes_refresh_token(mock_uow) -> None:
     token_data = RefreshTokenDataDTO(user_id=uuid4(), jti=uuid4())
 

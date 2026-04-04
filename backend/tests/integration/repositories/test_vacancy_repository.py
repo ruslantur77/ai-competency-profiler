@@ -17,13 +17,11 @@ from competency_system.infrastructure.persistence.repositories import (
     CategoryRepository,
     VacancyRepository,
 )
-
-from .helpers import build_vacancy_with_graph
+from tests.fixtures.domain_graph import build_vacancy_with_graph
 
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_vacancy_repository_status_filter_and_normalized_graph(
     pg_session: AsyncSession,
 ) -> None:
@@ -59,7 +57,6 @@ async def test_vacancy_repository_status_filter_and_normalized_graph(
     }
 
 
-@pytest.mark.asyncio
 async def test_vacancy_repository_replaces_normalized_nodes_on_update(
     pg_session: AsyncSession,
 ) -> None:

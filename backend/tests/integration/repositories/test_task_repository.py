@@ -13,13 +13,11 @@ from competency_system.infrastructure.persistence.repositories import (
     CategoryRepository,
     TaskRepository,
 )
-
-from .helpers import build_taxonomy
+from tests.fixtures.domain_graph import build_taxonomy
 
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_task_repository_special_methods_and_mapping_replace(
     pg_session: AsyncSession,
 ) -> None:
@@ -63,58 +61,3 @@ async def test_task_repository_special_methods_and_mapping_replace(
         sub2.id,
         sub1.id,
     ]
-
-
-# @pytest.mark.asyncio
-# async def test_task_repository_constraints_and_base_delete_list(
-#     pg_session: AsyncSession,
-# ) -> None:
-#     vacancy_repo = VacancyRepository(pg_session)
-#     webhook_repo = WebhookEventRepository(pg_session)
-#     repo = TaskRepository(pg_session)
-
-#     await repo.add(Task(external_id="dup-task", title="Task A"))
-#     await pg_session.commit()
-
-#     with pytest.raises(IntegrityError):
-#         await repo.add(Task(external_id="dup-task", title="Task B"))
-
-#     await pg_session.rollback()
-
-#     with pytest.raises(IntegrityError):
-#         await repo.add(
-#             Task(
-#                 external_id="fk-task",
-#                 title="Invalid",
-#                 sub_competency_mappings=[
-#                     TaskSubCompetencyMapping(sub_competency_id=uuid4(), weight=1.0)
-#                 ],
-#             )
-#         )
-
-#     vacancy = Vacancy(name="Backend", description="Role")
-#     await vacancy_repo.add(vacancy)
-
-#     event = WebhookEvent(
-#         event_id="evt-base",
-#         vacancy_id=vacancy.id,
-#         candidate_external_id="candidate",
-#         task_external_id="task",
-#     )
-#     await webhook_repo.add(event)
-
-#     task = Task(external_id="task-base", title="Base task")
-#     await repo.add(task)
-#     await pg_session.commit()
-
-#     all_tasks = await repo.get_list()
-#     assert len(all_tasks) == 2
-
-#     await webhook_repo.delete(event.id)
-#     await repo.delete(task.id)
-#     await pg_session.commit()
-
-#     assert await pg_session.scalar(select(func.count()).select_from(TaskOrm)) == 1
-#     assert (
-#         await pg_session.scalar(select(func.count()).select_from(WebhookEventOrm)) == 0
-#     )

@@ -25,13 +25,11 @@ from competency_system.infrastructure.persistence.repositories import (
     VacancyRepository,
     _TestResultRepository,
 )
-
-from .helpers import build_taxonomy
+from tests.fixtures.domain_graph import build_taxonomy
 
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_test_result_repository_hydration_and_replacement(
     pg_session: AsyncSession,
 ) -> None:
@@ -134,7 +132,6 @@ async def test_test_result_repository_hydration_and_replacement(
     assert updated.llm_assessment is None
 
 
-@pytest.mark.asyncio
 async def test_test_result_repository_fk_constraints(pg_session: AsyncSession) -> None:
     repo = _TestResultRepository(pg_session)
 

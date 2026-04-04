@@ -15,7 +15,6 @@ from competency_system.domain.entities import Vacancy
 pytestmark = pytest.mark.unit
 
 
-@pytest.mark.asyncio
 async def test_get_vacancy_ranking_uses_existing_snapshot(mock_uow) -> None:
     vacancy_id = uuid4()
     mock_uow.vacancies.get.return_value = Vacancy(

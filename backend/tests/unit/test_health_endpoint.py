@@ -15,7 +15,6 @@ class _FakeHealthUseCase:
         return HealthCheckResult(status="ok", database="ok")
 
 
-@pytest.mark.asyncio
 async def test_health_endpoint_returns_ok() -> None:
     app.dependency_overrides[get_health_check_use_case] = lambda: _FakeHealthUseCase()
 

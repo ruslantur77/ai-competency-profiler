@@ -19,7 +19,6 @@ from competency_system.infrastructure.persistence.repositories import (
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_ranking_snapshot_repository_get_by_vacancy_and_upsert(
     pg_session: AsyncSession,
 ) -> None:

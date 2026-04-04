@@ -94,7 +94,6 @@ def _catalog_fixture() -> list[Category]:
 
 
 @pytest.mark.unit
-@pytest.mark.asyncio
 async def test_extract_graph_map_returns_empty_for_empty_catalog() -> None:
     _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     op = ExtractVacancyGraphOperation(
@@ -113,7 +112,6 @@ async def test_extract_graph_map_returns_empty_for_empty_catalog() -> None:
 
 
 @pytest.mark.unit
-@pytest.mark.asyncio
 async def test_extract_graph_map_builds_nodes_and_suggestions() -> None:
     _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     catalog = _catalog_fixture()

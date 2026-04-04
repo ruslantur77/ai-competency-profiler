@@ -18,7 +18,6 @@ from competency_system.infrastructure.persistence.repositories import (
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_webhook_event_repository_special_method_and_uniqueness(
     pg_session: AsyncSession,
 ) -> None:
@@ -54,7 +53,6 @@ async def test_webhook_event_repository_special_method_and_uniqueness(
         )
 
 
-@pytest.mark.asyncio
 async def test_webhook_event_repository_base_list_delete(
     pg_session: AsyncSession,
 ) -> None:

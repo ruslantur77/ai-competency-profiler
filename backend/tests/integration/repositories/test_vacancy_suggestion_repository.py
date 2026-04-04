@@ -21,7 +21,6 @@ from competency_system.infrastructure.persistence.repositories import (
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_vacancy_suggestion_repository_list_by_vacancy(
     pg_session: AsyncSession,
 ) -> None:

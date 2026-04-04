@@ -51,8 +51,8 @@ def policy_case(request: pytest.FixtureRequest) -> PolicyCase:
 
 
 def assert_field_set(orm: object, field_name: str) -> None:
-    assert field_name in getattr(orm, "__dict__")
+    assert field_name in orm.__dict__
 
 
 def assert_field_omitted(orm: object, field_name: str) -> None:
-    assert field_name not in getattr(orm, "__dict__")
+    assert field_name not in orm.__dict__

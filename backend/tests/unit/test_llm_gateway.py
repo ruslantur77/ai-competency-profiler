@@ -47,7 +47,6 @@ class _FakeClient:
         self.chat = SimpleNamespace(completions=completions)
 
 
-@pytest.mark.asyncio
 async def test_llm_gateway_retries_and_parses_json(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -70,7 +69,6 @@ async def test_llm_gateway_retries_and_parses_json(
     assert completions.calls == 2
 
 
-@pytest.mark.asyncio
 async def test_llm_gateway_wraps_invalid_json_after_retries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

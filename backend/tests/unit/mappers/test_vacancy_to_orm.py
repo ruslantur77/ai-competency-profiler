@@ -78,7 +78,9 @@ def test_vacancy_to_orm_collection_relationship_policy(
         assert_field_omitted(orm, "category_nodes")
 
 
-def test_vacancy_category_node_to_orm_relationship_none(policy_case: PolicyCase) -> None:
+def test_vacancy_category_node_to_orm_relationship_none(
+    policy_case: PolicyCase,
+) -> None:
     node = VacancyCategoryNodeFactory().make({"vacancy": None, "category": None})
     orm = vacancy_category_node_to_orm(
         node,
@@ -93,7 +95,9 @@ def test_vacancy_category_node_to_orm_relationship_none(policy_case: PolicyCase)
         assert_field_omitted(orm, "category")
 
 
-def test_vacancy_competency_node_to_orm_relationship_none(policy_case: PolicyCase) -> None:
+def test_vacancy_competency_node_to_orm_relationship_none(
+    policy_case: PolicyCase,
+) -> None:
     node = VacancyCompetencyNodeFactory().make(
         {"vacancy": None, "category": None, "competency": None}
     )
@@ -154,7 +158,9 @@ def test_vacancy_suggestion_scalar_none_by_policy(policy_case: PolicyCase) -> No
             assert_field_omitted(orm, field)
 
 
-def test_vacancy_suggestion_relationship_none_by_policy(policy_case: PolicyCase) -> None:
+def test_vacancy_suggestion_relationship_none_by_policy(
+    policy_case: PolicyCase,
+) -> None:
     suggestion = VacancyGraphSuggestionFactory().make()
     suggestion.vacancy = None
     suggestion.parent_category = None

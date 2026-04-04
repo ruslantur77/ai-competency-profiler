@@ -93,7 +93,9 @@ class RefreshTokenFields(TypedDict):
     revoked_at: NotRequired[datetime | None]
 
 
-class RefreshTokenFactory(AbstractFactory[RefreshTokenFields, RefreshToken, RefreshTokenOrm]):
+class RefreshTokenFactory(
+    AbstractFactory[RefreshTokenFields, RefreshToken, RefreshTokenOrm]
+):
     def make(self, fields: RefreshTokenFields | None = None) -> RefreshToken:
         data = fields or {}
         return RefreshToken(
@@ -166,7 +168,9 @@ class SubCompetencyFields(TypedDict):
     competency: NotRequired[Competency | None]
 
 
-class SubCompetencyFactory(AbstractFactory[SubCompetencyFields, SubCompetency, SubCompetencyOrm]):
+class SubCompetencyFactory(
+    AbstractFactory[SubCompetencyFields, SubCompetency, SubCompetencyOrm]
+):
     def make(self, fields: SubCompetencyFields | None = None) -> SubCompetency:
         data = fields or {}
         return SubCompetency(
@@ -224,9 +228,13 @@ class VacancyCategoryNodeFields(TypedDict):
 
 
 class VacancyCategoryNodeFactory(
-    AbstractFactory[VacancyCategoryNodeFields, VacancyCategoryNode, VacancyCategoryNodeOrm]
+    AbstractFactory[
+        VacancyCategoryNodeFields, VacancyCategoryNode, VacancyCategoryNodeOrm
+    ]
 ):
-    def make(self, fields: VacancyCategoryNodeFields | None = None) -> VacancyCategoryNode:
+    def make(
+        self, fields: VacancyCategoryNodeFields | None = None
+    ) -> VacancyCategoryNode:
         data = fields or {}
         return VacancyCategoryNode(
             id=data.get("id", uuid4()),
@@ -349,9 +357,13 @@ class VacancyGraphSuggestionFields(TypedDict):
 
 
 class VacancyGraphSuggestionFactory(
-    AbstractFactory[VacancyGraphSuggestionFields, VacancyGraphSuggestion, VacancySuggestionOrm]
+    AbstractFactory[
+        VacancyGraphSuggestionFields, VacancyGraphSuggestion, VacancySuggestionOrm
+    ]
 ):
-    def make(self, fields: VacancyGraphSuggestionFields | None = None) -> VacancyGraphSuggestion:
+    def make(
+        self, fields: VacancyGraphSuggestionFields | None = None
+    ) -> VacancyGraphSuggestion:
         data = fields or {}
         return VacancyGraphSuggestion(
             id=data.get("id", uuid4()),
@@ -369,7 +381,9 @@ class VacancyGraphSuggestionFactory(
             weight=data.get("weight", None),
         )
 
-    def make_orm(self, fields: VacancyGraphSuggestionFields | None = None) -> VacancySuggestionOrm:
+    def make_orm(
+        self, fields: VacancyGraphSuggestionFields | None = None
+    ) -> VacancySuggestionOrm:
         return VacancySuggestionOrm.from_entity(self.make(fields))
 
 
@@ -408,7 +422,9 @@ class CandidateAchievementFields(TypedDict):
 
 
 class CandidateAchievementFactory(
-    AbstractFactory[CandidateAchievementFields, CandidateSubCompetencyAchievement, object]
+    AbstractFactory[
+        CandidateAchievementFields, CandidateSubCompetencyAchievement, object
+    ]
 ):
     def make(
         self,
@@ -625,7 +641,9 @@ class WebhookEventFields(TypedDict):
     payload: NotRequired[WebhookEventPayload | dict[str, object]]
 
 
-class WebhookEventFactory(AbstractFactory[WebhookEventFields, WebhookEvent, WebhookEventOrm]):
+class WebhookEventFactory(
+    AbstractFactory[WebhookEventFields, WebhookEvent, WebhookEventOrm]
+):
     def make(self, fields: WebhookEventFields | None = None) -> WebhookEvent:
         data = fields or {}
         payload = data.get("payload", WebhookEventPayload(data={"k": "v"}))
@@ -662,5 +680,7 @@ class RankingSnapshotFactory(
             calculated_at=data.get("calculated_at", datetime.now(UTC)),
         )
 
-    def make_orm(self, fields: RankingSnapshotFields | None = None) -> RankingSnapshotOrm:
+    def make_orm(
+        self, fields: RankingSnapshotFields | None = None
+    ) -> RankingSnapshotOrm:
         return RankingSnapshotOrm.from_entity(self.make(fields))

@@ -5,6 +5,8 @@ import pytest
 from competency_system.domain.value_objects.enums import LLMFeedbackType
 from competency_system.infrastructure.persistence.mappers import (
     task_to_orm,
+)
+from competency_system.infrastructure.persistence.mappers import (
     test_result_to_orm as map_test_result_to_orm,
 )
 from competency_system.infrastructure.persistence.models import UNSET
@@ -74,7 +76,10 @@ def test_task_to_orm_nested_mappings_dump(policy_case: PolicyCase) -> None:
 
     orm = task_to_orm(
         task,
-        present_fields={"sub_competency_mappings", "sub_competency_mappings.sub_competency"},
+        present_fields={
+            "sub_competency_mappings",
+            "sub_competency_mappings.sub_competency",
+        },
         policy=policy_case.policy,
     )
     assert len(orm.sub_competency_mappings) == 1
@@ -96,7 +101,9 @@ def test_test_result_to_orm_default_is_scalar_only(policy_case: PolicyCase) -> N
     assert_field_omitted(orm, "llm_assessment")
 
 
-def test_test_result_scalar_none_code_submitted_by_policy(policy_case: PolicyCase) -> None:
+def test_test_result_scalar_none_code_submitted_by_policy(
+    policy_case: PolicyCase,
+) -> None:
     result = TestResultFactory().make({"code_submitted": None})
 
     orm = map_test_result_to_orm(result, policy=policy_case.policy)
@@ -112,7 +119,9 @@ def test_test_result_nested_assessment_feedback_items(policy_case: PolicyCase) -
     feedback_item = TestResultLLMFeedbackItemFactory().make(
         {"type": LLMFeedbackType.POSITIVE, "value": "Strong"}
     )
-    assessment = TestResultLLMAssessmentFactory().make({"feedback_items": [feedback_item]})
+    assessment = TestResultLLMAssessmentFactory().make(
+        {"feedback_items": [feedback_item]}
+    )
     result = TestResultFactory().make({"llm_assessment": assessment})
 
     orm = map_test_result_to_orm(
@@ -154,7 +163,9 @@ def test_test_result_unset_not_dumped_even_if_present(policy_case: PolicyCase) -
     assert_field_omitted(orm, "code_submitted")
 
 
-def test_test_result_question_answers_collection_policy(policy_case: PolicyCase) -> None:
+def test_test_result_question_answers_collection_policy(
+    policy_case: PolicyCase,
+) -> None:
     result = TestResultFactory().make({"question_answers": []})
     result.question_answers = [] if policy_case.applies_empty_relationship else []
     orm = map_test_result_to_orm(
@@ -169,13 +180,18 @@ def test_test_result_question_answers_collection_policy(policy_case: PolicyCase)
         assert_field_omitted(orm, "question_answers")
 
 
-def test_task_mapping_allows_explicit_none_relationship(policy_case: PolicyCase) -> None:
+def test_task_mapping_allows_explicit_none_relationship(
+    policy_case: PolicyCase,
+) -> None:
     mapping = TaskSubCompetencyMappingFactory().make({"sub_competency": None})
     task = TaskFactory().make({"sub_competency_mappings": [mapping]})
 
     orm = task_to_orm(
         task,
-        present_fields={"sub_competency_mappings", "sub_competency_mappings.sub_competency"},
+        present_fields={
+            "sub_competency_mappings",
+            "sub_competency_mappings.sub_competency",
+        },
         policy=policy_case.policy,
     )
 

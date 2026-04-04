@@ -10,12 +10,11 @@ from competency_system.domain.entities import Candidate, Vacancy
 from competency_system.domain.value_objects.enums import VacancyStatus
 from competency_system.infrastructure.persistence.models import CategoryOrm, VacancyOrm
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
-from tests.integration.repositories.helpers import build_vacancy_with_graph
+from tests.fixtures.domain_graph import build_vacancy_with_graph
 
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_uow_initializes_all_repositories(
     pg_session_factory: async_sessionmaker,
 ) -> None:
@@ -34,7 +33,6 @@ async def test_uow_initializes_all_repositories(
         assert uow.refresh_tokens is not None
 
 
-@pytest.mark.asyncio
 async def test_uow_commit_persists_data(pg_session_factory: async_sessionmaker) -> None:
     vacancy = Vacancy(
         name="Backend Engineer",
@@ -53,7 +51,6 @@ async def test_uow_commit_persists_data(pg_session_factory: async_sessionmaker) 
     assert loaded.name == vacancy.name
 
 
-@pytest.mark.asyncio
 async def test_uow_rolls_back_on_exception(
     pg_session_factory: async_sessionmaker,
 ) -> None:
@@ -68,7 +65,6 @@ async def test_uow_rolls_back_on_exception(
         assert await uow.vacancies.get(vacancy.id) is None
 
 
-@pytest.mark.asyncio
 async def test_uow_flush_makes_pending_data_queryable_within_transaction(
     pg_session_factory: async_sessionmaker,
 ) -> None:
@@ -92,7 +88,6 @@ async def test_uow_flush_makes_pending_data_queryable_within_transaction(
         assert await uow.vacancies.get(vacancy_id) is None
 
 
-@pytest.mark.asyncio
 async def test_uow_atomicity_across_multiple_repositories(
     pg_session_factory: async_sessionmaker,
 ) -> None:
@@ -113,7 +108,6 @@ async def test_uow_atomicity_across_multiple_repositories(
     assert loaded_candidate is not None
 
 
-@pytest.mark.asyncio
 async def test_uow_rollback_keeps_state_consistent_for_multiple_repositories(
     pg_session_factory: async_sessionmaker,
 ) -> None:

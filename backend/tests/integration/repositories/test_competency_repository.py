@@ -13,7 +13,6 @@ from competency_system.infrastructure.persistence.repositories import (
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_competency_repository_crud_and_include(pg_session: AsyncSession) -> None:
     category_repo = CategoryRepository(pg_session)
     repo = CompetencyRepository(pg_session)

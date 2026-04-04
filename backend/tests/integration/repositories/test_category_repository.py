@@ -5,13 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from competency_system.application.ports.repositories import CategoryInclude
 from competency_system.infrastructure.persistence.repositories import CategoryRepository
-
-from .helpers import build_taxonomy
+from tests.fixtures.domain_graph import build_taxonomy
 
 pytestmark = pytest.mark.integration_repo
 
 
-@pytest.mark.asyncio
 async def test_category_repository_crud_and_includes(pg_session: AsyncSession) -> None:
     repo = CategoryRepository(pg_session)
     category, _, _, _ = build_taxonomy()
