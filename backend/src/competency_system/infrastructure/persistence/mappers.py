@@ -73,7 +73,17 @@ def _normalize_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(UTC)
 
 
-def _load_all[T](model: Any, domain_model: type[T]) -> T:
+def _load_all[T](
+    model: Any, domain_model: type[T], seen: dict[int, Any] | None = None
+) -> T:
+    if seen is None:
+        seen = {}
+    obj_id = id(model)
+    if obj_id in seen:
+        return seen[obj_id]  # type: ignore
+
+    seen[obj_id] = obj_id
+
     if not hasattr(model, "__mapper__"):
         raise ValueError("only orm models can be used here")
     if not is_dataclass(domain_model):
@@ -98,7 +108,7 @@ def _load_all[T](model: Any, domain_model: type[T]) -> T:
                 and is_dataclass(field_type)
                 and isinstance(field_type, type)
             ):
-                value = _load_all(value, field_type)
+                value = _load_all(value, field_type, seen)
 
             elif isinstance(value, list) and field_type:
                 args = get_args(field_type)
@@ -110,7 +120,7 @@ def _load_all[T](model: Any, domain_model: type[T]) -> T:
                     and is_dataclass(item_type)
                     and isinstance(item_type, type)
                 ):
-                    value = [_load_all(v, item_type) for v in value]
+                    value = [_load_all(v, item_type, seen) for v in value]
 
             elif isinstance(value, datetime):
                 value = _normalize_utc(value)
