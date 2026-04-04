@@ -78,3 +78,33 @@ async def test_assess_candidate_use_case_returns_cached_result_for_duplicate_eve
 
     assert result == duplicate_result
     use_case._scoring_op.run.assert_not_awaited()
+
+
+async def test_assess_candidate_use_case_marks_failed_and_reraises_scoring_error(
+    use_case: AssessCandidateUseCase, command: CandidateTaskAssessmentDTO
+) -> None:
+    use_case._webhook_op.ensure_processing = AsyncMock()
+    use_case._webhook_op.mark_failed = AsyncMock()
+    use_case._scoring_op.run = AsyncMock(side_effect=RuntimeError("boom"))
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await use_case.execute(command)
+
+    use_case._webhook_op.mark_failed.assert_awaited_once_with(command, "boom")
+
+
+async def test_assess_candidate_use_case_skips_enqueue_for_non_code_task(
+    use_case: AssessCandidateUseCase,
+    job_queue_mock,
+    command: CandidateTaskAssessmentDTO,
+) -> None:
+    command.type = TaskType.TEST
+    result_dto = ApiDTOFactory().make_candidate_result()
+    test_result = TestResultFactory().make({"id": result_dto.test_result.id})
+    use_case._webhook_op.ensure_processing = AsyncMock()
+    use_case._webhook_op.mark_processed = AsyncMock()
+    use_case._scoring_op.run = AsyncMock(return_value=(None, test_result, result_dto))
+
+    await use_case.execute(command)
+
+    job_queue_mock.enqueue.assert_not_awaited()

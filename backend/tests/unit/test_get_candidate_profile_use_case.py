@@ -44,3 +44,14 @@ async def test_get_candidate_profile_use_case_raises_when_candidate_not_found(
 
     with pytest.raises(ValueError, match="not found"):
         await use_case.execute(uuid4())
+
+
+async def test_get_candidate_profile_use_case_raises_when_vacancy_not_found(
+    use_case: GetCandidateProfileUseCase, mock_uow
+) -> None:
+    candidate = CandidateFactory().make()
+    mock_uow.candidates.get.return_value = candidate
+    mock_uow.vacancies.get.return_value = None
+
+    with pytest.raises(ValueError, match="Vacancy"):
+        await use_case.execute(candidate.id)

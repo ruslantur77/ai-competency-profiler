@@ -44,3 +44,41 @@ async def test_llm_code_assessment_operation_applies_gateway_assessment(
     operation._scoring_op.apply_llm_assessment.assert_awaited_once_with(
         result.id, llm_gateway_mock.generate.return_value
     )
+
+
+async def test_llm_code_assessment_operation_noops_when_result_missing(
+    mock_uow, llm_gateway_mock
+) -> None:
+    operation = LLMCodeAssessmentOperation(mock_uow, llm_gateway=llm_gateway_mock)
+    mock_uow.test_results.get.return_value = None
+
+    await operation.run(TestResultFactory().make().id, 1, 1, 60)
+
+    llm_gateway_mock.generate.assert_not_awaited()
+
+
+async def test_llm_code_assessment_operation_noops_when_task_missing(
+    mock_uow, llm_gateway_mock
+) -> None:
+    operation = LLMCodeAssessmentOperation(mock_uow, llm_gateway=llm_gateway_mock)
+    result = TestResultFactory().make({"code_submitted": "print(1)"})
+    result.task = None
+    mock_uow.test_results.get.return_value = result
+
+    await operation.run(result.id, 1, 1, 60)
+
+    llm_gateway_mock.generate.assert_not_awaited()
+
+
+async def test_llm_code_assessment_operation_noops_when_code_missing(
+    mock_uow, llm_gateway_mock
+) -> None:
+    operation = LLMCodeAssessmentOperation(mock_uow, llm_gateway=llm_gateway_mock)
+    task = TaskFactory().make()
+    result = TestResultFactory().make({"task_id": task.id, "code_submitted": None})
+    result.task = task
+    mock_uow.test_results.get.return_value = result
+
+    await operation.run(result.id, 1, 1, 60)
+
+    llm_gateway_mock.generate.assert_not_awaited()

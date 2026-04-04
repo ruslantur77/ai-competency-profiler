@@ -56,3 +56,22 @@ async def test_extract_vacancy_graph_operation_sets_failed_status_on_error(
     assert vacancy.status == VacancyStatus.FAILED
     assert vacancy.error_message == "llm failed"
     mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
+
+
+async def test_extract_vacancy_graph_operation_returns_when_vacancy_missing(
+    operation: ExtractVacancyGraphOperation, mock_uow
+) -> None:
+    mock_uow.vacancies.get.return_value = None
+
+    await operation.run(VacancyFactory().make().id)
+
+    mock_uow.vacancies.add.assert_not_awaited()
+
+
+async def test_extract_vacancy_graph_operation_reraises_when_loading_fails_before_vacancy(
+    operation: ExtractVacancyGraphOperation, mock_uow
+) -> None:
+    mock_uow.vacancies.get.side_effect = RuntimeError("db error")
+
+    with pytest.raises(RuntimeError, match="db error"):
+        await operation.run(VacancyFactory().make().id)

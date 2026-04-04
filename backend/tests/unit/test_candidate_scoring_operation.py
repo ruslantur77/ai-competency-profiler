@@ -4,11 +4,21 @@ from uuid import uuid4
 
 import pytest
 
-from competency_system.application.dtos.task import CandidateTaskAssessmentDTO
+from competency_system.application.dtos.task import (
+    CandidateTaskAssessmentDTO,
+    LLMCodeAssessmentDTO,
+    LLMFeedbackItemDTO,
+)
 from competency_system.application.use_cases.candidate import CandidateScoringOperation
 from competency_system.domain.services.candidate_scorer import CandidateScorer
-from competency_system.domain.value_objects.enums import TaskType
-from tests.factories import TaskFactory, TaskSubCompetencyMappingFactory
+from competency_system.domain.value_objects.enums import LLMFeedbackType, TaskType
+from tests.factories import (
+    CandidateFactory,
+    TaskFactory,
+    TaskSubCompetencyMappingFactory,
+    TestResultFactory,
+    TestResultLLMAssessmentFactory,
+)
 from tests.fixtures.domain_graph import build_vacancy_with_graph
 
 pytestmark = pytest.mark.unit
@@ -70,3 +80,83 @@ async def test_candidate_scoring_operation_raises_when_task_not_found(
 
     with pytest.raises(ValueError, match="not found"):
         await operation.run(command)
+
+
+async def test_candidate_scoring_operation_raises_on_candidate_vacancy_mismatch(
+    operation: CandidateScoringOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    other_vacancy_id = uuid4()
+    command.vacancy_id = uuid4()
+    mock_uow.candidates.get_by_external_id.return_value = CandidateFactory().make(
+        {"vacancy_id": other_vacancy_id}
+    )
+
+    with pytest.raises(ValueError, match="another vacancy"):
+        await operation.run(command)
+
+
+async def test_candidate_scoring_operation_raises_when_vacancy_not_found(
+    operation: CandidateScoringOperation, mock_uow, command: CandidateTaskAssessmentDTO
+) -> None:
+    task = TaskFactory().make({"external_id": command.task_external_id})
+    mock_uow.candidates.get_by_external_id.return_value = None
+    mock_uow.tasks.get_by_external_id.return_value = task
+    mock_uow.vacancies.get.return_value = None
+
+    with pytest.raises(ValueError, match="Vacancy"):
+        await operation.run(command)
+
+
+async def test_candidate_scoring_operation_apply_llm_assessment_noops_when_missing_result(
+    operation: CandidateScoringOperation, mock_uow
+) -> None:
+    mock_uow.test_results.get.return_value = None
+
+    await operation.apply_llm_assessment(
+        uuid4(),
+        LLMCodeAssessmentDTO(
+            passed=True,
+            score=70.0,
+            feedback_items=[
+                LLMFeedbackItemDTO(type=LLMFeedbackType.POSITIVE, value="ok")
+            ],
+        ),
+    )
+
+    mock_uow.test_results.add.assert_not_awaited()
+    mock_uow.commit.assert_not_awaited()
+
+
+async def test_candidate_scoring_operation_apply_llm_assessment_updates_existing_assessment(
+    operation: CandidateScoringOperation, mock_uow
+) -> None:
+    existing_assessment = TestResultLLMAssessmentFactory().make(
+        {"raw_test_score": 80.0, "penalized_test_score": 72.0}
+    )
+    result = TestResultFactory().make(
+        {
+            "attempts": 2,
+            "score": 60.0,
+            "llm_assessment": existing_assessment,
+        }
+    )
+    mock_uow.test_results.get.return_value = result
+    assessment = LLMCodeAssessmentDTO(
+        passed=True,
+        score=75.0,
+        feedback="better",
+        feedback_items=[
+            LLMFeedbackItemDTO(type=LLMFeedbackType.POSITIVE, value="clean")
+        ],
+    )
+
+    await operation.apply_llm_assessment(result.id, assessment)
+
+    assert result.score == 75.0
+    assert result.passed is True
+    assert result.llm_assessment is not None
+    assert result.llm_assessment.raw_test_score == 80.0
+    assert result.llm_assessment.penalized_test_score == 72.0
+    assert result.llm_assessment.feedback_items[0].position == 0
+    mock_uow.test_results.add.assert_awaited_once_with(result)
+    mock_uow.commit.assert_awaited_once()

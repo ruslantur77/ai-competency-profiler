@@ -109,3 +109,27 @@ async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing(
 
     with pytest.raises(ValueError, match="not found"):
         await use_case.execute(uuid4(), graph_update)
+
+
+async def test_finalize_vacancy_graph_use_case_skips_decision_for_foreign_suggestion(
+    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+) -> None:
+    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
+    vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
+    foreign = VacancyGraphSuggestionFactory().make(
+        {
+            "id": graph_update.suggestion_decisions[0].suggestion_id,
+            "vacancy_id": uuid4(),
+            "stage": SuggestionStage.CATEGORY,
+            "entity_type": SuggestionEntityType.CATEGORY,
+            "name": "Other",
+            "status": SuggestionStatus.PENDING,
+        }
+    )
+    mock_uow.vacancies.get.return_value = vacancy
+    mock_uow.vacancy_suggestions.get.return_value = foreign
+    mock_uow.vacancy_suggestions.list_by_vacancy.return_value = []
+
+    await use_case.execute(vacancy.id, graph_update)
+
+    mock_uow.vacancy_suggestions.add.assert_not_awaited()

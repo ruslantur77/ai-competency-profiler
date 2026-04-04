@@ -47,3 +47,17 @@ async def test_decide_vacancy_suggestion_use_case_rejects_pending_status(
 
     with pytest.raises(ValueError, match="approved or rejected"):
         await use_case.execute(VacancyFactory().make().id, decision)
+
+
+async def test_decide_vacancy_suggestion_use_case_raises_for_foreign_vacancy(
+    use_case: DecideVacancySuggestionUseCase, mock_uow
+) -> None:
+    current_vacancy = VacancyFactory().make()
+    foreign_suggestion = VacancyGraphSuggestionFactory().make({"vacancy_id": uuid4()})
+    mock_uow.vacancy_suggestions.get.return_value = foreign_suggestion
+    decision = VacancySuggestionDecisionDTO(
+        suggestion_id=foreign_suggestion.id, status=SuggestionStatus.REJECTED
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        await use_case.execute(current_vacancy.id, decision)
