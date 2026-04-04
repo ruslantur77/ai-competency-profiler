@@ -7,7 +7,6 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 import competency_system.domain.entities as domain_entities
-
 from competency_system.application.dtos.vacancy import (
     VacancyCategoryExtractionResultDTO,
     VacancyCompetencyExtractionResultDTO,

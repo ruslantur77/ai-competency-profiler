@@ -93,7 +93,9 @@ async def test_task_pipeline_uses_task_prompt_catalog() -> None:
         ]
     )
 
-    result = await MapTaskToCompetenciesOperation(llm, _FakeUow(category, competency))._map(
+    result = await MapTaskToCompetenciesOperation(
+        llm, _FakeUow(category, competency)
+    )._map(
         task,
         [category],
     )

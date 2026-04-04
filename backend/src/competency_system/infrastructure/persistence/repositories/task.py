@@ -119,7 +119,11 @@ class _TestResultRepository(
         if TestResultInclude.CANDIDATE in includes:
             options.append(selectinload(TestResultOrm.candidate))
         if TestResultInclude.LLM_ASSESSMENT in includes:
-            options.append(selectinload(TestResultOrm.llm_assessment))
+            options.append(
+                selectinload(TestResultOrm.llm_assessment).selectinload(
+                    TestResultLLMAssessmentOrm.feedback_items
+                )
+            )
         if TestResultInclude.QUESTION_ANSWERS in includes:
             options.append(selectinload(TestResultOrm.question_answers))
         if TestResultInclude.TASK in includes:

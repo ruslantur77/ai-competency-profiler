@@ -7,8 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from competency_system.application.dtos.webhooks import WebhookEvent
-from competency_system.application.dtos.webhooks import WebhookEventStatus
+from competency_system.application.dtos.webhooks import WebhookEvent, WebhookEventStatus
 from competency_system.domain.entities import Vacancy
 from competency_system.infrastructure.persistence.models import WebhookEventOrm
 from competency_system.infrastructure.persistence.repositories import (

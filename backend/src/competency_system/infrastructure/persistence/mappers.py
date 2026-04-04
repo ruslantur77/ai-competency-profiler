@@ -30,9 +30,11 @@ from competency_system.domain.entities import (
 )
 from competency_system.infrastructure.logging import get_logger
 from competency_system.infrastructure.persistence.models import (
+    POLICY_DEFAULT_LIGHT,
     CandidateOrm,
     CategoryOrm,
     CompetencyOrm,
+    DumpPolicy,
     RankingSnapshotOrm,
     RefreshTokenOrm,
     SubCompetencyOrm,
@@ -140,8 +142,13 @@ def category_to_orm(
     category: Category,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> CategoryOrm:
-    return CategoryOrm.from_entity(category, present_fields=present_fields)
+    return CategoryOrm.from_entity(
+        category,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def category_from_orm(category: CategoryOrm) -> Category:
@@ -152,8 +159,13 @@ def competency_to_orm(
     competency: Competency,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> CompetencyOrm:
-    return CompetencyOrm.from_entity(competency, present_fields=present_fields)
+    return CompetencyOrm.from_entity(
+        competency,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def competency_from_orm(competency: CompetencyOrm) -> Competency:
@@ -164,8 +176,13 @@ def subcompetency_to_orm(
     subcompetency: SubCompetency,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> SubCompetencyOrm:
-    return SubCompetencyOrm.from_entity(subcompetency, present_fields=present_fields)
+    return SubCompetencyOrm.from_entity(
+        subcompetency,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def subcompetency_from_orm(subcompetency: SubCompetencyOrm) -> SubCompetency:
@@ -176,8 +193,23 @@ def vacancy_to_orm(
     vacancy: Vacancy,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> VacancyOrm:
-    return VacancyOrm.from_entity(vacancy, present_fields=present_fields)
+    if present_fields is None:
+        present_fields = {
+            "id",
+            "name",
+            "description",
+            "status",
+            "error_message",
+            "created_at",
+            "updated_at",
+        }
+    return VacancyOrm.from_entity(
+        vacancy,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def vacancy_from_orm(vacancy: VacancyOrm) -> Vacancy:
@@ -188,8 +220,13 @@ def vacancy_category_node_to_orm(
     node: VacancyCategoryNode,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> VacancyCategoryNodeOrm:
-    return VacancyCategoryNodeOrm.from_entity(node, present_fields=present_fields)
+    return VacancyCategoryNodeOrm.from_entity(
+        node,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def vacancy_category_node_from_orm(node: VacancyCategoryNodeOrm) -> VacancyCategoryNode:
@@ -200,8 +237,13 @@ def vacancy_competency_node_to_orm(
     node: VacancyCompetencyNode,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> VacancyCompetencyNodeOrm:
-    return VacancyCompetencyNodeOrm.from_entity(node, present_fields=present_fields)
+    return VacancyCompetencyNodeOrm.from_entity(
+        node,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def vacancy_competency_node_from_orm(
@@ -214,8 +256,13 @@ def vacancy_sub_competency_node_to_orm(
     node: VacancySubCompetencyNode,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> VacancySubCompetencyNodeOrm:
-    return VacancySubCompetencyNodeOrm.from_entity(node, present_fields=present_fields)
+    return VacancySubCompetencyNodeOrm.from_entity(
+        node,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def vacancy_sub_competency_node_from_orm(
@@ -228,6 +275,7 @@ def candidate_to_orm(
     candidate: Candidate,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> CandidateOrm:
     if present_fields is None:
         present_fields = {
@@ -239,7 +287,11 @@ def candidate_to_orm(
             "created_at",
             "updated_at",
         }
-    return CandidateOrm.from_entity(candidate, present_fields=present_fields)
+    return CandidateOrm.from_entity(
+        candidate,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def candidate_from_orm(candidate: CandidateOrm) -> Candidate:
@@ -250,8 +302,13 @@ def user_to_orm(
     user: User,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> UserOrm:
-    return UserOrm.from_entity(user, present_fields=present_fields)
+    return UserOrm.from_entity(
+        user,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def user_from_orm(user: UserOrm) -> User:
@@ -262,8 +319,13 @@ def refresh_token_to_orm(
     refresh_token: RefreshToken,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> RefreshTokenOrm:
-    return RefreshTokenOrm.from_entity(refresh_token, present_fields=present_fields)
+    return RefreshTokenOrm.from_entity(
+        refresh_token,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def refresh_token_from_orm(refresh_token: RefreshTokenOrm) -> RefreshToken:
@@ -274,8 +336,26 @@ def task_to_orm(
     task: Task,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> TaskOrm:
-    return TaskOrm.from_entity(task, present_fields=present_fields)
+    if present_fields is None:
+        present_fields = {
+            "id",
+            "external_id",
+            "title",
+            "description",
+            "type",
+            "mapping_validated",
+            "mapping_status",
+            "mapping_error_message",
+            "created_at",
+            "updated_at",
+        }
+    return TaskOrm.from_entity(
+        task,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def task_from_orm(task: TaskOrm) -> Task:
@@ -286,8 +366,24 @@ def test_result_to_orm(
     test_result: TestResult,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> TestResultOrm:
-    return TestResultOrm.from_entity(test_result, present_fields=present_fields)
+    if present_fields is None:
+        present_fields = {
+            "id",
+            "candidate_id",
+            "task_id",
+            "passed",
+            "score",
+            "attempts",
+            "code_submitted",
+            "created_at",
+        }
+    return TestResultOrm.from_entity(
+        test_result,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def test_result_from_orm(test_result: TestResultOrm) -> TestResult:
@@ -298,8 +394,13 @@ def webhook_event_to_orm(
     event: WebhookEvent,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> WebhookEventOrm:
-    return WebhookEventOrm.from_entity(event, present_fields=present_fields)
+    return WebhookEventOrm.from_entity(
+        event,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def webhook_event_from_orm(event: WebhookEventOrm) -> WebhookEvent:
@@ -310,8 +411,13 @@ def ranking_snapshot_to_orm(
     snapshot: RankingSnapshot,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> RankingSnapshotOrm:
-    return RankingSnapshotOrm.from_entity(snapshot, present_fields=present_fields)
+    return RankingSnapshotOrm.from_entity(
+        snapshot,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def ranking_snapshot_from_orm(snapshot: RankingSnapshotOrm) -> RankingSnapshot:
@@ -322,6 +428,7 @@ def vacancy_suggestion_to_orm(
     suggestion: VacancyGraphSuggestion,
     *,
     present_fields: Collection[str] | None = None,
+    policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
 ) -> VacancySuggestionOrm:
     if present_fields is None:
         present_fields = {
@@ -341,7 +448,11 @@ def vacancy_suggestion_to_orm(
             "created_at",
             "updated_at",
         }
-    return VacancySuggestionOrm.from_entity(suggestion, present_fields=present_fields)
+    return VacancySuggestionOrm.from_entity(
+        suggestion,
+        present_fields=present_fields,
+        policy=policy,
+    )
 
 
 def vacancy_suggestion_from_orm(

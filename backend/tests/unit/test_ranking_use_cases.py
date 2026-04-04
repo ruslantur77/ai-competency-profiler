@@ -5,7 +5,10 @@ from uuid import uuid4
 
 import pytest
 
-from competency_system.application.dtos.webhooks import RankingSnapshot, RankingSnapshotPayload
+from competency_system.application.dtos.webhooks import (
+    RankingSnapshot,
+    RankingSnapshotPayload,
+)
 from competency_system.application.use_cases.ranking import GetVacancyRankingUseCase
 from competency_system.domain.entities import Vacancy
 

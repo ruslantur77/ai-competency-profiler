@@ -26,13 +26,17 @@ from competency_system.domain.value_objects import LLMFeedbackType
 from competency_system.infrastructure.persistence.mappers import (
     candidate_to_orm,
     category_to_orm,
+    competency_to_orm,
     vacancy_to_orm,
     webhook_event_to_orm,
 )
 from competency_system.infrastructure.persistence.mappers import (
     test_result_to_orm as map_test_result_to_orm,
 )
-from competency_system.infrastructure.persistence.models import UNSET
+from competency_system.infrastructure.persistence.models import (
+    POLICY_STRICT,
+    UNSET,
+)
 
 
 def test_domain_to_orm_dumps_loaded_relationships() -> None:
@@ -117,6 +121,31 @@ def test_nested_present_fields_for_relationship_dump() -> None:
     assert orm.llm_assessment is not None
     assert "score" not in orm.llm_assessment.__dict__
     assert len(orm.llm_assessment.feedback_items) == 1
+
+
+def test_default_policy_ignores_none_relationships() -> None:
+    competency = Competency(category_id=uuid4(), name="Backend")
+
+    orm = competency_to_orm(competency)
+
+    assert "category" not in orm.__dict__
+
+
+def test_default_policy_ignores_empty_relationship_collections() -> None:
+    category = Category(name="Engineering", competencies=[])
+
+    orm = category_to_orm(category)
+
+    assert "competencies" not in orm.__dict__
+
+
+def test_strict_policy_applies_relationship_none_and_empty_collection() -> None:
+    category = Category(name="Engineering", competencies=[])
+
+    orm = category_to_orm(category, policy=POLICY_STRICT)
+
+    assert "competencies" in orm.__dict__
+    assert orm.competencies == []
 
 
 def test_webhook_payload_dumped_as_dict() -> None:

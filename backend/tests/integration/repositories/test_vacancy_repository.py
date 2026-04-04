@@ -89,7 +89,9 @@ async def test_vacancy_repository_replaces_normalized_nodes_on_update(
     loaded = await repo.get(vacancy.id, include={VacancyInclude.NORMALIZED_GRAPH})
     assert loaded is not None
     assert [node.sub_competency_id for node in loaded.sub_competency_nodes] == [sub2.id]
-    assert sub1.id not in {node.sub_competency_id for node in loaded.sub_competency_nodes}
+    assert sub1.id not in {
+        node.sub_competency_id for node in loaded.sub_competency_nodes
+    }
 
     category_nodes = await pg_session.scalar(
         select(func.count()).select_from(VacancyCategoryNodeOrm)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
-from dataclasses import is_dataclass
+from dataclasses import dataclass, is_dataclass
 from datetime import datetime
 from enum import Enum as PyEnum
 from typing import Any, Self
@@ -46,6 +46,44 @@ JSON_PAYLOAD = JSON().with_variant(JSONB, "postgresql")
 UNSET = object()
 
 
+class ScalarNonePolicy(PyEnum):
+    APPLY = "apply"
+    IGNORE = "ignore"
+    IGNORE_UNLESS_PRESENT = "ignore_unless_present"
+
+
+class RelationshipNonePolicy(PyEnum):
+    APPLY = "apply"
+    IGNORE = "ignore"
+
+
+class RelationshipEmptyCollectionPolicy(PyEnum):
+    APPLY = "apply"
+    IGNORE = "ignore"
+
+
+@dataclass(frozen=True, slots=True)
+class DumpPolicy:
+    scalar_none: ScalarNonePolicy = ScalarNonePolicy.APPLY
+    relationship_none: RelationshipNonePolicy = RelationshipNonePolicy.IGNORE
+    relationship_empty_collection: RelationshipEmptyCollectionPolicy = (
+        RelationshipEmptyCollectionPolicy.IGNORE
+    )
+
+
+POLICY_DEFAULT_LIGHT = DumpPolicy()
+POLICY_STRICT = DumpPolicy(
+    scalar_none=ScalarNonePolicy.APPLY,
+    relationship_none=RelationshipNonePolicy.APPLY,
+    relationship_empty_collection=RelationshipEmptyCollectionPolicy.APPLY,
+)
+POLICY_IGNORE_NONE = DumpPolicy(
+    scalar_none=ScalarNonePolicy.IGNORE,
+    relationship_none=RelationshipNonePolicy.IGNORE,
+    relationship_empty_collection=RelationshipEmptyCollectionPolicy.IGNORE,
+)
+
+
 def _enum_values(enum_cls: type[PyEnum]) -> list[str]:
     return [str(member.value) for member in enum_cls]
 
@@ -79,6 +117,7 @@ class Base(DeclarativeBase):
         entity: Any,
         *,
         present_fields: Collection[str] | None = None,
+        policy: DumpPolicy = POLICY_DEFAULT_LIGHT,
         _visited: dict[int, Self] | None = None,
     ) -> Self:
         if not is_dataclass(entity):
@@ -110,9 +149,21 @@ class Base(DeclarativeBase):
             if isinstance(attr, RelationshipProperty):
                 related_model = attr.mapper.class_
                 if value is None:
-                    setattr(orm, name, None)
+                    if policy.relationship_none is RelationshipNonePolicy.APPLY:
+                        setattr(orm, name, None)
                     continue
                 if attr.uselist:
+                    if (
+                        isinstance(value, Collection)
+                        and not isinstance(value, (str, bytes, bytearray))
+                        and len(value) == 0
+                    ):
+                        if (
+                            policy.relationship_empty_collection
+                            is RelationshipEmptyCollectionPolicy.APPLY
+                        ):
+                            setattr(orm, name, [])
+                        continue
                     items = []
                     for item in value:  # type: ignore
                         if item is None:
@@ -125,6 +176,7 @@ class Base(DeclarativeBase):
                                 related_model.from_entity(
                                     item,
                                     present_fields=nested_fields,
+                                    policy=policy,
                                     _visited=visited,
                                 )
                             )
@@ -143,11 +195,20 @@ class Base(DeclarativeBase):
                         related_model.from_entity(
                             value,
                             present_fields=nested_fields,
+                            policy=policy,
                             _visited=visited,
                         ),
                     )
                     continue
 
+            if value is None:
+                if policy.scalar_none is ScalarNonePolicy.IGNORE:
+                    continue
+                if (
+                    policy.scalar_none is ScalarNonePolicy.IGNORE_UNLESS_PRESENT
+                    and present is None
+                ):
+                    continue
             setattr(orm, name, value)
 
         return orm
