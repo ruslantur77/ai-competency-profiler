@@ -134,6 +134,7 @@ def get_extract_vacancy_graph_use_case(
         job_queue,
         max_parallel_requests=settings.llm_max_parallel_requests,
         stage_timeout_seconds=settings.llm_stage_timeout_seconds,
+        max_suggested_new_per_stage=settings.llm_max_suggested_new_per_stage,
     )
 
 

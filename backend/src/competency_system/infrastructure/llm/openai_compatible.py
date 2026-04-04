@@ -21,6 +21,8 @@ from competency_system.infrastructure.settings import Settings, get_settings
 
 
 class OpenAICompatibleLLMGateway(LLMGateway):
+    _FAILED_AUDIT_LIMIT = 2000
+
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
         self._logger = get_logger(__name__).bind(component="llm", provider="openai")
@@ -94,14 +96,33 @@ class OpenAICompatibleLLMGateway(LLMGateway):
             extra_body=self._extra_body(),
         )
         content = response.choices[0].message.content or "{}"
-        payload = self._extract_json(content)
-        result = response_model.model_validate(payload)
+        try:
+            payload = self._extract_json(content)
+            result = response_model.model_validate(payload)
+        except Exception as exc:
+            self._logger.warning(
+                "llm_response_validation_failed",
+                model=self._settings.llm_model,
+                message_count=len(messages),
+                error=str(exc),
+                request_excerpt=self._truncate(self._messages_excerpt(messages)),
+                response_excerpt=self._truncate(content),
+            )
+            raise
         self._logger.info(
             "llm_request_finished",
             model=self._settings.llm_model,
             message_count=len(messages),
         )
         return result
+
+    def _messages_excerpt(self, messages: list[LLMMessage]) -> str:
+        return "\n".join(f"[{message.role}] {message.content}" for message in messages)
+
+    def _truncate(self, value: str) -> str:
+        if len(value) <= self._FAILED_AUDIT_LIMIT:
+            return value
+        return value[: self._FAILED_AUDIT_LIMIT] + "...(truncated)"
 
     def _extract_json(self, content: str) -> Any:
         cleaned = re.sub(r"```json|```", "", content, flags=re.IGNORECASE).strip()

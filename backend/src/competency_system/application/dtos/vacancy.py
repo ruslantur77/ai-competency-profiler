@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import ConfigDict, Field, model_validator
 
 from competency_system.application.dtos.base import BaseDTO
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
@@ -114,50 +114,75 @@ class VacancyGraphUpdateDTO(BaseDTO):
     )
 
 
-class VacancyCategorySuggestionDTO(BaseDTO):
+class _StrictExtractionDTO(BaseDTO):
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
+class _ExistingSelectionItemDTO(_StrictExtractionDTO):
     id: UUID | None = None
-    llm_id: int | None = None
+    llm_id: int | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _validate_identity_fields(self) -> _ExistingSelectionItemDTO:
+        if self.id is None and self.llm_id is None:
+            raise ValueError("Either 'id' or 'llm_id' must be provided")
+        if self.id is not None and self.llm_id is not None:
+            raise ValueError("Only one of 'id' or 'llm_id' can be provided")
+        return self
+
+
+class VacancyCategorySuggestionDTO(_ExistingSelectionItemDTO):
     name: str = ""
     description: str = ""
     emoji: str = "📋"
     reason: str = ""
 
 
-class VacancyCategoryExtractionResultDTO(BaseDTO):
+class VacancyCategoryExtractionResultDTO(_StrictExtractionDTO):
     categories: list[VacancyCategorySuggestionDTO]
-    suggested_new: list[VacancyCategorySuggestionDTO] = Field(default_factory=list)
 
 
-class VacancyCompetencySuggestionDTO(BaseDTO):
-    id: UUID | None = None
-    llm_id: int | None = None
+class VacancyCompetencySelectionDTO(_ExistingSelectionItemDTO):
     category_id: UUID | None = None
     name: str = ""
     description: str = ""
     is_required: bool = True
-    weight: float = 1.0
-    required_level: CompetencyLevel = CompetencyLevel.BEGINNER
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
     reason: str = ""
 
 
-class VacancyCompetencyExtractionResultDTO(BaseDTO):
-    competencies: list[VacancyCompetencySuggestionDTO]
+class VacancyCompetencySuggestionDTO(_StrictExtractionDTO):
+    name: str
+    description: str = ""
+    is_required: bool = True
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    reason: str = ""
+
+
+class VacancyCompetencyExtractionResultDTO(_StrictExtractionDTO):
+    competencies: list[VacancyCompetencySelectionDTO]
     suggested_new: list[VacancyCompetencySuggestionDTO] = Field(default_factory=list)
 
 
-class VacancySubCompetencySuggestionDTO(BaseDTO):
-    id: UUID | None = None
-    llm_id: int | None = None
+class VacancySubCompetencySelectionDTO(_ExistingSelectionItemDTO):
     competency_id: UUID | None = None
     name: str = ""
     description: str = ""
     target_level: CompetencyLevel = CompetencyLevel.BEGINNER
-    weight: float = 1.0
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
     reason: str = ""
 
 
-class VacancySubCompetencyExtractionResultDTO(BaseDTO):
-    sub_competencies: list[VacancySubCompetencySuggestionDTO]
+class VacancySubCompetencySuggestionDTO(_StrictExtractionDTO):
+    name: str
+    description: str = ""
+    target_level: CompetencyLevel = CompetencyLevel.BEGINNER
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    reason: str = ""
+
+
+class VacancySubCompetencyExtractionResultDTO(_StrictExtractionDTO):
+    sub_competencies: list[VacancySubCompetencySelectionDTO]
     suggested_new: list[VacancySubCompetencySuggestionDTO] = Field(default_factory=list)
 
 

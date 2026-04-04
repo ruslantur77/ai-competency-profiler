@@ -40,6 +40,9 @@ def vacancy_extraction_dag() -> None:
                 runtime.llm_job_queue(),
                 max_parallel_requests=runtime.settings.llm_max_parallel_requests,
                 stage_timeout_seconds=runtime.settings.llm_stage_timeout_seconds,
+                max_suggested_new_per_stage=(
+                    runtime.settings.llm_max_suggested_new_per_stage
+                ),
             ).execute(payload),
         )
         return result.model_dump(mode="json")

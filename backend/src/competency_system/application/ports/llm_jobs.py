@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Protocol
 from uuid import UUID, uuid4
 
 
@@ -31,7 +32,7 @@ class LLMJob:
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
-class LLMJobQueuePort:
+class LLMJobQueuePort(Protocol):
     # TODO: replace in-process runner with external queue + worker.
     async def enqueue(
         self,

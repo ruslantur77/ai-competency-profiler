@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     llm_stage_timeout_seconds: float = Field(
         default=45.0, alias="LLM_STAGE_TIMEOUT_SECONDS"
     )
+    llm_max_suggested_new_per_stage: int = Field(
+        default=5, alias="LLM_MAX_SUGGESTED_NEW_PER_STAGE"
+    )
     llm_reasoning_max_tokens: int = Field(default=0, alias="LLM_REASONING_MAX_TOKENS")
     testing_system_base_url: str = Field(
         default="http://localhost:9000",
