@@ -1,8 +1,9 @@
-"""Seed test competency ontology.
+"""add_initial_graph.
 
-Revision ID: 0005_seed_test_competency_ontology
-Revises: 0004_mvp_hardening_and_reliability
-Create Date: 2026-03-30 13:25:00
+Revision ID: 7757e8b66da7
+Revises: dbf5d903c225
+Create Date: 2026-04-05 13:23:11.201684
+
 """
 
 from __future__ import annotations
@@ -13,10 +14,12 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0005_seed_test_competency_ontology"
-down_revision = "0004_mvp_hardening_and_reliability"
+# revision identifiers, used by Alembic.
+revision = "7757e8b66da7"
+down_revision = "dbf5d903c225"
 branch_labels = None
 depends_on = None
+
 
 CATEGORY_IDS = {
     "backend_dev": UUID("11111111-1111-1111-1111-111111111111"),
@@ -51,6 +54,7 @@ def upgrade() -> None:
         sa.column("description", sa.String(length=500)),
         sa.column("emoji", sa.String(length=10)),
     )
+
     competencies_table = sa.table(
         "competencies",
         sa.column("id", sa.UUID(as_uuid=True)),
@@ -58,14 +62,18 @@ def upgrade() -> None:
         sa.column("name", sa.String(length=100)),
         sa.column("description", sa.String(length=500)),
     )
+
     sub_competencies_table = sa.table(
         "sub_competencies",
         sa.column("id", sa.UUID(as_uuid=True)),
         sa.column("competency_id", sa.UUID(as_uuid=True)),
         sa.column("name", sa.String(length=100)),
         sa.column("description", sa.String(length=500)),
+        sa.column("weight", sa.Float()),
+        sa.column("target_level", sa.Integer()),
     )
 
+    # categories — без изменений
     op.bulk_insert(
         categories_table,
         [
@@ -90,6 +98,7 @@ def upgrade() -> None:
         ],
     )
 
+    # competencies — без изменений
     op.bulk_insert(
         competencies_table,
         [
@@ -120,6 +129,7 @@ def upgrade() -> None:
         ],
     )
 
+    # ⚠️ ОБНОВЛЕНО: добавлены weight и target_level
     op.bulk_insert(
         sub_competencies_table,
         [
@@ -128,48 +138,64 @@ def upgrade() -> None:
                 "competency_id": COMPETENCY_IDS["api_design"],
                 "name": "REST principles",
                 "description": "Resource modeling and HTTP semantics",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["auth"],
                 "competency_id": COMPETENCY_IDS["api_design"],
                 "name": "API security",
                 "description": "Authentication and authorization for APIs",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["async_python"],
                 "competency_id": COMPETENCY_IDS["python_backend"],
                 "name": "Async programming",
                 "description": "Async IO and concurrency patterns",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["typing"],
                 "competency_id": COMPETENCY_IDS["python_backend"],
                 "name": "Typing and architecture",
                 "description": "Type hints and maintainable module design",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["sql_indexes"],
                 "competency_id": COMPETENCY_IDS["sql_modeling"],
                 "name": "Indexes",
                 "description": "Index strategy and query plans",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["sql_joins"],
                 "competency_id": COMPETENCY_IDS["sql_modeling"],
                 "name": "Join optimization",
                 "description": "Efficient joins and aggregation",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["docker"],
                 "competency_id": COMPETENCY_IDS["containers"],
                 "name": "Docker",
                 "description": "Container images and runtime configuration",
+                "weight": 1.0,
+                "target_level": 3,
             },
             {
                 "id": SUB_COMPETENCY_IDS["cicd"],
                 "competency_id": COMPETENCY_IDS["containers"],
                 "name": "CI/CD",
                 "description": "Build/test/deploy automation",
+                "weight": 1.0,
+                "target_level": 3,
             },
         ],
     )
