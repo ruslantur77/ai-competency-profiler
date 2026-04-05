@@ -4,8 +4,8 @@ from typing import Any
 
 import httpx
 
+from competency_system.application.dtos import ExternalTaskRecord
 from competency_system.application.ports.external_testing_system import (
-    ExternalTaskRecord,
     ExternalTestingSystemGateway,
 )
 from competency_system.domain.value_objects.enums import TaskType
