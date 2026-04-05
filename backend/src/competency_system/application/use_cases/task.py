@@ -22,6 +22,7 @@ from competency_system.application.llm.pipeline import (
     StageConfig,
     ThreeStagePipeline,
 )
+from competency_system.application.llm.prompts import PromptCatalog, ThreeStagePrompts
 from competency_system.application.ports.external_testing_system import (
     ExternalTestingSystemGateway,
 )
@@ -33,7 +34,6 @@ from competency_system.application.ports.repositories import (
     TaskInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.application.llm.prompts import PromptCatalog, ThreeStagePrompts
 from competency_system.domain.entities import (
     Category,
     Competency,

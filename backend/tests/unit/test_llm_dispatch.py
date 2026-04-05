@@ -44,7 +44,7 @@ async def test_dispatch_llm_job_calls_candidate_code_assessment_operation(
             await run_mock(test_result_id, passed_tests, total_tests, duration_seconds)
 
     monkeypatch.setattr(
-        "competency_system.application.llm_dispatch.LLMCodeAssessmentOperation",
+        "competency_system.application.llm.llm_dispatch.LLMCodeAssessmentOperation",
         _FakeOperation,
     )
     payload_model = CodeAssessmentPayload(
@@ -98,7 +98,7 @@ async def test_dispatch_llm_job_calls_vacancy_extraction_operation(
             await run_mock(vacancy_id)
 
     monkeypatch.setattr(
-        "competency_system.application.llm_dispatch.ExtractVacancyGraphOperation",
+        "competency_system.application.llm.llm_dispatch.ExtractVacancyGraphOperation",
         _FakeOperation,
     )
     payload_model = VacancyExtractionPayload(
@@ -132,7 +132,7 @@ async def test_dispatch_llm_job_calls_task_mapping_operation(
             await run_mock(task_id)
 
     monkeypatch.setattr(
-        "competency_system.application.llm_dispatch.MapTaskToCompetenciesOperation",
+        "competency_system.application.llm.llm_dispatch.MapTaskToCompetenciesOperation",
         _FakeOperation,
     )
     payload_model = TaskExtractionPayload(

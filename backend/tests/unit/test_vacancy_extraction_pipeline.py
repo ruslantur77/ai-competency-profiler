@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 import pytest
 from pydantic import BaseModel, ValidationError
 
-import competency_system.domain.entities as domain_entities
 from competency_system.application.dtos.vacancy import (
     VacancyCategoryExtractionResultDTO,
     VacancyCompetencyExtractionResultDTO,
@@ -14,7 +13,6 @@ from competency_system.application.dtos.vacancy import (
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
 from competency_system.application.use_cases.vacancy import (
     ExtractVacancyGraphOperation,
-    _VacancyGraphPayload,
 )
 from competency_system.domain.entities import (
     Category,
@@ -95,7 +93,6 @@ def _catalog_fixture() -> list[Category]:
 
 @pytest.mark.unit
 async def test_extract_graph_map_returns_empty_for_empty_catalog() -> None:
-    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     op = ExtractVacancyGraphOperation(
         _FakeUow([]),
         _FakeLLMGateway([]),
@@ -113,7 +110,6 @@ async def test_extract_graph_map_returns_empty_for_empty_catalog() -> None:
 
 @pytest.mark.unit
 async def test_extract_graph_map_builds_nodes_and_suggestions() -> None:
-    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     catalog = _catalog_fixture()
     op = ExtractVacancyGraphOperation(
         _FakeUow(catalog),

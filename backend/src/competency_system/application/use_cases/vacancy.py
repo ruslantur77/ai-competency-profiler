@@ -33,6 +33,7 @@ from competency_system.application.llm.pipeline import (
     StageConfig,
     ThreeStagePipeline,
 )
+from competency_system.application.llm.prompts import PromptCatalog, ThreeStagePrompts
 from competency_system.application.ports.llm import LLMGateway
 from competency_system.application.ports.llm_jobs import LLMJobQueuePort, LLMJobType
 from competency_system.application.ports.repositories import (
@@ -41,7 +42,6 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.application.llm.prompts import PromptCatalog, ThreeStagePrompts
 from competency_system.domain.entities import (
     Category,
     Competency,
