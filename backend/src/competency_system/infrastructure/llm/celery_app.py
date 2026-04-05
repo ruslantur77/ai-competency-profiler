@@ -4,10 +4,12 @@ from functools import lru_cache
 
 from celery import Celery
 
+from competency_system.infrastructure.logging import configure_logging
 from competency_system.infrastructure.settings import Settings, get_settings
 
 
 def create_celery_app(settings: Settings) -> Celery:
+    configure_logging(settings)
     app = Celery(
         "competency_system_llm_jobs",
         broker=settings.redis_url,

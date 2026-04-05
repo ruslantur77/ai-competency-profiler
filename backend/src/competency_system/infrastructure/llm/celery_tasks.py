@@ -46,6 +46,7 @@ def dispatch_llm_job_task(
     job_type: str,
     payload: dict[str, object],
 ) -> None:
+    logger.info("job started", job_type=job_type)
     settings = get_settings()
     try:
         parsed_job_type = LLMJobType(job_type)

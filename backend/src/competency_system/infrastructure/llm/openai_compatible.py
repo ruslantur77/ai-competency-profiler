@@ -42,8 +42,10 @@ class OpenAICompatibleLLMGateway(LLMGateway):
         response_model: type[LLMResponseT],
         *,
         temperature: float = 0.2,
+        max_tokens: int = 700,
     ) -> LLMResponseT:
         attempts = max(1, self._settings.llm_retry_attempts)
+        self._logger.info(messages)
         try:
             async for attempt in AsyncRetrying(
                 stop=stop_after_attempt(attempts),
@@ -56,6 +58,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
                         messages,
                         response_model,
                         temperature=temperature,
+                        max_tokens=max_tokens,
                     )
             raise RuntimeError("Retrying loop completed without returning a result")
         except Exception as exc:  # pragma: no cover - infra boundary
@@ -74,6 +77,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
         response_model: type[LLMResponseT],
         *,
         temperature: float,
+        max_tokens: int,
     ) -> LLMResponseT:
         self._logger.info(
             "llm_request_started",
@@ -92,6 +96,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
             model=self._settings.llm_model,
             messages=messages_payload,
             temperature=temperature,
+            max_tokens=max_tokens,
             response_format={"type": "json_object"},
             extra_body=self._extra_body(),
         )
