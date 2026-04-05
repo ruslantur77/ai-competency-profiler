@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from uuid import UUID, uuid4
@@ -56,6 +57,8 @@ from competency_system.domain.value_objects.enums import (
     SuggestionStatus,
     VacancyStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -279,9 +282,31 @@ class ExtractVacancyGraphOperation:
                     suggestion.vacancy_id = vacancy.id
                     await uow.vacancy_suggestions.add(suggestion)
                 await uow.commit()
+            logger.info(
+                "llm_operation_finished",
+                extra={
+                    "operation": "extract_vacancy_graph",
+                    "status": "success",
+                    "vacancy_id": str(vacancy_id),
+                    "category_nodes_count": len(vacancy.category_nodes),
+                    "competency_nodes_count": len(vacancy.competency_nodes),
+                    "sub_competency_nodes_count": len(vacancy.sub_competency_nodes),
+                    "suggestions_count": len(graph.suggestions),
+                },
+            )
         except Exception as exc:
             if not vacancy:
                 raise
+            logger.exception(
+                "llm_operation_failed",
+                extra={
+                    "operation": "extract_vacancy_graph",
+                    "status": "failed",
+                    "vacancy_id": str(vacancy_id),
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                },
+            )
             vacancy.status = VacancyStatus.FAILED
             vacancy.error_message = str(exc)
             async with self._uow as uow:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from uuid import UUID, uuid4
 
 from competency_system.application.dtos.mappers import task_dto_from_domain
@@ -41,6 +42,8 @@ from competency_system.domain.entities import (
     TaskSubCompetencyMapping,
 )
 from competency_system.domain.value_objects.enums import TaskMappingStatus
+
+logger = logging.getLogger(__name__)
 
 
 class MapTaskToCompetenciesOperation:
@@ -135,9 +138,35 @@ class MapTaskToCompetenciesOperation:
             task.sub_competency_mappings = await self._map(task, list(categories))
             task.mapping_status = TaskMappingStatus.COMPLETED
             task.mapping_error_message = None
+            logger.info(
+                "llm_operation_finished",
+                extra={
+                    "operation": "map_task_to_competencies",
+                    "status": "success",
+                    "task_id": str(task_id),
+                    "mappings_count": len(task.sub_competency_mappings),
+                    "mappings_sample": [
+                        {
+                            "sub_competency_id": str(item.sub_competency_id),
+                            "weight": item.weight,
+                        }
+                        for item in task.sub_competency_mappings[:3]
+                    ],
+                },
+            )
         except Exception as exc:
             if not task:
                 raise
+            logger.exception(
+                "llm_operation_failed",
+                extra={
+                    "operation": "map_task_to_competencies",
+                    "status": "failed",
+                    "task_id": str(task_id),
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                },
+            )
             task.sub_competency_mappings = []
             task.mapping_status = TaskMappingStatus.FAILED
             task.mapping_error_message = str(exc)

@@ -125,12 +125,30 @@ class ThreeStagePipeline[
 
         selected_categories = await self._stage1(categories, payload)
         if not selected_categories[0]:
+            logger.info(
+                "pipeline_finished",
+                extra={
+                    "selected_categories_count": 0,
+                    "selected_competencies_count": 0,
+                    "selected_sub_competencies_count": 0,
+                    "suggestions_count": 0,
+                },
+            )
             return [], []
 
         selected_competencies, _, comp_suggestions = await self._stage2(
             competencies_by_category, selected_categories[0], payload
         )
         if not selected_competencies:
+            logger.info(
+                "pipeline_finished",
+                extra={
+                    "selected_categories_count": len(selected_categories[0]),
+                    "selected_competencies_count": 0,
+                    "selected_sub_competencies_count": 0,
+                    "suggestions_count": len(comp_suggestions),
+                },
+            )
             return [], comp_suggestions
 
         sub_competencies, _, sub_suggestions = await self._stage3(
@@ -138,6 +156,15 @@ class ThreeStagePipeline[
         )
 
         suggestions = comp_suggestions + sub_suggestions
+        logger.info(
+            "pipeline_finished",
+            extra={
+                "selected_categories_count": len(selected_categories[0]),
+                "selected_competencies_count": len(selected_competencies),
+                "selected_sub_competencies_count": len(sub_competencies),
+                "suggestions_count": len(suggestions),
+            },
+        )
         return sub_competencies, suggestions
 
     async def _stage1(
@@ -188,6 +215,26 @@ class ThreeStagePipeline[
                     },
                 )
         selected_categories = [c for c in categories if c.id in selected_category_ids]
+        logger.info(
+            "pipeline_stage_output",
+            extra={
+                "stage": "stage1_categories",
+                "selected_count": len(selected_categories),
+                "selected_ids_sample": [
+                    str(item.id) for item in selected_categories[:3]
+                ],
+                "response_summary": {
+                    "categories_count": len(response.categories),
+                    "categories_uuid_count": len(response.categories_uuid),
+                },
+                "response_sample": {
+                    "categories": response.categories[:3],
+                    "categories_uuid": [
+                        str(item) for item in response.categories_uuid[:3]
+                    ],
+                },
+            },
+        )
         return selected_categories, response
 
     async def _stage2(
@@ -292,6 +339,41 @@ class ThreeStagePipeline[
                     )
                 )
 
+        logger.info(
+            "pipeline_stage_output",
+            extra={
+                "stage": "stage2_competencies",
+                "selected_count": len(selected_competencies),
+                "selected_ids_sample": [
+                    str(item.id) for item in selected_competencies[:3]
+                ],
+                "suggestions_count": len(suggestions),
+                "response_summary": {
+                    "responses_count": len(responses),
+                    "selected_llm_ids_count": sum(
+                        len(response.competencies) for response in responses
+                    ),
+                    "selected_uuid_count": sum(
+                        len(response.competencies_uuid) for response in responses
+                    ),
+                    "suggested_new_count": sum(
+                        len(response.suggested_new) for response in responses
+                    ),
+                },
+                "response_sample": {
+                    "selected_llm_ids": [
+                        llm_id
+                        for response in responses[:3]
+                        for llm_id in response.competencies[:3]
+                    ],
+                    "suggested_new_names": [
+                        item.name
+                        for response in responses[:3]
+                        for item in response.suggested_new[:3]
+                    ],
+                },
+            },
+        )
         return selected_competencies, responses, suggestions
 
     async def _stage3(
@@ -427,6 +509,38 @@ class ThreeStagePipeline[
                     )
                 )
 
+        logger.info(
+            "pipeline_stage_output",
+            extra={
+                "stage": "stage3_subcompetencies",
+                "selected_count": len(selected_sub_competencies),
+                "selected_ids_sample": [
+                    str(item.id) for item in selected_sub_competencies[:3]
+                ],
+                "suggestions_count": len(suggestions),
+                "response_summary": {
+                    "responses_count": len(responses),
+                    "selected_count": sum(
+                        len(response.sub_competencies) for response in responses
+                    ),
+                    "suggested_new_count": sum(
+                        len(response.suggested_new) for response in responses
+                    ),
+                },
+                "response_sample": {
+                    "sub_competency_items": [
+                        item.model_dump(mode="json")
+                        for response in responses[:3]
+                        for item in response.sub_competencies[:3]
+                    ],
+                    "suggested_new_names": [
+                        item.name
+                        for response in responses[:3]
+                        for item in response.suggested_new[:3]
+                    ],
+                },
+            },
+        )
         return selected_sub_competencies, responses, suggestions
 
     @staticmethod

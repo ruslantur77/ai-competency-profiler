@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from time import perf_counter
 from typing import Final
 
 import httpx
@@ -46,25 +47,72 @@ def dispatch_llm_job_task(
     job_type: str,
     payload: dict[str, object],
 ) -> None:
-    logger.info("job started", job_type=job_type)
+    started = perf_counter()
     settings = get_settings()
+    task_id = str(getattr(self.request, "id", ""))
+    retries = int(getattr(self.request, "retries", 0))
+    job_logger = logger.bind(
+        task_id=task_id,
+        queue=settings.celery_queue_name,
+        job_type=job_type,
+        retry=retries,
+    )
+    job_logger.info(
+        "llm_job_started",
+        payload_summary={"keys": sorted(payload.keys()), "size": len(payload)},
+    )
     try:
         parsed_job_type = LLMJobType(job_type)
     except ValueError:
-        logger.warning("llm_job_unknown_type", job_type=job_type)
+        job_logger.exception("llm_job_unknown_type", payload=payload)
         raise
 
     max_retries = max(0, settings.celery_retry_attempts - 1)
     try:
         asyncio.run(_run_dispatch(parsed_job_type, payload, settings))
+        duration_ms = round((perf_counter() - started) * 1000.0, 2)
+        job_logger.info("llm_job_finished", status="success", duration_ms=duration_ms)
     except TRANSIENT_EXCEPTIONS as exc:
         if self.request.retries >= max_retries:
+            duration_ms = round((perf_counter() - started) * 1000.0, 2)
+            job_logger.exception(
+                "llm_job_failed",
+                status="failed",
+                duration_ms=duration_ms,
+                error_type=type(exc).__name__,
+                error=str(exc),
+                payload=payload,
+                attempts_made=self.request.retries + 1,
+                max_retries=max_retries,
+            )
             raise
         countdown = min(
             settings.celery_retry_backoff_max_seconds,
             settings.celery_retry_backoff_seconds * (2**self.request.retries),
         )
+        job_logger.warning(
+            "llm_job_retry_scheduled",
+            error_type=type(exc).__name__,
+            error=str(exc),
+            countdown=countdown,
+            attempts_made=self.request.retries + 1,
+            max_retries=max_retries,
+            payload_summary={"keys": sorted(payload.keys()), "size": len(payload)},
+        )
         raise self.retry(exc=exc, countdown=countdown, max_retries=max_retries) from exc
+    except Exception as exc:
+        duration_ms = round((perf_counter() - started) * 1000.0, 2)
+        job_logger.exception(
+            "llm_job_failed",
+            status="failed",
+            duration_ms=duration_ms,
+            error_type=type(exc).__name__,
+            error=str(exc),
+            payload=payload,
+            attempts_made=self.request.retries + 1,
+            max_retries=max_retries,
+        )
+        raise
 
 
 async def _run_dispatch(
