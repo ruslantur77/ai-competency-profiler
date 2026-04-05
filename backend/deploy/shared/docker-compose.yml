@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:18.3-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+
+      # variables for backend app
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../database/init.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-airflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "1432:5432"
+    restart: unless-stopped
+    networks:
+      - shared_net
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  redis:
+    image: redis:8.6.2-alpine
+    command:
+      - redis-server
+      - --appendonly yes
+      - --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "1379:6379"
+    restart: unless-stopped
+    networks:
+      - shared_net
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/upstream.conf:/etc/nginx/conf.d/upstream.conf:ro
+    networks:
+      - shared_net
+    restart: unless-stopped
+
+networks:
+  shared_net:
+    external: true
+    name: app_shared_net
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

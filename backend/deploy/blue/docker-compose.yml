@@ -1,0 +1,161 @@
+x-app-base: &app-base
+  restart: unless-stopped
+  env_file: ${ENV_FILE}
+  networks:
+    - shared_net
+
+x-airflow-base: &airflow-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: airflow
+  image: ghcr.io/ruslantur77/airflow:${IMAGE_TAG}
+  env_file: ${ENV_FILE}
+
+  restart: unless-stopped
+  volumes:
+    - ${DOCKER_SOCKET}:/var/run/docker.sock
+  depends_on:
+    airflow-init:
+      condition: service_completed_successfully
+  networks:
+    - shared_net
+
+services:
+  migrate:
+    <<: *app-base
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: ghcr.io/ruslantur77/api:${IMAGE_TAG}
+    command: alembic upgrade head
+    restart: "no"
+    networks:
+      - shared_net
+
+  api:
+    <<: *app-base
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: ghcr.io/ruslantur77/api:${IMAGE_TAG}
+    ports:
+      - "1000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  celery-worker:
+    <<: *app-base
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    image: ghcr.io/ruslantur77/worker:${IMAGE_TAG}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: >
+        bash -c "
+          celery -A competency_system.presentation.worker.celery_worker:celery_app inspect ping || exit 1
+        "
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  airflow-init:
+    env_file: ${ENV_FILE}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: airflow
+    image: ghcr.io/ruslantur77/airflow:${IMAGE_TAG}
+
+    volumes:
+      - ${DOCKER_SOCKET}:/var/run/docker.sock
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: >
+      bash -c "airflow db migrate"
+    restart: "no"
+    networks:
+      - shared_net
+
+  airflow-webserver:
+    <<: *airflow-base
+    ports:
+      - "2000:8080"
+    command: airflow api-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  airflow-scheduler:
+    <<: *airflow-base
+    command: airflow scheduler
+    healthcheck:
+      test: >
+        bash -c "
+          airflow jobs check --job-type SchedulerJob --hostname $(hostname) || exit 1
+        "
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  airflow-triggerer:
+    <<: *airflow-base
+    command: airflow triggerer
+    healthcheck:
+      test: >
+        bash -c "
+          airflow jobs check --job-type TriggererJob --hostname $(hostname) || exit 1
+        "
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+networks:
+  shared_net:
+    external: true
+    name: app_shared_net
