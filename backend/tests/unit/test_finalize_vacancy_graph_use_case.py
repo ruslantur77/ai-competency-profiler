@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pytest
 
-import competency_system.domain.entities as domain_entities
 from competency_system.application.dtos.vacancy import (
     VacancyGraphCategoryInputDTO,
     VacancyGraphCompetencyInputDTO,
@@ -14,7 +13,6 @@ from competency_system.application.dtos.vacancy import (
 )
 from competency_system.application.use_cases.vacancy import (
     FinalizeVacancyGraphUseCase,
-    _VacancyGraphPayload,
 )
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
@@ -77,7 +75,6 @@ def graph_update() -> VacancyGraphUpdateDTO:
 async def test_finalize_vacancy_graph_use_case_updates_graph_and_suggestions(
     use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
 ) -> None:
-    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
     suggestion = VacancyGraphSuggestionFactory().make(
         {
@@ -114,7 +111,6 @@ async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing(
 async def test_finalize_vacancy_graph_use_case_skips_decision_for_foreign_suggestion(
     use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
 ) -> None:
-    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
     foreign = VacancyGraphSuggestionFactory().make(
         {
@@ -138,7 +134,6 @@ async def test_finalize_vacancy_graph_use_case_skips_decision_for_foreign_sugges
 async def test_finalize_vacancy_graph_use_case_auto_approves_stage_specific_pending_suggestions(
     use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
 ) -> None:
-    _VacancyGraphPayload.model_rebuild(_types_namespace=vars(domain_entities))
     vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
     decision_target = VacancyGraphSuggestionFactory().make(
         {
