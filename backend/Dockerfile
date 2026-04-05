@@ -48,20 +48,26 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 
-RUN uv sync --frozen --no-dev --extra api \
-        --python python3.12 \
-        --project ${APP_HOME} \
-    && cp -r ${APP_HOME}/.venv ${APP_HOME}/.venv-api
+FROM builder AS api_builder
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev --group=api
 
-RUN uv sync --frozen --no-dev --extra worker \
-        --python python3.12 \
-        --project ${APP_HOME} \
-    && cp -r ${APP_HOME}/.venv ${APP_HOME}/.venv-worker
+FROM builder AS worker_builder
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev --group=worker
 
-RUN uv sync --frozen --no-dev --extra airflow \
-        --python python3.12 \
-        --project ${APP_HOME} \
-    && cp -r ${APP_HOME}/.venv ${APP_HOME}/.venv-airflow
+FROM builder AS airflow_builder
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev --group=airflow
 
 
 # =============================================================================
@@ -73,7 +79,7 @@ FROM base AS api
 ARG APP_HOME
 ENV PATH="${APP_HOME}/.venv-api/bin:${PATH}"
 
-COPY --from=builder ${APP_HOME}/.venv-api ${APP_HOME}/.venv-api
+COPY --from=api_builder ${APP_HOME}/.venv ${APP_HOME}/.venv
 COPY alembic.ini ./alembic.ini
 COPY alembic ./alembic
 COPY src ./src
@@ -87,8 +93,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-CMD ["uvicorn", "competency_system.presentation.api.main:app", \
-     "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "competency_system.presentation.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # =============================================================================
 # worker
@@ -100,7 +105,7 @@ ARG APP_HOME
 ENV PATH="${APP_HOME}/.venv-worker/bin:${PATH}" \
     C_FORCE_ROOT=0
 
-COPY --from=builder ${APP_HOME}/.venv-worker ${APP_HOME}/.venv-worker
+COPY --from=worker_builder ${APP_HOME}/.venv ${APP_HOME}/.venv
 COPY src ./src
 
 RUN useradd -m -u 1000 appuser \
@@ -113,9 +118,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
         && [ "$(( $(date +%s) - $(date +%s -r /tmp/celery_heartbeat) ))" -lt 60 ] \
     || exit 1
 
-CMD ["celery", \
-     "-A", "competency_system.presentation.worker.celery_worker:celery_app", \
-     "worker", "--loglevel", "info", "--queues", "llm_jobs"]
+CMD ["celery", "-A", "competency_system.presentation.worker.celery_worker:celery_app", "worker", "--loglevel", "info", "--queues", "llm_jobs"]
 
 # =============================================================================
 # airflow
@@ -130,7 +133,7 @@ ENV PATH="${APP_HOME}/.venv-airflow/bin:${PATH}" \
     AIRFLOW__CORE__LOAD_EXAMPLES=False \
     AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
 
-COPY --from=builder ${APP_HOME}/.venv-airflow ${APP_HOME}/.venv-airflow
+COPY --from=airflow_builder ${APP_HOME}/.venv ${APP_HOME}/.venv
 COPY src ./src
 
 RUN useradd -m -u 1000 appuser \
@@ -150,12 +153,14 @@ FROM builder AS test
 ARG APP_HOME
 ENV PATH="${APP_HOME}/.venv/bin:${PATH}"
 
-RUN uv sync --frozen --extra api --extra worker --group dev \
-        --python python3.12 \
-        --project ${APP_HOME} \
-        --python-preference only-system
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --all-groups
 
-COPY tests/ ${APP_HOME}/tests/
 COPY alembic/ ${APP_HOME}/alembic/
+COPY tests/ ${APP_HOME}/tests/
+COPY src ./src
 
 CMD ["pytest"]

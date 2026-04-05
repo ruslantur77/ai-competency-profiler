@@ -16,27 +16,32 @@ dependencies = [
     "structlog>=24.4.0",
     "python-json-logger>=2.0.7",
     "tenacity>=9.0.0",
-]
-
-[project.optional-dependencies]
-api = [
-    "fastapi[standard]>=0.115.0",
-    "uvicorn[standard]>=0.30.0",
-    "httpx>=0.27.0",
     "pyjwt>=2.10.0",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt==4.0.1",
-    "celery[redis]>=5.4.0",
     "openai>=1.52.0",
     "httpx>=0.27.0",
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "celery[redis]>=5.4.0",
 ]
-worker = []
+
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.8",
+]
+api = []
 airflow = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-docker>=3.13.0",
     "docker>=7.1.0",
 ]
-
+worker = []
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -48,14 +53,6 @@ package-dir = { "" = "src" }
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[dependency-groups]
-dev = [
-    "mypy>=1.19.1",
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
-    "pytest-cov>=7.1.0",
-    "ruff>=0.15.8",
-]
 
 [tool.ruff]
 line-length = 88
