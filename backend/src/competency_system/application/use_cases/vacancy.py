@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from uuid import UUID, uuid4
-
-from pydantic import BaseModel
 
 from competency_system.application.dtos.mappers import (
     suggestion_dto_from_domain,
@@ -59,7 +58,8 @@ from competency_system.domain.value_objects.enums import (
 )
 
 
-class _VacancyGraphPayload(BaseModel):
+@dataclass
+class _VacancyGraphPayload:
     categories: list[Category]
     competencies: list[Competency]
     category_nodes: list[VacancyCategoryNode]
