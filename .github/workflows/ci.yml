@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
   lint:
@@ -74,12 +82,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        image:
-          [
-            competency-system/api,
-            competency-system/worker,
-            competency-system/airflow,
-          ]
+        image: [api, worker, airflow]
     outputs:
       full_image: ${{ steps.full-image.outputs.full_image }}
 
@@ -98,7 +101,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5.10.0
         with:
-          images: ${{ env.REGISTRY }}/${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/ruslantur77/${{ matrix.image }}
           tags: |
             type=sha,format=short
             type=ref,event=branch
@@ -111,7 +114,7 @@ jobs:
             SHA_TAG=$(git rev-parse --short HEAD)
             SHA_TAG="sha-$SHA_TAG"
           fi
-          echo "full_image=${{ env.REGISTRY }}/${{ matrix.image }}:${SHA_TAG}" >> $GITHUB_OUTPUT
+          echo "full_image=${{ env.REGISTRY }}/ruslantur77/${{ matrix.image }}:${SHA_TAG}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -121,6 +124,7 @@ jobs:
         with:
           context: backend
           push: true
+          target: ${{ matrix.image }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
