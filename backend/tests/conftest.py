@@ -11,16 +11,20 @@ from competency_system.infrastructure.settings import get_settings
 
 @pytest.fixture(autouse=True)
 def test_environment_guard() -> None:
-    tracked_keys = (
-        "BOOTSTRAP_ADMIN_EMAIL",
-        "BOOTSTRAP_ADMIN_PASSWORD",
-        "TESTING_SYSTEM_WEBHOOK_SECRET",
-    )
+    default_test_env = {
+        "API_KEY": "test-api-key",
+        "BASE_URL": "https://example.invalid/api/v1",
+        "MODEL": "test-model",
+        "SECRET_KEY": "test-secret-key",
+        "BOOTSTRAP_ADMIN_EMAIL": "",
+        "BOOTSTRAP_ADMIN_PASSWORD": "",
+        "TESTING_SYSTEM_WEBHOOK_SECRET": "",
+    }
+    tracked_keys = tuple(default_test_env.keys())
     previous = {key: os.environ.get(key) for key in tracked_keys}
 
-    os.environ["BOOTSTRAP_ADMIN_EMAIL"] = ""
-    os.environ["BOOTSTRAP_ADMIN_PASSWORD"] = ""
-    os.environ["TESTING_SYSTEM_WEBHOOK_SECRET"] = ""
+    for key, value in default_test_env.items():
+        os.environ[key] = value
     get_settings.cache_clear()
     try:
         yield
