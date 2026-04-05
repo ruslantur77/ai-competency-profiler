@@ -1,39 +1,88 @@
-version: "3.9"
+x-app-base: &app-base
+  env_file: .env
+  restart: unless-stopped
+
+x-airflow-base: &airflow-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: airflow
+  image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - ${DOCKER_HOST:-/run/user/1000/docker.sock}:/var/run/docker.sock
+  depends_on:
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
 
 services:
-  redis:
-    image: redis:7-alpine
-    command:
-      [
-        "redis-server",
-        "--appendonly",
-        "yes",
-        "--requirepass",
-        "${REDIS_PASSWORD:-password}",
-      ]
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18.3-alpine
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+
+      # variables for backend app
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
-      interval: 10s
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-airflow}"]
+      interval: 5s
+      timeout: 5s
       retries: 5
       start_period: 5s
     ports:
       - "5432:5432"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  redis:
+    image: redis:8.6.2-alpine
+    command:
+      - redis-server
+      - --appendonly yes
+      - --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  migrate:
+    <<: *app-base
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    image: competency-system/api:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: alembic upgrade head
+    restart: "no"
 
   api:
+    <<: *app-base
     build:
       context: .
       dockerfile: Dockerfile
@@ -41,86 +90,36 @@ services:
     image: competency-system/api:latest
     ports:
       - "8000:8000"
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: app
-      DB_USER: app
-      DB_PASS: app
-      API_KEY: ${API_KEY:-}
-      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
-      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
-      CODE_PROMPT_VERSION: ${CODE_PROMPT_VERSION:-v1}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-false}
-      LLM_QUEUE_BACKEND: ${LLM_QUEUE_BACKEND:-inmemory}
-      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
-      CELERY_QUEUE_NAME: ${CELERY_QUEUE_NAME:-llm_jobs}
-      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
-      CELERY_RETRY_ATTEMPTS: ${CELERY_RETRY_ATTEMPTS:-3}
-      CELERY_RETRY_BACKOFF_SECONDS: ${CELERY_RETRY_BACKOFF_SECONDS:-2}
-      CELERY_RETRY_BACKOFF_MAX_SECONDS: ${CELERY_RETRY_BACKOFF_MAX_SECONDS:-30}
-      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
-      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
-      PYTHONPATH: /app/src
-    volumes:
-      - ./src:/app/src:cached
-      - ./alembic:/app/alembic:cached
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   celery-worker:
+    <<: *app-base
     build:
       context: .
       dockerfile: Dockerfile
-      target: api
-    image: competency-system/api:latest
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: app
-      DB_USER: app
-      DB_PASS: app
-      API_KEY: ${API_KEY:-}
-      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
-      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
-      VACANCY_PROMPT_VERSION: ${VACANCY_PROMPT_VERSION:-v1}
-      TASK_PROMPT_VERSION: ${TASK_PROMPT_VERSION:-v1}
-      CODE_PROMPT_VERSION: ${CODE_PROMPT_VERSION:-v1}
-      LLM_MAX_PARALLEL_REQUESTS: ${LLM_MAX_PARALLEL_REQUESTS:-4}
-      LLM_STAGE_TIMEOUT_SECONDS: ${LLM_STAGE_TIMEOUT_SECONDS:-45}
-      LLM_MAX_SUGGESTED_NEW_PER_STAGE: ${LLM_MAX_SUGGESTED_NEW_PER_STAGE:-5}
-      LLM_QUEUE_BACKEND: celery
-      REDIS_HOST: ${REDIS_HOST:-127.0.0.1}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
-      CELERY_QUEUE_NAME: ${CELERY_QUEUE_NAME:-llm_jobs}
-      CELERY_RESULT_EXPIRES_SECONDS: ${CELERY_RESULT_EXPIRES_SECONDS:-86400}
-      CELERY_RETRY_ATTEMPTS: ${CELERY_RETRY_ATTEMPTS:-3}
-      CELERY_RETRY_BACKOFF_SECONDS: ${CELERY_RETRY_BACKOFF_SECONDS:-2}
-      CELERY_RETRY_BACKOFF_MAX_SECONDS: ${CELERY_RETRY_BACKOFF_MAX_SECONDS:-30}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-false}
-      PYTHONPATH: /app/src
-    volumes:
-      - ./src:/app/src:cached
-      - ./alembic:/app/alembic:cached
+      target: worker
+    image: competency-system/worker:latest
     depends_on:
       postgres:
         condition: service_healthy
-    command: >
-      celery -A competency_system.presentation.worker.celery_worker:celery_app
-      worker --loglevel ${LOG_LEVEL:-info}
-      --queues ${CELERY_QUEUE_NAME:-llm_jobs}
-    command: >
-      uvicorn competency_system.presentation.api.main:app
-      --host 0.0.0.0
-      --port 8000
-      --reload
-      --log-level ${LOG_LEVEL:-info}
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   airflow-init:
     build:
@@ -128,155 +127,90 @@ services:
       dockerfile: Dockerfile
       target: airflow
     image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: app
-      DB_USER: app
-      DB_PASS: app
-      API_KEY: ${API_KEY:-}
-      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
-      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-false}
-      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
-      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__EXECUTOR: DockerExecutor
-      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
-      PYTHONPATH: /app/src
+    env_file: .env
     volumes:
-      - ./src:/app/src:cached
-      - ./alembic:/app/alembic:cached
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_SOCKET}:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     command: >
-      sh -lc "airflow db migrate && (airflow users create
-      --username ${AIRFLOW_USERNAME:-admin}
-      --password ${AIRFLOW_PASSWORD:-admin}
-      --firstname Airflow
-      --lastname Admin
-      --role Admin
-      --email admin@example.com || true)"
+      sh -c "airflow db migrate
+      && (airflow users create
+          --username ${AIRFLOW_USERNAME}
+          --password ${AIRFLOW_PASSWORD}
+          --firstname Airflow
+          --lastname Admin
+          --role Admin
+          --email ${AIRFLOW_ADMIN_EMAIL:-admin@example.com}
+          || true)"
+    restart: "no"
 
   airflow-webserver:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: airflow
-    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+    <<: *airflow-base
     ports:
       - "8080:8080"
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: app
-      DB_USER: app
-      DB_PASS: app
-      API_KEY: ${API_KEY:-}
-      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
-      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-false}
-      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
-      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__EXECUTOR: DockerExecutor
-      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
-      PYTHONPATH: /app/src
-    volumes:
-      - ./src:/app/src:cached
-      - ./alembic:/app/alembic:cached
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      postgres:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
     command: airflow webserver
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   airflow-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: airflow
-    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: app
-      DB_USER: app
-      DB_PASS: app
-      API_KEY: ${API_KEY:-}
-      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
-      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-false}
-      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
-      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__EXECUTOR: DockerExecutor
-      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
-      PYTHONPATH: /app/src
-    volumes:
-      - ./src:/app/src:cached
-      - ./alembic:/app/alembic:cached
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      postgres:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
+    <<: *airflow-base
     command: airflow scheduler
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "airflow",
+          "jobs",
+          "check",
+          "--job-type",
+          "SchedulerJob",
+          "--hostname",
+          "$$HOSTNAME",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   airflow-triggerer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: airflow
-    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: app
-      DB_USER: app
-      DB_PASS: app
-      API_KEY: ${API_KEY:-}
-      BASE_URL: ${BASE_URL:-https://openrouter.ai/api/v1}
-      MODEL: ${MODEL:-openai/gpt-oss-20b:free}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DEBUG: ${DEBUG:-false}
-      TESTING_SYSTEM_BASE_URL: ${TESTING_SYSTEM_BASE_URL:-http://localhost:9000}
-      TESTING_SYSTEM_API_TOKEN: ${TESTING_SYSTEM_API_TOKEN:-}
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__EXECUTOR: DockerExecutor
-      AIRFLOW__CORE__DAGS_FOLDER: /app/src/competency_system/presentation/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/logs
-      PYTHONPATH: /app/src
-    volumes:
-      - ./src:/app/src:cached
-      - ./alembic:/app/alembic:cached
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      postgres:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
+    <<: *airflow-base
     command: airflow triggerer
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "airflow",
+          "jobs",
+          "check",
+          "--job-type",
+          "TriggererJob",
+          "--hostname",
+          "$$HOSTNAME",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
