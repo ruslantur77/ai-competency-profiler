@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pytest
 
-from competency_system.application.llm_dispatch import dispatch_llm_job
-from competency_system.application.llm_dispatch_payload import (
+from competency_system.application.llm.llm_dispatch import dispatch_llm_job
+from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
     TaskExtractionPayload,
     VacancyExtractionPayload,

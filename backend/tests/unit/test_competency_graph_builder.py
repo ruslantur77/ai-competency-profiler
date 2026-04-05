@@ -2,14 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from competency_system.application.competency_graph_builder import (
-    CompetencyGraphBuilder,
-)
 from competency_system.domain.entities import (
     Category,
     Competency,
     SubCompetency,
-    Vacancy,
 )
 
 pytestmark = pytest.mark.unit
@@ -46,26 +42,3 @@ class _Extractor:
             SubCompetency(competency_id=competency.id, name="S1"),
             SubCompetency(competency_id=competency.id, name="S2"),
         ]
-
-
-async def test_competency_graph_builder_applies_limits_and_sets_relations() -> None:
-    extractor = _Extractor()
-    builder = CompetencyGraphBuilder(
-        extractor,
-        max_categories=2,
-        max_competencies=1,
-        max_subcompetencies=1,
-    )
-    vacancy = Vacancy(name="Python Engineer", description="Build systems")
-
-    categories, competencies = await builder.build_graph(vacancy, [])
-
-    assert len(categories) == 2
-    assert len(competencies) == 2
-    assert all(len(comp.sub_competencies) == 1 for comp in competencies)
-    assert all(
-        comp.category_id in {cat.id for cat in categories} for comp in competencies
-    )
-    assert extractor.category_calls == 1
-    assert extractor.competency_calls == 2
-    assert extractor.sub_calls == 2

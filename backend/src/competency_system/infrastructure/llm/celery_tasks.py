@@ -8,7 +8,7 @@ import httpx
 from celery import Task
 from sqlalchemy.exc import DBAPIError, OperationalError
 
-from competency_system.application.llm_dispatch import dispatch_llm_job
+from competency_system.application.llm.llm_dispatch import dispatch_llm_job
 from competency_system.application.ports.llm_jobs import LLMJobType
 from competency_system.infrastructure.database import create_engine_and_session_factory
 from competency_system.infrastructure.llm.celery_app import get_celery_app

@@ -9,8 +9,8 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, model_validator
 
-from competency_system.application.id_mapper import IDMapper
-from competency_system.application.llm_orchestrator import (
+from competency_system.application.llm.id_mapper import IDMapper
+from competency_system.application.llm.llm_orchestrator import (
     LLMCallSpec,
     StructuredLLMOrchestrator,
 )
