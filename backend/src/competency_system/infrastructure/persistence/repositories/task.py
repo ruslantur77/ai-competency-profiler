@@ -178,12 +178,12 @@ class _TestResultRepository(
                     final_score=entity.llm_assessment.final_score,
                 )
             )
-            for position, item in enumerate(entity.llm_assessment.feedback_items):
+            for position, item_f in enumerate(entity.llm_assessment.feedback_items):
                 self._session.add(
                     TestResultLLMFeedbackOrm(
                         assessment_id=assessment_id,
-                        type=item.type,
-                        value=item.value,
+                        type=item_f.type,
+                        value=item_f.value,
                         position=position,
                     )
                 )

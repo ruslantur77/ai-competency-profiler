@@ -128,38 +128,38 @@ class VacancyRepository(
             )
         )
 
-        for node in vacancy.category_nodes:
+        for node_cat in vacancy.category_nodes:
             self._session.add(
                 VacancyCategoryNodeOrm(
-                    id=node.id,
+                    id=node_cat.id,
                     vacancy_id=vacancy.id,
-                    category_id=node.category_id,
-                    position=node.position,
+                    category_id=node_cat.category_id,
+                    position=node_cat.position,
                 )
             )
 
-        for node in vacancy.competency_nodes:
+        for node_comp in vacancy.competency_nodes:
             self._session.add(
                 VacancyCompetencyNodeOrm(
-                    id=node.id,
+                    id=node_comp.id,
                     vacancy_id=vacancy.id,
-                    competency_id=node.competency_id,
-                    category_id=node.category_id,
-                    is_required=node.is_required,
-                    position=node.position,
+                    competency_id=node_comp.competency_id,
+                    category_id=node_comp.category_id,
+                    is_required=node_comp.is_required,
+                    position=node_comp.position,
                 )
             )
 
-        for node in vacancy.sub_competency_nodes:
+        for node_sub in vacancy.sub_competency_nodes:
             self._session.add(
                 VacancySubCompetencyNodeOrm(
-                    id=node.id,
+                    id=node_sub.id,
                     vacancy_id=vacancy.id,
-                    sub_competency_id=node.sub_competency_id,
-                    competency_id=node.competency_id,
-                    target_level=int(node.target_level),
-                    weight=node.weight,
-                    position=node.position,
+                    sub_competency_id=node_sub.sub_competency_id,
+                    competency_id=node_sub.competency_id,
+                    target_level=int(node_sub.target_level),
+                    weight=node_sub.weight,
+                    position=node_sub.position,
                 )
             )
 
@@ -173,21 +173,21 @@ class VacancyRepository(
         list[VacancyCompetencyNode],
         list[VacancySubCompetencyNode],
     ]:
-        category_rows = (
+        category_rows: Sequence[VacancyCategoryNodeOrm] = (
             await self._session.scalars(
                 select(VacancyCategoryNodeOrm)
                 .where(VacancyCategoryNodeOrm.vacancy_id == vacancy_id)
                 .order_by(VacancyCategoryNodeOrm.position)
             )
         ).all()
-        competency_rows = (
+        competency_rows: Sequence[VacancyCompetencyNodeOrm] = (
             await self._session.scalars(
                 select(VacancyCompetencyNodeOrm)
                 .where(VacancyCompetencyNodeOrm.vacancy_id == vacancy_id)
                 .order_by(VacancyCompetencyNodeOrm.position)
             )
         ).all()
-        sub_rows = (
+        sub_rows: Sequence[VacancySubCompetencyNodeOrm] = (
             await self._session.scalars(
                 select(VacancySubCompetencyNodeOrm)
                 .where(VacancySubCompetencyNodeOrm.vacancy_id == vacancy_id)
@@ -225,11 +225,11 @@ class VacancyRepository(
         }
 
         sub_by_competency: dict[UUID, list[SubCompetency]] = {}
-        for row in sub_rows:
-            sub_model = sub_models.get(row.sub_competency_id)
+        for row_sub in sub_rows:
+            sub_model = sub_models.get(row_sub.sub_competency_id)
             if sub_model is None:
                 continue
-            sub_by_competency.setdefault(row.competency_id, []).append(
+            sub_by_competency.setdefault(row_sub.competency_id, []).append(
                 SubCompetency(
                     id=sub_model.id,
                     competency_id=sub_model.competency_id,
@@ -242,31 +242,31 @@ class VacancyRepository(
             )
 
         competencies: dict[UUID, Competency] = {}
-        for row in competency_rows:
-            model = competency_models.get(row.competency_id)
+        for row_comp in competency_rows:
+            model = competency_models.get(row_comp.competency_id)
             if model is None:
                 continue
-            competencies[row.competency_id] = Competency(
+            competencies[row_comp.competency_id] = Competency(
                 id=model.id,
-                category_id=row.category_id,
+                category_id=row_comp.category_id,
                 name=model.name,
                 description=model.description,
-                sub_competencies=sub_by_competency.get(row.competency_id, []),
+                sub_competencies=sub_by_competency.get(row_comp.competency_id, []),
                 created_at=model.created_at,
                 updated_at=model.updated_at,
             )
         categories: dict[UUID, Category] = {}
-        for row in category_rows:
-            model = category_models.get(row.category_id)
-            if model is None:
+        for row_cat in category_rows:
+            model_cat = category_models.get(row_cat.category_id)
+            if model_cat is None:
                 continue
-            categories[row.category_id] = Category(
-                id=model.id,
-                name=model.name,
-                description=model.description,
-                emoji=model.emoji,
-                created_at=model.created_at,
-                updated_at=model.updated_at,
+            categories[row_cat.category_id] = Category(
+                id=model_cat.id,
+                name=model_cat.name,
+                description=model_cat.description,
+                emoji=model_cat.emoji,
+                created_at=model_cat.created_at,
+                updated_at=model_cat.updated_at,
             )
 
         category_nodes = [
