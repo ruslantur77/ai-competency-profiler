@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from competency_system.application.llm_dispatch_payload import (
+from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
     TaskExtractionPayload,
     VacancyExtractionPayload,

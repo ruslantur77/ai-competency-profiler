@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from competency_system.application.prompts import PromptCatalog
+from competency_system.application.llm.prompts import PromptCatalog
 
 
 @pytest.mark.unit

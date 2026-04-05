@@ -8,13 +8,13 @@ from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
 )
-from competency_system.application.llm_dispatch_payload import (
+from competency_system.application.llm.llm_dispatch_payload import (
     TaskExtractionPayload,
 )
-from competency_system.application.llm_orchestrator import (
+from competency_system.application.llm.llm_orchestrator import (
     StructuredLLMOrchestrator,
 )
-from competency_system.application.pipeline import (
+from competency_system.application.llm.pipeline import (
     LLMSelectionCategoriesOutput,
     LLMSelectionCompetenciesOutput,
     LLMSelectionSubCompetenciesOutput,
@@ -33,7 +33,7 @@ from competency_system.application.ports.repositories import (
     TaskInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.application.prompts import PromptCatalog, ThreeStagePrompts
+from competency_system.application.llm.prompts import PromptCatalog, ThreeStagePrompts
 from competency_system.domain.entities import (
     Category,
     Competency,

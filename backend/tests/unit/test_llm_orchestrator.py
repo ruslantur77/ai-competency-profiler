@@ -6,7 +6,7 @@ import logging
 import pytest
 from pydantic import BaseModel
 
-from competency_system.application.llm_orchestrator import (
+from competency_system.application.llm.llm_orchestrator import (
     LLMCallSpec,
     StructuredLLMOrchestrator,
     normalize_weighted_items,

@@ -22,7 +22,7 @@ from competency_system.application.dtos.webhooks import (
     WebhookEventPayload,
     WebhookEventStatus,
 )
-from competency_system.application.llm_dispatch_payload import (
+from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
 )
 from competency_system.application.ports.llm import LLMGateway, LLMMessage
@@ -34,7 +34,7 @@ from competency_system.application.ports.repositories import (
     VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
-from competency_system.application.prompts import PromptCatalog
+from competency_system.application.llm.prompts import PromptCatalog
 from competency_system.domain.entities import (
     Candidate,
     Task,

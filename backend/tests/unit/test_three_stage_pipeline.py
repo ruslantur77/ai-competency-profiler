@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from competency_system.application.pipeline import (
+from competency_system.application.llm.pipeline import (
     LLMSelectionCategoriesOutput,
     LLMSelectionCompetenciesOutput,
     LLMSelectionSubCompetenciesOutput,
