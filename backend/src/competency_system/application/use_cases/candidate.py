@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -44,6 +45,8 @@ from competency_system.domain.entities import (
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.enums import AssessmentStatus, TaskType
+
+logger = logging.getLogger(__name__)
 
 
 class _DuplicateWebhookEvent(Exception):
@@ -190,6 +193,14 @@ class LLMCodeAssessmentOperation:
         duration_seconds: int,
     ) -> None:
         if self._llm_gateway is None:
+            logger.info(
+                "llm_operation_skipped",
+                extra={
+                    "operation": "code_assessment",
+                    "reason": "llm_gateway_missing",
+                    "test_result_id": str(test_result_id),
+                },
+            )
             return
         async with self._uow as uow:
             result = await uow.test_results.get(
@@ -197,30 +208,69 @@ class LLMCodeAssessmentOperation:
                 include={TestResultInclude.TASK, TestResultInclude.LLM_ASSESSMENT},
             )
             if result is None or result.task is None or not result.code_submitted:
+                logger.info(
+                    "llm_operation_skipped",
+                    extra={
+                        "operation": "code_assessment",
+                        "reason": "test_result_not_ready",
+                        "test_result_id": str(test_result_id),
+                        "has_result": result is not None,
+                        "has_task": bool(result and result.task),
+                        "has_code": bool(result and result.code_submitted),
+                    },
+                )
                 return
-            assessment = await self._llm_gateway.generate(
-                [
-                    LLMMessage(
-                        role="system",
-                        content=self._prompt_catalog.get_code_assessment_prompts(
-                            self.prompt_version
-                        ).prompt,
-                    ),
-                    LLMMessage(
-                        role="user",
-                        content=(
-                            f"Task: {result.task.title}\n"
-                            f"Description: {result.task.description}\n"
-                            f"Candidate code:\n{result.code_submitted}\n\n"
-                            f"Passed tests: {passed_tests}/{total_tests}\n"
-                            f"Attempts: {result.attempts}\n"
-                            f"Duration: {duration_seconds} seconds"
+            try:
+                assessment = await self._llm_gateway.generate(
+                    [
+                        LLMMessage(
+                            role="system",
+                            content=self._prompt_catalog.get_code_assessment_prompts(
+                                self.prompt_version
+                            ).prompt,
                         ),
-                    ),
-                ],
-                LLMCodeAssessmentDTO,
-            )
+                        LLMMessage(
+                            role="user",
+                            content=(
+                                f"Task: {result.task.title}\n"
+                                f"Description: {result.task.description}\n"
+                                f"Candidate code:\n{result.code_submitted}\n\n"
+                                f"Passed tests: {passed_tests}/{total_tests}\n"
+                                f"Attempts: {result.attempts}\n"
+                                f"Duration: {duration_seconds} seconds"
+                            ),
+                        ),
+                    ],
+                    LLMCodeAssessmentDTO,
+                )
+            except Exception as exc:
+                logger.exception(
+                    "llm_operation_failed",
+                    extra={
+                        "operation": "code_assessment",
+                        "status": "failed",
+                        "test_result_id": str(test_result_id),
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    },
+                )
+                raise
         await self._scoring_op.apply_llm_assessment(test_result_id, assessment)
+        logger.info(
+            "llm_operation_finished",
+            extra={
+                "operation": "code_assessment",
+                "status": "success",
+                "test_result_id": str(test_result_id),
+                "score": assessment.score,
+                "passed": assessment.passed,
+                "feedback_items_count": len(assessment.feedback_items),
+                "feedback_items_sample": [
+                    item.model_dump(mode="json")
+                    for item in assessment.feedback_items[:3]
+                ],
+            },
+        )
 
 
 class CandidateScoringOperation:

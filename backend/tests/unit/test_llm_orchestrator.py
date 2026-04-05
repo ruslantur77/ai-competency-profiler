@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import pytest
 from pydantic import BaseModel
@@ -46,7 +47,9 @@ class _FastLLM:
         return response_model.model_validate({"value": payload})
 
 
-async def test_structured_llm_orchestrator_retries_and_returns_result() -> None:
+async def test_structured_llm_orchestrator_retries_and_returns_result(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     llm = _FlakyLLM()
     orchestrator = StructuredLLMOrchestrator(
         llm,
@@ -55,19 +58,25 @@ async def test_structured_llm_orchestrator_retries_and_returns_result() -> None:
         stage_retry_attempts=2,
     )
 
-    result = await orchestrator.run(
-        LLMCallSpec(
-            stage="s1",
-            messages=[LLMMessage(role="user", content="x")],
-            response_model=_Response,
+    with caplog.at_level(logging.INFO):
+        result = await orchestrator.run(
+            LLMCallSpec(
+                stage="s1",
+                messages=[LLMMessage(role="user", content="x")],
+                response_model=_Response,
+            )
         )
-    )
 
     assert result.value == 7
     assert llm.calls == 2
+    assert "llm_stage_started" in caplog.text
+    assert "llm_stage_attempt_failed" in caplog.text
+    assert "llm_stage_finished" in caplog.text
 
 
-async def test_structured_llm_orchestrator_times_out() -> None:
+async def test_structured_llm_orchestrator_times_out(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     orchestrator = StructuredLLMOrchestrator(
         _SlowLLM(),
         max_parallel_requests=1,
@@ -75,7 +84,7 @@ async def test_structured_llm_orchestrator_times_out() -> None:
         stage_retry_attempts=1,
     )
 
-    with pytest.raises(TimeoutError):
+    with caplog.at_level(logging.INFO), pytest.raises(TimeoutError):
         await orchestrator.run(
             LLMCallSpec(
                 stage="timeout",
@@ -83,6 +92,7 @@ async def test_structured_llm_orchestrator_times_out() -> None:
                 response_model=_Response,
             )
         )
+    assert "llm_stage_failed" in caplog.text
 
 
 async def test_structured_llm_orchestrator_run_many_handles_empty_specs() -> None:
