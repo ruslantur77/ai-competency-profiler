@@ -411,16 +411,16 @@ class ThreeStagePipeline[
                     competency=source.competency,
                 )
             selected_sub_competencies.extend(selected_for_comp.values())
-            for item in response.suggested_new:
+            for item_new in response.suggested_new:
                 suggestions.append(
                     VacancyGraphSuggestion(
                         id=uuid4(),
                         vacancy_id=UUID(int=0),
                         stage=SuggestionStage.SUB_COMPETENCY,
                         entity_type=SuggestionEntityType.SUB_COMPETENCY,
-                        name=item.name,
-                        description=item.description,
-                        reason=item.reason,
+                        name=item_new.name,
+                        description=item_new.description,
+                        reason=item_new.reason,
                         target_level=CompetencyLevel(item.target_level),
                         weight=item.weight,
                         parent_competency_id=comp.id,

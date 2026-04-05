@@ -19,7 +19,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyStatusUpdateDTO,
     VacancySuggestionDecisionDTO,
 )
-from competency_system.application.llm_dispatch import (
+from competency_system.application.llm_dispatch_payload import (
     VacancyExtractionPayload,
 )
 from competency_system.application.llm_orchestrator import (
