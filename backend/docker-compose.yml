@@ -11,7 +11,7 @@ x-airflow-base: &airflow-base
   env_file: .env
   restart: unless-stopped
   volumes:
-    - ${DOCKER_HOST:-/run/user/1000/docker.sock}:/var/run/docker.sock
+    - ${DOCKER_SOCKET}:/var/run/docker.sock
   depends_on:
     postgres:
       condition: service_healthy

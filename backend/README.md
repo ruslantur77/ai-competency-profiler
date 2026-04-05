@@ -1,278 +1,177 @@
-# Competency System - Backend
+# Competency System Backend
 
-AI-powered competency assessment system for evaluating candidates based on test results and code analysis.
+Технический README для backend-сервиса: стек, конфиг окружения, запуск через Docker и структура кода.
 
-## Architecture
+## Стек
 
-Clean Architecture with the following layers:
+- Python 3.12
+- FastAPI + Uvicorn
+- SQLAlchemy 2 + Alembic
+- PostgreSQL
+- Celery + Redis
+- Airflow 2
+- OpenAI-compatible LLM API (по умолчанию OpenRouter)
+- Инструменты качества: pytest, mypy, ruff
 
-```
-src/competency_system/
-├── domain/                 # Business entities and rules (no dependencies)
-│   ├── entities/
-│   ├── value_objects/
-│   └── services/
-├── application/            # Use cases and application logic
-│   ├── ports/             # Interfaces for infrastructure
-│   ├── dtos/              # Data transfer objects
-│   └── use_cases/         # Business operations
-├── infrastructure/         # External implementations
-│   ├── persistence/       # Database repositories
-│   ├── llm/               # LLM integrations
-│   └── external/          # External API clients
-└── presentation/          # Entry points
-    ├── api/               # FastAPI endpoints
-    └── airflow/           # Airflow DAGs
-```
+## Быстрый запуск (Docker-only)
 
-## Quick Start
-
-### Prerequisites
-- Docker and Docker Compose
-- Python 3.12+ (for local development)
-
-### 1. Configure Environment
+1. Создайте локальный конфиг:
 
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
-# Add TESTING_SYSTEM_WEBHOOK_SECRET if webhook verification is enabled
 ```
 
-### 2. Start Services
+2. Заполните обязательные значения в `.env`:
+- `API_KEY`
+- `SECRET_KEY`
+- `POSTGRES_PASSWORD`
+- `REDIS_PASSWORD`
+- `AIRFLOW__WEBSERVER__SECRET_KEY`
+- `AIRFLOW__CORE__FERNET_KEY`
+- `DOCKER_SOCKET` (путь к docker.sock в вашей среде, в том числе rootless)
+
+3. Поднимите сервисы:
 
 ```bash
-# Build and start all services
-docker-compose up -d --build
-
-# Or step by step:
-docker-compose up -d postgres
-docker-compose up -d api
-docker-compose up -d celery-worker
-docker-compose up -d airflow-init airflow-webserver airflow-scheduler airflow-triggerer
+docker compose up -d --build
 ```
 
-### 3. Run Migrations
+4. Проверка доступности:
+- API docs: `http://localhost:1000/docs`
+- Health: `http://localhost:1000/health`
+- Airflow API/UI: `http://localhost:8080`
+
+## Сервисы и порты
+
+| Сервис              | Порт хоста | Назначение                               |
+| ------------------- | ---------: | ---------------------------------------- |
+| `api`               |     `1000` | HTTP API backend                         |
+| `airflow-webserver` |     `8080` | Airflow UI/API                           |
+| `postgres`          |     `1432` | PostgreSQL                               |
+| `redis`             |     `1379` | Redis (broker/result backend для Celery) |
+
+## Переменные окружения
+
+Источник: `.env`. Шаблон и комментарии: `.env.example`.
+
+### Application
+
+| Переменная        | Что задаёт                 | Пример                                        |
+| ----------------- | -------------------------- | --------------------------------------------- |
+| `LOG_LEVEL`       | уровень логирования        | `INFO`                                        |
+| `DEBUG`           | debug-режим приложения     | `false`                                       |
+| `ALLOWED_ORIGINS` | CORS origins через запятую | `http://localhost:3000,http://127.0.0.1:3000` |
+
+### Database (backend)
+
+| Переменная | Что задаёт                     | Пример          |
+| ---------- | ------------------------------ | --------------- |
+| `DB_HOST`  | хост PostgreSQL для backend    | `postgres`      |
+| `DB_PORT`  | порт PostgreSQL                | `5432`          |
+| `DB_NAME`  | имя БД backend                 | `competency_db` |
+| `DB_USER`  | пользователь БД backend        | `postgres`      |
+| `DB_PASS`  | пароль пользователя БД backend | `password`      |
+
+### LLM
+
+| Переменная                        | Что задаёт                                        | Пример                         |
+| --------------------------------- | ------------------------------------------------- | ------------------------------ |
+| `API_KEY`                         | ключ LLM API                                      | `your-api-key`                 |
+| `BASE_URL`                        | базовый URL LLM API                               | `https://openrouter.ai/api/v1` |
+| `MODEL`                           | модель LLM                                        | `openai/gpt-oss-20b`           |
+| `LLM_TIMEOUT_SECONDS`             | таймаут одного LLM-запроса                        | `30`                           |
+| `LLM_RETRY_ATTEMPTS`              | число повторов LLM-запроса                        | `3`                            |
+| `LLM_MAX_PARALLEL_REQUESTS`       | максимум параллельных запросов                    | `4`                            |
+| `LLM_STAGE_TIMEOUT_SECONDS`       | таймаут этапа LLM пайплайна                       | `45`                           |
+| `VACANCY_PROMPT_VERSION`          | версия промпта вакансии                           | `v1`                           |
+| `TASK_PROMPT_VERSION`             | версия промпта задач                              | `v1`                           |
+| `CODE_PROMPT_VERSION`             | версия промпта code-assessment                    | `v1`                           |
+| `LLM_MAX_SUGGESTED_NEW_PER_STAGE` | лимит новых компетенций на этап                   | `5`                            |
+| `LLM_REASONING_MAX_TOKENS`        | лимит reasoning токенов (`0` = без явного лимита) | `0`                            |
+| `LLM_QUEUE_BACKEND`               | backend очереди LLM: `inmemory` или `celery`      | `celery`                       |
+
+### Redis + Celery
+
+| Переменная                         | Что задаёт                    | Пример     |
+| ---------------------------------- | ----------------------------- | ---------- |
+| `REDIS_HOST`                       | хост Redis                    | `redis`    |
+| `REDIS_PORT`                       | порт Redis                    | `6379`     |
+| `REDIS_PASSWORD`                   | пароль Redis                  | `password` |
+| `CELERY_QUEUE_NAME`                | имя очереди                   | `llm_jobs` |
+| `CELERY_RESULT_EXPIRES_SECONDS`    | TTL результатов задач         | `86400`    |
+| `CELERY_RETRY_ATTEMPTS`            | число повторов задач          | `3`        |
+| `CELERY_RETRY_BACKOFF_SECONDS`     | стартовая задержка backoff    | `2`        |
+| `CELERY_RETRY_BACKOFF_MAX_SECONDS` | максимальная задержка backoff | `30`       |
+
+### External Testing System
+
+| Переменная                      | Что задаёт                           | Пример                  |
+| ------------------------------- | ------------------------------------ | ----------------------- |
+| `TESTING_SYSTEM_BASE_URL`       | URL внешней тестовой системы         | `http://localhost:9000` |
+| `TESTING_SYSTEM_API_TOKEN`      | токен API внешней системы            | ``                      |
+| `TESTING_SYSTEM_WEBHOOK_SECRET` | shared-secret для `X-Webhook-Secret` | `change-me`             |
+
+### Airflow
+
+| Переменная                            | Что задаёт                    | Пример                                                    |
+| ------------------------------------- | ----------------------------- | --------------------------------------------------------- |
+| `AIRFLOW_USERNAME`                    | логин Airflow                 | `admin`                                                   |
+| `AIRFLOW_PASSWORD`                    | пароль Airflow                | `admin`                                                   |
+| `AIRFLOW_IMAGE_NAME`                  | тег образа Airflow            | `competency-system/airflow:latest`                        |
+| `AIRFLOW__CORE__EXECUTOR`             | executor Airflow              | `LocalExecutor`                                           |
+| `AIRFLOW__CORE__DAGS_FOLDER`          | путь к DAG внутри контейнера  | `/app/src/competency_system/presentation/airflow/dags`    |
+| `AIRFLOW__CORE__LOAD_EXAMPLES`        | включение demo DAG            | `False`                                                   |
+| `AIRFLOW__LOGGING__BASE_LOG_FOLDER`   | папка логов Airflow           | `/opt/airflow/logs`                                       |
+| `AIRFLOW__WEBSERVER__SECRET_KEY`      | webserver secret key          | `change-me`                                               |
+| `AIRFLOW__CORE__FERNET_KEY`           | fernet key для шифрования     | `change-me`                                               |
+| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` | connection string metadata DB | `postgresql+psycopg2://airflow:password@postgres/airflow` |
+
+### Auth and Bootstrap
+
+| Переменная                    | Что задаёт                | Пример              |
+| ----------------------------- | ------------------------- | ------------------- |
+| `JWT_ALGORITHM`               | алгоритм подписи JWT      | `HS256`             |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | TTL access token (мин)    | `15`                |
+| `REFRESH_TOKEN_EXPIRE_DAYS`   | TTL refresh token (дни)   | `7`                 |
+| `SECRET_KEY`                  | секрет подписи токенов    | `change-me`         |
+| `AUTH_COOKIE_SECURE`          | secure-флаг cookie        | `false`             |
+| `AUTH_COOKIE_SAMESITE`        | same-site политика cookie | `lax`               |
+| `BOOTSTRAP_ADMIN_EMAIL`       | email bootstrap-админа    | `admin@example.com` |
+| `BOOTSTRAP_ADMIN_PASSWORD`    | пароль bootstrap-админа   | `change-me`         |
+
+### Postgres container (system DB for Airflow)
+
+| Переменная          | Что задаёт                                 | Пример     |
+| ------------------- | ------------------------------------------ | ---------- |
+| `POSTGRES_USER`     | системный пользователь postgres-контейнера | `airflow`  |
+| `POSTGRES_DB`       | системная БД postgres-контейнера           | `airflow`  |
+| `POSTGRES_PASSWORD` | пароль системного пользователя             | `password` |
+
+### Docker socket
+
+| Переменная      | Что задаёт                                          | Пример                       |
+| --------------- | --------------------------------------------------- | ---------------------------- |
+| `DOCKER_SOCKET` | путь к docker.sock на хосте для Airflow-контейнеров | `/run/user/1000/docker.sock` |
+
+## Краткая структура проекта
+
+```text
+src/competency_system/
+├── domain/            # сущности и бизнес-правила
+├── application/       # use-cases, DTO, порты
+├── infrastructure/    # БД, внешние интеграции, настройки
+└── presentation/      # FastAPI и Airflow entrypoints
+```
+
+## Полезные команды
 
 ```bash
-# Apply database migrations
-docker-compose exec api alembic upgrade head
+# пересобрать и поднять всё
+docker compose up -d --build
 
-# Or locally with uv:
-uv run alembic upgrade head
+# посмотреть статусы сервисов
+docker compose ps
+
+# посмотреть логи API
+docker compose logs -f api
 ```
-
-### 4. Access Services
-
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| API Docs | http://localhost:8000/docs | - |
-| Health Check | http://localhost:8000/health | - |
-| Airflow UI | http://localhost:8080 | admin / admin |
-| PostgreSQL | localhost:5432 | app/app |
-
-## Development
-
-### Local Setup (without Docker)
-
-```bash
-# Install dependencies with uv
-uv sync --all-extras
-
-# Or with pip
-pip install -e ".[dev]"
-
-# Run migrations
-alembic upgrade head
-
-# Start API
-uvicorn competency_system.presentation.api.main:app --reload
-
-# Start Celery worker (LLM jobs)
-celery -A competency_system.presentation.worker.celery_worker:celery_app worker --loglevel info --queues llm_jobs
-```
-
-### Code Quality
-
-```bash
-# Format code
-ruff format .
-ruff check . --fix
-
-# Type checking
-mypy src/
-
-# Run tests
-pytest
-
-# Run only unit tests (no DB)
-pytest -m unit
-
-# Run contract tests
-pytest -m contract
-
-# Run repository/UoW integration tests against PostgreSQL
-cp tests/.env.test.example tests/.env.test
-pytest -m integration_repo
-
-# Skip optional dependency tests (e.g. Airflow DAG contracts)
-pytest -m "not optional_dep"
-```
-
-CI mirrors the same quality gates with GitHub Actions:
-- `ruff check src tests`
-- `mypy src`
-- `pytest`
-
-API and background jobs emit structured JSON logs.
-
-### LLM Queue Backends
-
-- `LLM_QUEUE_BACKEND=inmemory` (default): in-process queue for local/dev smoke usage.
-- `LLM_QUEUE_BACKEND=celery`: durable queue via Celery + Redis.
-
-Redis defaults for dev:
-- `REDIS_HOST=127.0.0.1`
-- `REDIS_PORT=6379`
-- `REDIS_PASSWORD=password`
-
-### Project Structure Details
-
-#### Domain Layer (`domain/`)
-Pure business logic without external dependencies:
-- **Entities**: Business objects with identity (Vacancy, Candidate, etc.)
-- **Value Objects**: Immutable data (CompetencyLevel, VacancyStatus)
-- **Domain Services**: Complex business operations
-
-#### Application Layer (`application/`)
-Orchestration of domain objects:
-- **Ports**: Abstract interfaces for repositories and gateways
-- **DTOs**: Data structures for use case input/output
-- **Use Cases**: Business operations (ExtractVacancyGraph, AssessCandidate, etc.)
-
-#### Infrastructure Layer (`infrastructure/`)
-External implementations:
-- **Persistence**: SQLAlchemy repositories
-- **LLM**: OpenRouter/OpenAI integration
-- **External**: Test system API clients
-
-#### Presentation Layer (`presentation/`)
-Entry points:
-- **API**: FastAPI routes and middleware
-- **Airflow**: DAG definitions for batch processing
-
-## API Endpoints
-
-### Auth
-- `POST /api/v1/auth/login` - Login via form-data (`username`, `password`), returns access token and sets refresh cookie
-- `POST /api/v1/auth/refresh` - Rotate token pair using refresh cookie
-- `POST /api/v1/auth/logout` - Revoke refresh token and clear cookie
-
-### Vacancies
-- `GET /api/v1/vacancies` - List vacancies, supports `status_filter=draft,ready,...`
-- `GET /api/v1/vacancies/review-queue` - Expert queue (draft/extracting/failed)
-- `POST /api/v1/vacancies` - Create vacancy and start extraction
-- `GET /api/v1/vacancies/{id}` - Get vacancy details
-- `GET /api/v1/vacancies/{id}/graph` - Get competency graph
-- `PATCH /api/v1/vacancies/{id}/graph` - Update graph (expert validation)
-- `PATCH /api/v1/vacancies/{id}/status` - Update vacancy status (`draft/extracting/ready/failed`)
-
-### Candidates
-- `GET /api/v1/vacancies/{id}/rankings` - Get cached vacancy rankings
-- `GET /api/v1/vacancies/{id}/ranking` - Force ranking recalculation (legacy path)
-- `GET /api/v1/vacancies/{id}/candidates` - Legacy alias for recalculation path
-- `GET /api/v1/candidates/{id}/profile` - Get detailed competency profile
-
-Ranking model (MVP): vector similarity (cosine-based) with required/desired budgets and explainable per-competency breakdown.
-
-### Admin Users
-- `GET /api/v1/admin/users` - List users
-- `POST /api/v1/admin/users` - Create user with role
-- `PATCH /api/v1/admin/users/{id}/role` - Change user role
-- `PATCH /api/v1/admin/users/{id}/status` - Enable/disable user
-
-### Tasks
-- `POST /api/v1/webhook/task-completed` - Webhook from testing system, protected by `X-Webhook-Secret`
-- `GET /api/v1/tasks/{id}/mapping` - Get task-to-competencies mapping
-
-## Testing System Integration
-
-### Incoming Webhook (Testing System → Our System)
-
-```http
-POST /api/v1/webhook/task-completed
-Content-Type: application/json
-X-Webhook-Secret: {shared-secret}
-
-{
-  "event_id": "string (idempotency key)",
-  "vacancy_id": "uuid",
-  "candidate_external_id": "string",
-  "task_external_id": "string",
-  "type": "CODE|TEST",
-  "code": "string (optional, for CODE type)",
-  "question_answers": [{"question": "string", "answer": "string"}],
-  "passed": 5,
-  "total": 10,
-  "attempts": 3,
-  "duration_seconds": 600
-}
-```
-
-The shared secret is configured via `TESTING_SYSTEM_WEBHOOK_SECRET`. If the secret is empty, local development remains permissive.
-
-### Outgoing API (Our System → Testing System)
-
-```http
-GET /external/tasks
-Authorization: Bearer {token}
-
-Response: [
-  {
-    "external_id": "string",
-    "title": "string",
-    "description": "string",
-    "type": "CODE|TEST",
-    "tags": ["string"]
-  }
-]
-```
-
-## Airflow DAGs
-
-| DAG | Schedule | Description |
-|-----|----------|-------------|
-| `vacancy_extraction` | Triggered | Extract competencies from vacancy (3-step LLM pipeline) |
-| `task_sync` | Daily | Sync tasks from testing system |
-| `candidate_assessment` | Triggered | Assess candidate and update profile, then recalculate ranking |
-| `ranking_recalculation` | Triggered | Recalculate rankings for a vacancy |
-
-## Troubleshooting
-
-### Reset Database
-
-```bash
-docker-compose down -v
-docker-compose up -d postgres
-docker-compose exec api alembic upgrade head
-```
-
-### View Logs
-
-```bash
-# API logs
-docker-compose logs -f api
-
-# PostgreSQL logs
-docker-compose logs -f postgres
-```
-
-## License
-
-Private - All rights reserved.
-
-## API Base Path
-All HTTP endpoints are served under `/api/v1`.
-
-## Sandbox Test Policy
-Tests can be authored and updated in this repository, but they must not be executed in sandbox environments.
