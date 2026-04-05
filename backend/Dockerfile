@@ -1,84 +1,161 @@
-# =============================================================================
-# Competency System - Dockerfile
-# Minimal runtime for API and future worker stages.
-# =============================================================================
-
 ARG PYTHON_VERSION=3.12
+ARG APP_HOME=/app
+
+# =============================================================================
+# base - system runtime packages
+# =============================================================================
 FROM python:${PYTHON_VERSION}-slim-bookworm AS base
 
-ARG COMPETENCY_SYSTEM_HOME=/app
-
+ARG APP_HOME
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    COMPETENCY_SYSTEM_HOME=${COMPETENCY_SYSTEM_HOME} \
-    PYTHONPATH=${COMPETENCY_SYSTEM_HOME}/src
+    APP_HOME=${APP_HOME} \
+    UV_PYTHON_DOWNLOADS=0 \
+    UV_PROJECT_ENVIRONMENT=${APP_HOME}/.venv \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONPATH=${APP_HOME}/src \
+    PATH="${APP_HOME}/.venv/bin:${PATH}"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR ${APP_HOME}
+
+# =============================================================================
+# builder
+# =============================================================================
+FROM base AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
-        curl \
         gcc \
         libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR ${COMPETENCY_SYSTEM_HOME}
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project --no-dev
+
+
+RUN uv sync --frozen --no-dev --extra api \
+        --python python3.12 \
+        --project ${APP_HOME} \
+    && cp -r ${APP_HOME}/.venv ${APP_HOME}/.venv-api
+
+RUN uv sync --frozen --no-dev --extra worker \
+        --python python3.12 \
+        --project ${APP_HOME} \
+    && cp -r ${APP_HOME}/.venv ${APP_HOME}/.venv-worker
+
+RUN uv sync --frozen --no-dev --extra airflow \
+        --python python3.12 \
+        --project ${APP_HOME} \
+    && cp -r ${APP_HOME}/.venv ${APP_HOME}/.venv-airflow
+
 
 # =============================================================================
-# Dependencies stage
+# api
 # =============================================================================
-FROM base AS deps
 
-COPY pyproject.toml README.md ${COMPETENCY_SYSTEM_HOME}/
-COPY src/ ${COMPETENCY_SYSTEM_HOME}/src/
-COPY alembic/ ${COMPETENCY_SYSTEM_HOME}/alembic/
-
-RUN python -m venv ${COMPETENCY_SYSTEM_HOME}/.venv \
-    && . ${COMPETENCY_SYSTEM_HOME}/.venv/bin/activate \
-    && pip install --upgrade pip \
-    && pip install -e ${COMPETENCY_SYSTEM_HOME}
-
-# =============================================================================
-# API stage
-# =============================================================================
 FROM base AS api
 
-COPY --from=deps ${COMPETENCY_SYSTEM_HOME}/.venv ${COMPETENCY_SYSTEM_HOME}/.venv
-ENV PATH="${COMPETENCY_SYSTEM_HOME}/.venv/bin:${PATH}"
+ARG APP_HOME
+ENV PATH="${APP_HOME}/.venv-api/bin:${PATH}"
 
-COPY src/ ${COMPETENCY_SYSTEM_HOME}/src/
-COPY alembic/ ${COMPETENCY_SYSTEM_HOME}/alembic/
+COPY --from=builder ${APP_HOME}/.venv-api ${APP_HOME}/.venv-api
+COPY alembic.ini ./alembic.ini
+COPY alembic ./alembic
+COPY src ./src
 
 RUN useradd -m -u 1000 appuser \
-    && chown -R appuser:appuser ${COMPETENCY_SYSTEM_HOME}
+    && chown -R appuser:appuser ${APP_HOME}
+
+USER appuser
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+CMD ["uvicorn", "competency_system.presentation.api.main:app", \
+     "--host", "0.0.0.0", "--port", "8000"]
+
+# =============================================================================
+# worker
+# =============================================================================
+
+FROM base AS worker
+
+ARG APP_HOME
+ENV PATH="${APP_HOME}/.venv-worker/bin:${PATH}" \
+    C_FORCE_ROOT=0
+
+COPY --from=builder ${APP_HOME}/.venv-worker ${APP_HOME}/.venv-worker
+COPY src ./src
+
+RUN useradd -m -u 1000 appuser \
+    && chown -R appuser:appuser ${APP_HOME}
 
 USER appuser
 
-EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD test -f /tmp/celery_heartbeat \
+        && [ "$(( $(date +%s) - $(date +%s -r /tmp/celery_heartbeat) ))" -lt 60 ] \
+    || exit 1
 
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-CMD ["uvicorn", "competency_system.presentation.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["celery", \
+     "-A", "competency_system.presentation.worker.celery_worker:celery_app", \
+     "worker", "--loglevel", "info", "--queues", "llm_jobs"]
 
 # =============================================================================
-# Airflow stage
+# airflow
 # =============================================================================
-FROM api AS airflow
+FROM base AS airflow
 
-ENV AIRFLOW_HOME=/opt/airflow \
+ARG APP_HOME
+ENV PATH="${APP_HOME}/.venv-airflow/bin:${PATH}" \
+    AIRFLOW_HOME=/opt/airflow \
     AIRFLOW__CORE__EXECUTOR=DockerExecutor \
-    AIRFLOW__CORE__DAGS_FOLDER=/app/src/competency_system/presentation/airflow/dags \
+    AIRFLOW__CORE__DAGS_FOLDER=${APP_HOME}/src/competency_system/presentation/airflow/dags \
     AIRFLOW__CORE__LOAD_EXAMPLES=False \
     AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
 
-HEALTHCHECK NONE
+COPY --from=builder ${APP_HOME}/.venv-airflow ${APP_HOME}/.venv-airflow
+COPY src ./src
+
+RUN useradd -m -u 1000 appuser \
+    && mkdir -p /opt/airflow/logs /opt/airflow/plugins \
+    && chown -R appuser:appuser ${APP_HOME} /opt/airflow
+
+USER appuser
 EXPOSE 8080
 
-USER root
-RUN mkdir -p /opt/airflow/logs /opt/airflow/plugins \
-    && chown -R appuser:appuser /opt/airflow
-USER appuser
-
 CMD ["airflow", "webserver"]
+
+# =============================================================================
+# test
+# =============================================================================
+FROM builder AS test
+
+ARG APP_HOME
+ENV PATH="${APP_HOME}/.venv/bin:${PATH}"
+
+RUN uv sync --frozen --extra api --extra worker --group dev \
+        --python python3.12 \
+        --project ${APP_HOME} \
+        --python-preference only-system
+
+COPY tests/ ${APP_HOME}/tests/
+COPY alembic/ ${APP_HOME}/alembic/
+
+CMD ["pytest"]
