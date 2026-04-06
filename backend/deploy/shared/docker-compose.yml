@@ -56,11 +56,12 @@ services:
     image: nginx:alpine
     ports:
       - "80:80"
-    volumes:
-      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ../nginx/upstream.conf:/etc/nginx/conf.d/upstream.conf:ro
     networks:
       - shared_net
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 networks:

@@ -56,10 +56,10 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    deploy:
-      resources:
-        limits:
-          memory: 512m
+    networks:
+      shared_net:
+        aliases:
+          - blue_api
 
   celery-worker:
     <<: *app-base
@@ -84,10 +84,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 1g
 
   airflow-init:
     env_file: ${ENV_FILE}
@@ -119,10 +115,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 512m
+    networks:
+      shared_net:
+        aliases:
+          - bblue_airflow-webserveri
 
   airflow-scheduler:
     <<: *airflow-base
@@ -135,10 +131,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 512m
 
   airflow-triggerer:
     <<: *airflow-base
@@ -151,10 +143,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256m
 networks:
   shared_net:
     external: true
