@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 class VacancyGraphSuggestion(Entity):
     """LLM proposal that requires expert decision."""
 
+    # TODO: разобраться с stage и entity_type
     vacancy_id: UUID
     stage: SuggestionStage
     entity_type: SuggestionEntityType
