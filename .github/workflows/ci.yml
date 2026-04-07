@@ -185,6 +185,8 @@ jobs:
           AIRFLOW__WEBSERVER__SECRET_KEY=${{ secrets.AIRFLOW__WEBSERVER__SECRET_KEY }}
           AIRFLOW__CORE__FERNET_KEY=${{ secrets.AIRFLOW__CORE__FERNET_KEY }}
           AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${{ secrets.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
+          AIRFLOW__WEBSERVER__WEB_SERVER_ROOT_URL=${{ vars.AIRFLOW__WEBSERVER__WEB_SERVER_ROOT_URL }}
+          AIRFLOW__WEBSERVER__BASE_URL=${{ vars.AIRFLOW__WEBSERVER__BASE_URL }}
           # Security
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           JWT_ALGORITHM=${{ secrets.JWT_ALGORITHM }}
@@ -212,16 +214,18 @@ jobs:
           DOCKER_SOCKET=${{ vars.DOCKER_SOCKET }}
           EOF
 
+      - name: Copy files
+        run: |
+          cp -r backend/deploy .
+          cp -r backend/database .
+
       - name: Copy deployment files via SCP
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: |
-            backend/deploy/*
-            backend/database/*
-            .env
+          source: deploy/*,database/*,.env
           target: "~/app"
 
       - name: Deploy application
@@ -231,9 +235,12 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "${{ needs.build.outputs.full_image }}" 
+            FULL_IMAGE="${{ needs.build.outputs.full_image }}"
+            IMAGE_TAG="${FULL_IMAGE##*:}"
+            echo "Deploying tag: $IMAGE_TAG"
+
             export XDG_RUNTIME_DIR=/run/user/$(id -u)
             export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock
-            cd ~/app 
-            chmod +x deploy/deploy.sh 
-            ./deploy.sh ${{ needs.build.outputs.full_image }}
+            cd ~/app
+            chmod +x deploy/deploy.sh
+            ./deploy/deploy.sh $IMAGE_TAG

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -eEuo pipefail
 cd "$(dirname "$0")"
 set -x
@@ -85,6 +85,15 @@ wait_for_stack() {
     echo "$label did not become healthy in time" | tee -a "$DEPLOY_LOG"
     return 1
 }
+
+# --- create network ---
+NETWORK_NAME="app_shared_net"
+if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
+    echo "Creating Docker network $NETWORK_NAME..."
+    docker network create "$NETWORK_NAME" 2>&1 | tee -a "$DEPLOY_LOG"
+else
+    echo "Docker network $NETWORK_NAME already exists"
+fi
 
 # --- shared stack ---
 echo "Starting shared stack..."

@@ -118,7 +118,7 @@ services:
     networks:
       shared_net:
         aliases:
-          - bgreen_airflow-webserveri
+          - green_airflow-webserveri
 
   airflow-scheduler:
     <<: *airflow-base
