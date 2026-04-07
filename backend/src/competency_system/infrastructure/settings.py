@@ -101,11 +101,12 @@ class Settings(BaseSettings):
     bootstrap_admin_email: str = Field(default="", alias="BOOTSTRAP_ADMIN_EMAIL")
     bootstrap_admin_password: str = Field(default="", alias="BOOTSTRAP_ADMIN_PASSWORD")
 
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 5432
-    DB_NAME: str = "app"
-    DB_USER: str = "app"
-    DB_PASS: str = "app"  # noqa: S105
+    # Database fields в стиле Pydantic
+    db_host: str = Field(default="localhost", alias="DB_HOST")
+    db_port: int = Field(default=5432, alias="DB_PORT")
+    db_name: str = Field(default="app", alias="DB_NAME")
+    db_user: str = Field(default="app", alias="DB_USER")
+    db_pass: str = Field(default="app", alias="DB_PASS")  # noqa: S105
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -115,15 +116,11 @@ class Settings(BaseSettings):
         return value
 
     @property
-    def DB_URL(self) -> str:  # noqa: N802
+    def database_url(self) -> str:
         return (
             "postgresql+asyncpg://"
-            f"{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"{self.db_user}:{self.db_pass}@{self.db_host}:{self.db_port}/{self.db_name}"
         )
-
-    @property
-    def database_url(self) -> str:
-        return self.DB_URL
 
     @property
     def redis_url(self) -> str:
@@ -134,7 +131,7 @@ class Settings(BaseSettings):
 
     @property
     def resolved_database_url_sync(self) -> str:
-        return self.DB_URL.replace("+asyncpg", "+psycopg2")
+        return self.database_url.replace("+asyncpg", "+psycopg2")
 
     @property
     def allowed_origins(self) -> list[str]:
