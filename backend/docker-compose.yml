@@ -12,6 +12,7 @@ x-airflow-base: &airflow-base
   restart: unless-stopped
   volumes:
     - ${DOCKER_SOCKET}:/var/run/docker.sock
+    - airflow_logs:/opt/airflow/logs
   depends_on:
     postgres:
       condition: service_healthy
@@ -166,6 +167,7 @@ services:
 
   airflow-webserver:
     <<: *airflow-base
+    hostname: airflow-webserver
     ports:
       - "8080:8080"
     command: airflow api-server
@@ -182,7 +184,10 @@ services:
 
   airflow-scheduler:
     <<: *airflow-base
-    command: airflow scheduler
+    hostname: airflow-scheduler
+    command: bash -c "airflow dags reserialize && airflow scheduler"
+    environment:
+      AIRFLOW__API__BASE_URL: http://airflow-webserver:8080
     healthcheck:
       test: >
         bash -c "
@@ -198,7 +203,7 @@ services:
 
   airflow-triggerer:
     <<: *airflow-base
-    command: airflow triggerer
+    command: bash -c "airflow triggerer"
     healthcheck:
       test: >
         bash -c "
@@ -216,4 +221,6 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  airflow_logs:
     driver: local

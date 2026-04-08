@@ -1,0 +1,28 @@
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Virtual env
+**/.venv/
+
+# Egg info
+**/*.egg-info/
+
+# Logs and db
+*.log
+*.db
+
+# Coverage
+.coverage
+
+# Env files
+.env*
+!.env*.example
+
+# IDE
+.vscode/
+
+# Deployment tags
+deploy/**/tag
+deploy/**/active
