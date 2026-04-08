@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
@@ -100,6 +100,26 @@ class ExternalTaskDTO(BaseDTO):
 
 class SyncTasksResultDTO(BaseDTO):
     synced_tasks: list[TaskDTO]
+
+
+class TaskSyncPeriodDTO(BaseDTO):
+    start: datetime
+    end: datetime
+
+    @field_validator("start", "end")
+    @classmethod
+    def _validate_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("Datetime must include timezone")
+        if value.utcoffset() != UTC.utcoffset(value):
+            raise ValueError("Datetime must be in UTC")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_range(self) -> TaskSyncPeriodDTO:
+        if self.end <= self.start:
+            raise ValueError("'end' must be greater than 'start'")
+        return self
 
 
 class TaskSyncCommandDTO(BaseDTO):

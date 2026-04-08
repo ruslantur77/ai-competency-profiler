@@ -28,6 +28,7 @@ from competency_system.application.dtos.task import (
     TaskDTO,
     TaskMappingExtractionResultDTO,
     TaskSyncCommandDTO,
+    TaskSyncPeriodDTO,
     TestResultDTO,
 )
 from competency_system.application.dtos.vacancy import (
@@ -67,6 +68,7 @@ __all__ = [
     "TaskMappingExtractionResultDTO",
     "ExternalTaskDTO",
     "SyncTasksResultDTO",
+    "TaskSyncPeriodDTO",
     "TaskSyncCommandDTO",
     "CandidateTaskAssessmentDTO",
     "LLMCodeAssessmentDTO",

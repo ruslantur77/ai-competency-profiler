@@ -198,8 +198,25 @@ def test_tasks_admin_and_webhook_routes_contract(
     app.dependency_overrides[verify_testing_system_webhook_secret] = lambda: None
 
     with TestClient(app) as client:
-        sync = client.post("/api/v1/tasks/sync")
+        sync = client.post(
+            "/api/v1/tasks/sync",
+            json={
+                "start": "2026-04-01T00:00:00Z",
+                "end": "2026-04-02T00:00:00Z",
+            },
+        )
         assert sync.status_code == 200
+
+        sync_missing_body = client.post("/api/v1/tasks/sync")
+        assert sync_missing_body.status_code == 422
+        sync_non_utc = client.post(
+            "/api/v1/tasks/sync",
+            json={
+                "start": "2026-04-01T00:00:00+03:00",
+                "end": "2026-04-02T00:00:00Z",
+            },
+        )
+        assert sync_non_utc.status_code == 422
 
         mapping = client.get(f"/api/v1/tasks/{task.id}/mapping")
         assert mapping.status_code == 200

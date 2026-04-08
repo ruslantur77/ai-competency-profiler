@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "competency-system"
-    debug: bool = False
-    environment: str = "local"
+    debug: bool = Field(default=False, alias="DEBUG")
+    environment: str = Field(default="local", alias="ENVIRONMENT")
     log_level: LogLevels = LogLevels.INFO
     allowed_origins_raw: str = Field(default="", alias="ALLOWED_ORIGINS")
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from uuid import UUID, uuid4
 
 from competency_system.application.dtos.mappers import task_dto_from_domain
@@ -230,8 +231,8 @@ class SyncTasksUseCase:
         self._gateway = gateway
         self._job_queue = job_queue
 
-    async def execute(self) -> SyncTasksResultDTO:
-        external_tasks = await self._gateway.list_tasks()
+    async def execute(self, *, start: datetime, end: datetime) -> SyncTasksResultDTO:
+        external_tasks = await self._gateway.list_tasks(start=start, end=end)
 
         async with self._uow as uow:
             synced: list[TaskDTO] = []

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -32,13 +33,25 @@ class HTTPTestingSystemGateway(ExternalTestingSystemGateway):
             )
         return headers
 
-    async def list_tasks(self) -> list[ExternalTaskRecord]:
-        response = await self._client.get("/external/tasks")
+    async def list_tasks(
+        self, start: datetime, end: datetime
+    ) -> list[ExternalTaskRecord]:
+        response = await self._client.get(
+            "/external/tasks",
+            params={
+                "start": self._to_utc_iso(start),
+                "end": self._to_utc_iso(end),
+            },
+        )
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, list):
             raise ValueError("Expected list response from testing system")
         return [self._to_record(item) for item in payload]
+
+    def _to_utc_iso(self, value: datetime) -> str:
+        normalized = value.astimezone(UTC)
+        return normalized.isoformat().replace("+00:00", "Z")
 
     def _to_record(self, payload: dict[str, Any]) -> ExternalTaskRecord:
         return ExternalTaskRecord(
