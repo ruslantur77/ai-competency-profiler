@@ -131,6 +131,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    command: >
+      bash -lc "/app/.venv/bin/celery -A competency_system.presentation.worker.celery_worker:celery_app worker --loglevel info --queues ${CELERY_QUEUE_NAME:-llm_jobs} --concurrency ${CELERY_WORKER_CONCURRENCY:-2} --max-tasks-per-child ${CELERY_MAX_TASKS_PER_CHILD:-100} ${CELERY_WORKER_EXTRA_FLAGS:---without-gossip --without-mingle --without-heartbeat}"
     healthcheck:
       test: >
         bash -c "
