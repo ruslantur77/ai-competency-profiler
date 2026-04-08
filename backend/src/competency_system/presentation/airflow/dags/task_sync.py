@@ -1,48 +1,54 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
-from typing import Any, cast
 
-from airflow.decorators import dag as airflow_dag  # type: ignore[attr-defined]
-from airflow.decorators import task as airflow_task  # type: ignore[attr-defined]
-
-from competency_system.application.use_cases.task import SyncTasksUseCase
-from competency_system.presentation.airflow.context import get_dag_conf
-from competency_system.presentation.airflow.payloads import TaskSyncPayloadDTO
-from competency_system.presentation.airflow.runtime import run_logged_async
-
-dag = cast(Any, airflow_dag)
-task = cast(Any, airflow_task)
+from airflow.providers.docker.operators.docker import (
+    DockerOperator,
+)
+from airflow.sdk import dag
 
 DEFAULT_ARGS = {
     "owner": "competency-system",
     "retries": 1,
 }
 
+TASK_SYNC_IMAGE = os.getenv("TASK_SYNC_IMAGE", "competency-system/api:latest")
+AIRFLOW_DOCKER_NETWORK = os.getenv("AIRFLOW_DOCKER_NETWORK", "bridge")
+START_TEMPLATE = (
+    "{{ dag_run.conf.get('start') "
+    "if dag_run and dag_run.conf and dag_run.conf.get('start') "
+    "else data_interval_start.in_timezone('UTC').isoformat() }}"
+)
+END_TEMPLATE = (
+    "{{ dag_run.conf.get('end') "
+    "if dag_run and dag_run.conf and dag_run.conf.get('end') "
+    "else data_interval_end.in_timezone('UTC').isoformat() }}"
+)
+
 
 @dag(
     dag_id="task_sync",
     start_date=datetime(2024, 1, 1, tzinfo=UTC),
-    schedule="@daily",
+    schedule="@hourly",
     catchup=False,
     default_args=DEFAULT_ARGS,
     tags=["tasks", "sync", "batch"],
 )
 def task_sync_dag() -> None:
-    @task(task_id="sync_tasks")
-    def sync_tasks() -> dict[str, object]:
-        payload = TaskSyncPayloadDTO.model_validate(get_dag_conf())
-        result = run_logged_async(
-            "task_sync.sync_tasks",
-            lambda runtime: SyncTasksUseCase(
-                runtime.uow(),
-                runtime.testing_gateway(),
-                runtime.llm_job_queue(),
-            ).execute(start=payload.start, end=payload.end),
-        )
-        return result.model_dump(mode="json")
-
-    sync_tasks()
+    DockerOperator(
+        task_id="sync_tasks",
+        image=TASK_SYNC_IMAGE,
+        docker_url="unix://var/run/docker.sock",
+        network_mode=AIRFLOW_DOCKER_NETWORK,
+        mount_tmp_dir=False,
+        auto_remove="success",
+        command=(
+            "python -m competency_system.presentation.airflow.jobs.task_sync_runner "
+            f'--start "{START_TEMPLATE}" '
+            f'--end "{END_TEMPLATE}"'
+        ),
+    )
 
 
 task_sync = task_sync_dag()

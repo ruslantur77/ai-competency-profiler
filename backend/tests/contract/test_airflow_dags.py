@@ -5,38 +5,31 @@ from importlib import import_module
 import pytest
 
 pytest.importorskip("airflow")
+airflow_docker = pytest.importorskip("airflow.providers.docker.operators.docker")
+DockerOperator = airflow_docker.DockerOperator
 
-candidate_assessment = import_module(
-    "competency_system.presentation.airflow.dags.candidate_assessment"
-).candidate_assessment
-ranking_recalculation = import_module(
-    "competency_system.presentation.airflow.dags.ranking_recalculation"
-).ranking_recalculation
 task_sync = import_module(
     "competency_system.presentation.airflow.dags.task_sync"
 ).task_sync
-vacancy_extraction = import_module(
-    "competency_system.presentation.airflow.dags.vacancy_extraction"
-).vacancy_extraction
 
 pytestmark = [pytest.mark.contract, pytest.mark.optional_dep]
 
 
 def test_airflow_dag_ids() -> None:
-    assert vacancy_extraction.dag_id == "vacancy_extraction"
     assert task_sync.dag_id == "task_sync"
-    assert candidate_assessment.dag_id == "candidate_assessment"
-    assert ranking_recalculation.dag_id == "ranking_recalculation"
 
 
 def test_airflow_dag_task_counts() -> None:
-    assert len(vacancy_extraction.tasks) == 1
     assert len(task_sync.tasks) == 1
-    assert len(candidate_assessment.tasks) == 2
-    assert len(ranking_recalculation.tasks) == 1
 
 
-def test_candidate_assessment_task_dependency() -> None:
-    assess = candidate_assessment.get_task("assess_candidate")
-    recalculate = candidate_assessment.get_task("recalculate_ranking")
-    assert recalculate.upstream_task_ids == {assess.task_id}
+def test_task_sync_uses_docker_operator() -> None:
+    operator = task_sync.get_task("sync_tasks")
+    assert isinstance(operator, DockerOperator)
+
+
+def test_task_sync_hourly_schedule() -> None:
+    schedule = getattr(task_sync, "schedule", None)
+    if schedule is None:
+        schedule = getattr(task_sync, "schedule_interval", None)
+    assert str(schedule) == "@hourly"

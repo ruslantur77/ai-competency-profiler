@@ -109,6 +109,8 @@ docker compose up -d --build
 | Переменная                                      | Required             | Пример                                                    | Consumer                 |
 | ----------------------------------------------- | -------------------- | --------------------------------------------------------- | ------------------------ |
 | `AIRFLOW_IMAGE_NAME`                            | optional             | `competency-system/airflow:latest`                        | docker-compose image tag |
+| `TASK_SYNC_IMAGE`                               | optional             | `competency-system/api:latest`                            | task_sync DockerOperator |
+| `AIRFLOW_DOCKER_NETWORK`                        | required for task_sync | `backend_default`                                       | task_sync DockerOperator |
 | `AIRFLOW__CORE__EXECUTOR`                       | required for airflow | `LocalExecutor`                                           | airflow                  |
 | `AIRFLOW__CORE__PARALLELISM`                    | optional             | `1`                                                       | airflow                  |
 | `AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG`       | optional             | `1`                                                       | airflow                  |
@@ -163,6 +165,20 @@ docker compose ps
 docker compose logs -f api
 ```
 
+## Airflow pipeline
+
+В текущей конфигурации в Airflow оставлен только один DAG:
+
+- `task_sync` (расписание: `@hourly`, оператор: `DockerOperator`).
+
+Как работает запуск:
+
+1. Airflow scheduler запускает DAG раз в час.
+2. `DockerOperator` поднимает отдельный backend-контейнер (`TASK_SYNC_IMAGE`).
+3. В контейнере запускается CLI-раннер `task_sync_runner`, который вызывает `SyncTasksUseCase` напрямую.
+4. Период берётся из `data_interval_start/data_interval_end` (UTC), либо переопределяется через `dag_run.conf`.
+5. Для каждой синхронизированной задачи ставится LLM job `TASK_MAPPING` в очередь (обычно Celery).
+
 ## Контракт синка задач
 
 Синк задач выполняется через:
@@ -183,3 +199,8 @@ docker compose logs -f api
 - только UTC (ISO-8601, суффикс `Z`);
 - интервал задаётся как `[start, end)`;
 - `end` должен быть строго больше `start`.
+
+Ручной запуск Airflow DAG `task_sync`:
+
+- `dag_run.conf.start` и `dag_run.conf.end` опциональны;
+- если не переданы, используются границы часового `data interval` самого Airflow.
