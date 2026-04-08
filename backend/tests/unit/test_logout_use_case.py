@@ -26,6 +26,7 @@ async def test_logout_use_case_revokes_refresh_token(
     await use_case.execute(token_data)
 
     mock_uow.refresh_tokens.revoke.assert_awaited_once_with(token_data.jti)
+    mock_uow.commit.assert_awaited_once()
 
 
 async def test_logout_use_case_calls_revoke_even_when_token_absent(
@@ -36,3 +37,4 @@ async def test_logout_use_case_calls_revoke_even_when_token_absent(
     await use_case.execute(token_data)
 
     mock_uow.refresh_tokens.revoke.assert_awaited_once_with(token_data.jti)
+    mock_uow.commit.assert_awaited_once()

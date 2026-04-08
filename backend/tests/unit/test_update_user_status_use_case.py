@@ -31,6 +31,7 @@ async def test_update_user_status_use_case_updates_status(
 
     assert result.is_active is False
     mock_uow.users.add.assert_awaited_once_with(user)
+    mock_uow.commit.assert_awaited_once()
 
 
 async def test_update_user_status_use_case_raises_when_user_not_found(
@@ -40,3 +41,4 @@ async def test_update_user_status_use_case_raises_when_user_not_found(
 
     with pytest.raises(ValueError, match="not found"):
         await use_case.execute(uuid4(), status_update)
+    mock_uow.commit.assert_not_awaited()

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from competency_system.domain.value_objects.enums import UserRole
 
@@ -46,7 +46,7 @@ class CurrentUserDTO(BaseModel):
 
 class UserAdminDTO(BaseModel):
     id: UUID
-    email: str
+    email: EmailStr
     role: UserRole
     is_active: bool
     created_at: datetime
@@ -54,7 +54,7 @@ class UserAdminDTO(BaseModel):
 
 
 class UserCreateDTO(BaseModel):
-    email: str
+    email: EmailStr
     password: str
     role: UserRole = UserRole.HR
 

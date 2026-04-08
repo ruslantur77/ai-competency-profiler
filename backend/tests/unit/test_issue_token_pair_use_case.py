@@ -32,6 +32,7 @@ async def test_issue_token_pair_use_case_persists_refresh_token(
     assert result.access_token
     assert result.refresh_token
     mock_uow.refresh_tokens.add_token.assert_awaited_once()
+    mock_uow.commit.assert_awaited_once()
 
 
 async def test_issue_token_pair_use_case_returns_none_for_inactive_user(
@@ -50,3 +51,4 @@ async def test_issue_token_pair_use_case_returns_none_for_inactive_user(
 
     assert result is None
     mock_uow.refresh_tokens.add_token.assert_not_awaited()
+    mock_uow.commit.assert_not_awaited()

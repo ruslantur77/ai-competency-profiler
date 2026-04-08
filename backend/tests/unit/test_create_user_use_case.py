@@ -30,6 +30,7 @@ async def test_create_user_use_case_creates_user(
     assert result.email == command.email
     assert result.role == command.role
     mock_uow.users.add.assert_awaited_once()
+    mock_uow.commit.assert_awaited_once()
 
 
 async def test_create_user_use_case_rejects_duplicate_email(
@@ -41,3 +42,4 @@ async def test_create_user_use_case_rejects_duplicate_email(
 
     with pytest.raises(ValueError, match="already exists"):
         await use_case.execute(command)
+    mock_uow.commit.assert_not_awaited()

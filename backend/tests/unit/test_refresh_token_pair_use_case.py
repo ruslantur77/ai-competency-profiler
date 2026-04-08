@@ -53,6 +53,7 @@ async def test_refresh_token_pair_use_case_rotates_tokens_for_valid_token(
     assert result.refresh_token
     mock_uow.refresh_tokens.revoke.assert_awaited_once_with(old_jti)
     mock_uow.refresh_tokens.add_token.assert_awaited_once()
+    mock_uow.commit.assert_awaited_once()
 
 
 async def test_refresh_token_pair_use_case_revokes_expired_token(
@@ -76,3 +77,22 @@ async def test_refresh_token_pair_use_case_revokes_expired_token(
 
     assert result is None
     mock_uow.refresh_tokens.revoke.assert_awaited_once_with(jti)
+    mock_uow.commit.assert_awaited_once()
+
+
+async def test_refresh_token_pair_use_case_commits_when_token_missing(
+    use_case: RefreshTokenPairUseCase, mock_uow
+) -> None:
+    user_id = uuid4()
+    jti = uuid4()
+    mock_uow.refresh_tokens.get_by_jti.return_value = None
+
+    result = await use_case.execute(
+        refresh_token_raw="irrelevant",
+        token_data=RefreshTokenDataDTO(user_id=user_id, jti=jti),
+    )
+
+    assert result is None
+    mock_uow.refresh_tokens.revoke.assert_not_awaited()
+    mock_uow.refresh_tokens.add_token.assert_not_awaited()
+    mock_uow.commit.assert_awaited_once()

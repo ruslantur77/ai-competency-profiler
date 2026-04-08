@@ -32,6 +32,7 @@ async def test_update_user_role_use_case_updates_role(
 
     assert result.role == UserRole.ADMIN
     mock_uow.users.add.assert_awaited_once_with(user)
+    mock_uow.commit.assert_awaited_once()
 
 
 async def test_update_user_role_use_case_raises_when_user_not_found(
@@ -41,3 +42,4 @@ async def test_update_user_role_use_case_raises_when_user_not_found(
 
     with pytest.raises(ValueError, match="not found"):
         await use_case.execute(uuid4(), role_update)
+    mock_uow.commit.assert_not_awaited()

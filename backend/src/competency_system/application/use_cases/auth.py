@@ -62,6 +62,7 @@ class IssueTokenPairUseCase:
                 token_hash=hash_value(refresh_token.token),
                 expires_at=refresh_token.expiration_time,
             )
+            await uow.commit()
             return TokenPairDTO(
                 access_token=access_token.token,
                 refresh_token=refresh_token.token,
@@ -78,12 +79,14 @@ class RefreshTokenPairUseCase:
         async with self._uow as uow:
             stored_token = await uow.refresh_tokens.get_by_jti(token_data.jti)
             if stored_token is None:
+                await uow.commit()
                 return None
 
             if stored_token.revoked_at is not None:
                 return None
             if stored_token.is_expired():
                 await uow.refresh_tokens.revoke(stored_token.jti)
+                await uow.commit()
                 return None
             if not verify_password(refresh_token_raw, stored_token.token_hash):
                 return None
@@ -107,6 +110,7 @@ class RefreshTokenPairUseCase:
                 token_hash=hash_value(new_refresh_token.token),
                 expires_at=new_refresh_token.expiration_time,
             )
+            await uow.commit()
 
             return TokenPairDTO(
                 access_token=new_access_token.token,
@@ -121,6 +125,7 @@ class LogoutUseCase:
     async def execute(self, token_data: RefreshTokenDataDTO) -> None:
         async with self._uow as uow:
             await uow.refresh_tokens.revoke(token_data.jti)
+            await uow.commit()
 
 
 def _user_to_admin_dto(user: User) -> UserAdminDTO:
@@ -161,6 +166,7 @@ class CreateUserUseCase:
                 is_active=True,
             )
             await uow.users.add(user)
+            await uow.commit()
             return _user_to_admin_dto(user)
 
 
@@ -175,6 +181,7 @@ class UpdateUserRoleUseCase:
                 raise ValueError(f"User {user_id} not found")
             user.role = command.role
             await uow.users.add(user)
+            await uow.commit()
             return _user_to_admin_dto(user)
 
 
@@ -191,4 +198,5 @@ class UpdateUserStatusUseCase:
                 raise ValueError(f"User {user_id} not found")
             user.is_active = command.is_active
             await uow.users.add(user)
+            await uow.commit()
             return _user_to_admin_dto(user)
