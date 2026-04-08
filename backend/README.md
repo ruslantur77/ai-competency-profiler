@@ -24,9 +24,9 @@ cp .env.example .env
 2. Заполните обязательные значения в `.env`:
 - `API_KEY`
 - `SECRET_KEY`
+- `DB_PASS`
 - `POSTGRES_PASSWORD`
 - `REDIS_PASSWORD`
-- `AIRFLOW__WEBSERVER__SECRET_KEY`
 - `AIRFLOW__CORE__FERNET_KEY`
 - `DOCKER_SOCKET` (путь к docker.sock в вашей среде, в том числе rootless)
 
@@ -52,106 +52,93 @@ docker compose up -d --build
 
 ## Переменные окружения
 
-Источник: `.env`. Шаблон и комментарии: `.env.example`.
+Источник: `.env`. Источник истины для списка и комментариев переменных: `.env.example`.
 
-### Application
+### Application Variables
 
-| Переменная        | Что задаёт                 | Пример                                        |
-| ----------------- | -------------------------- | --------------------------------------------- |
-| `LOG_LEVEL`       | уровень логирования        | `INFO`                                        |
-| `DEBUG`           | debug-режим приложения     | `false`                                       |
-| `ALLOWED_ORIGINS` | CORS origins через запятую | `http://localhost:3000,http://127.0.0.1:3000` |
+Переменные, читаемые приложением напрямую через `Settings` (`src/competency_system/infrastructure/settings.py`).
 
-### Database (backend)
+| Переменная                         | Required                               | Пример                                        | Consumer     |
+| ---------------------------------- | -------------------------------------- | --------------------------------------------- | ------------ |
+| `LOG_LEVEL`                        | optional                               | `INFO`                                        | app          |
+| `DEBUG`                            | optional                               | `false`                                       | app          |
+| `ENVIRONMENT`                      | optional                               | `local`                                       | app          |
+| `ALLOWED_ORIGINS`                  | optional                               | `http://localhost:3000,http://127.0.0.1:3000` | app          |
+| `DB_HOST`                          | required                               | `postgres`                                    | app          |
+| `DB_PORT`                          | required                               | `5432`                                        | app          |
+| `DB_NAME`                          | required                               | `competency_db`                               | app          |
+| `DB_USER`                          | required                               | `postgres`                                    | app          |
+| `DB_PASS`                          | required                               | `password`                                    | app          |
+| `API_KEY`                          | required                               | `your-api-key`                                | app          |
+| `BASE_URL`                         | optional                               | `https://openrouter.ai/api/v1`                | app          |
+| `MODEL`                            | optional                               | `openai/gpt-oss-20b`                          | app          |
+| `LLM_TIMEOUT_SECONDS`              | optional                               | `30`                                          | app          |
+| `LLM_RETRY_ATTEMPTS`               | optional                               | `3`                                           | app          |
+| `LLM_MAX_PARALLEL_REQUESTS`        | optional                               | `4`                                           | app          |
+| `LLM_STAGE_TIMEOUT_SECONDS`        | optional                               | `45`                                          | app          |
+| `VACANCY_PROMPT_VERSION`           | optional                               | `v1`                                          | app          |
+| `TASK_PROMPT_VERSION`              | optional                               | `v1`                                          | app          |
+| `CODE_PROMPT_VERSION`              | optional                               | `v1`                                          | app          |
+| `LLM_MAX_SUGGESTED_NEW_PER_STAGE`  | optional                               | `5`                                           | app          |
+| `LLM_REASONING_MAX_TOKENS`         | optional                               | `0`                                           | app          |
+| `LLM_QUEUE_BACKEND`                | optional                               | `celery`                                      | app          |
+| `REDIS_HOST`                       | required if `LLM_QUEUE_BACKEND=celery` | `redis`                                       | app          |
+| `REDIS_PORT`                       | required if `LLM_QUEUE_BACKEND=celery` | `6379`                                        | app          |
+| `REDIS_PASSWORD`                   | required if `LLM_QUEUE_BACKEND=celery` | `password`                                    | app + redis  |
+| `CELERY_QUEUE_NAME`                | optional                               | `llm_jobs`                                    | app + worker |
+| `CELERY_RESULT_EXPIRES_SECONDS`    | optional                               | `86400`                                       | app          |
+| `CELERY_RETRY_ATTEMPTS`            | optional                               | `3`                                           | app          |
+| `CELERY_RETRY_BACKOFF_SECONDS`     | optional                               | `2`                                           | app          |
+| `CELERY_RETRY_BACKOFF_MAX_SECONDS` | optional                               | `30`                                          | app          |
+| `TESTING_SYSTEM_BASE_URL`          | optional                               | `http://localhost:9000`                       | app          |
+| `TESTING_SYSTEM_API_TOKEN`         | optional                               | ``                                            | app          |
+| `TESTING_SYSTEM_WEBHOOK_SECRET`    | optional                               | `change-me`                                   | app          |
+| `JWT_ALGORITHM`                    | optional                               | `HS256`                                       | app          |
+| `ACCESS_TOKEN_EXPIRE_MINUTES`      | optional                               | `15`                                          | app          |
+| `REFRESH_TOKEN_EXPIRE_DAYS`        | optional                               | `7`                                           | app          |
+| `SECRET_KEY`                       | required                               | `change-me`                                   | app          |
+| `AUTH_COOKIE_SECURE`               | optional                               | `false`                                       | app          |
+| `AUTH_COOKIE_SAMESITE`             | optional                               | `lax`                                         | app          |
+| `BOOTSTRAP_ADMIN_EMAIL`            | optional                               | `admin@example.com`                           | app          |
+| `BOOTSTRAP_ADMIN_PASSWORD`         | optional                               | `change-me`                                   | app          |
 
-| Переменная | Что задаёт                     | Пример          |
-| ---------- | ------------------------------ | --------------- |
-| `DB_HOST`  | хост PostgreSQL для backend    | `postgres`      |
-| `DB_PORT`  | порт PostgreSQL                | `5432`          |
-| `DB_NAME`  | имя БД backend                 | `competency_db` |
-| `DB_USER`  | пользователь БД backend        | `postgres`      |
-| `DB_PASS`  | пароль пользователя БД backend | `password`      |
+### Runtime / Airflow / Infrastructure Variables
 
-### LLM
+Переменные, которые не читаются `Settings` приложения, но используются docker-compose, Airflow и контейнерами.
 
-| Переменная                        | Что задаёт                                        | Пример                         |
-| --------------------------------- | ------------------------------------------------- | ------------------------------ |
-| `API_KEY`                         | ключ LLM API                                      | `your-api-key`                 |
-| `BASE_URL`                        | базовый URL LLM API                               | `https://openrouter.ai/api/v1` |
-| `MODEL`                           | модель LLM                                        | `openai/gpt-oss-20b`           |
-| `LLM_TIMEOUT_SECONDS`             | таймаут одного LLM-запроса                        | `30`                           |
-| `LLM_RETRY_ATTEMPTS`              | число повторов LLM-запроса                        | `3`                            |
-| `LLM_MAX_PARALLEL_REQUESTS`       | максимум параллельных запросов                    | `4`                            |
-| `LLM_STAGE_TIMEOUT_SECONDS`       | таймаут этапа LLM пайплайна                       | `45`                           |
-| `VACANCY_PROMPT_VERSION`          | версия промпта вакансии                           | `v1`                           |
-| `TASK_PROMPT_VERSION`             | версия промпта задач                              | `v1`                           |
-| `CODE_PROMPT_VERSION`             | версия промпта code-assessment                    | `v1`                           |
-| `LLM_MAX_SUGGESTED_NEW_PER_STAGE` | лимит новых компетенций на этап                   | `5`                            |
-| `LLM_REASONING_MAX_TOKENS`        | лимит reasoning токенов (`0` = без явного лимита) | `0`                            |
-| `LLM_QUEUE_BACKEND`               | backend очереди LLM: `inmemory` или `celery`      | `celery`                       |
+| Переменная                                      | Required             | Пример                                                    | Consumer                 |
+| ----------------------------------------------- | -------------------- | --------------------------------------------------------- | ------------------------ |
+| `AIRFLOW_IMAGE_NAME`                            | optional             | `competency-system/airflow:latest`                        | docker-compose image tag |
+| `AIRFLOW__CORE__EXECUTOR`                       | required for airflow | `LocalExecutor`                                           | airflow                  |
+| `AIRFLOW__CORE__PARALLELISM`                    | optional             | `1`                                                       | airflow                  |
+| `AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG`       | optional             | `1`                                                       | airflow                  |
+| `AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG`        | optional             | `1`                                                       | airflow                  |
+| `AIRFLOW__CORE__DAGS_FOLDER`                    | required for airflow | `/app/src/competency_system/presentation/airflow/dags`    | airflow                  |
+| `AIRFLOW__CORE__LOAD_EXAMPLES`                  | optional             | `False`                                                   | airflow                  |
+| `AIRFLOW__SCHEDULER__PARSING_PROCESSES`         | optional             | `1`                                                       | airflow                  |
+| `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL` | optional             | `30`                                                      | airflow                  |
+| `AIRFLOW__LOGGING__BASE_LOG_FOLDER`             | optional             | `/opt/airflow/logs`                                       | airflow                  |
+| `AIRFLOW__CORE__FERNET_KEY`                     | required             | `change-me`                                               | airflow                  |
+| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`           | required             | `postgresql+psycopg2://airflow:password@postgres/airflow` | airflow                  |
+| `AIRFLOW__WEBSERVER__BASE_URL`                  | optional             | `http://example.com/airflow`                              | airflow                  |
+| `AIRFLOW__API_AUTH__JWT_SECRET`                 | required             | `secret`                                                  | airflow api auth         |
+| `AIRFLOW__API_AUTH__JWT_ISSUER`                 | optional             | `airflow`                                                 | airflow api auth         |
+| `AIRFLOW__API__SECRET_KEY`                      | required             | `secret`                                                  | airflow api              |
+| `AIRFLOW__API__BASE_URL`                        | required             | `http://airflow-webserver:8080`                           | airflow scheduler        |
+| `CELERY_WORKER_CONCURRENCY`                     | optional             | `2`                                                       | celery worker command    |
+| `CELERY_MAX_TASKS_PER_CHILD`                    | optional             | `100`                                                     | celery worker command    |
+| `CELERY_WORKER_EXTRA_FLAGS`                     | optional             | `--without-gossip --without-mingle --without-heartbeat`   | celery worker command    |
+| `POSTGRES_USER`                                 | required             | `airflow`                                                 | postgres container init  |
+| `POSTGRES_DB`                                   | required             | `airflow`                                                 | postgres container init  |
+| `POSTGRES_PASSWORD`                             | required             | `password`                                                | postgres container init  |
+| `DOCKER_SOCKET`                                 | required             | `/run/user/1000/docker.sock`                              | airflow container mount  |
 
-### Redis + Celery
+### Рассинхроны и решения (2026-04-08)
 
-| Переменная                         | Что задаёт                    | Пример     |
-| ---------------------------------- | ----------------------------- | ---------- |
-| `REDIS_HOST`                       | хост Redis                    | `redis`    |
-| `REDIS_PORT`                       | порт Redis                    | `6379`     |
-| `REDIS_PASSWORD`                   | пароль Redis                  | `password` |
-| `CELERY_QUEUE_NAME`                | имя очереди                   | `llm_jobs` |
-| `CELERY_RESULT_EXPIRES_SECONDS`    | TTL результатов задач         | `86400`    |
-| `CELERY_RETRY_ATTEMPTS`            | число повторов задач          | `3`        |
-| `CELERY_RETRY_BACKOFF_SECONDS`     | стартовая задержка backoff    | `2`        |
-| `CELERY_RETRY_BACKOFF_MAX_SECONDS` | максимальная задержка backoff | `30`       |
-
-### External Testing System
-
-| Переменная                      | Что задаёт                           | Пример                  |
-| ------------------------------- | ------------------------------------ | ----------------------- |
-| `TESTING_SYSTEM_BASE_URL`       | URL внешней тестовой системы         | `http://localhost:9000` |
-| `TESTING_SYSTEM_API_TOKEN`      | токен API внешней системы            | ``                      |
-| `TESTING_SYSTEM_WEBHOOK_SECRET` | shared-secret для `X-Webhook-Secret` | `change-me`             |
-
-### Airflow
-
-| Переменная                            | Что задаёт                    | Пример                                                    |
-| ------------------------------------- | ----------------------------- | --------------------------------------------------------- |
-| `AIRFLOW_USERNAME`                    | логин Airflow                 | `admin`                                                   |
-| `AIRFLOW_PASSWORD`                    | пароль Airflow                | `admin`                                                   |
-| `AIRFLOW_IMAGE_NAME`                  | тег образа Airflow            | `competency-system/airflow:latest`                        |
-| `AIRFLOW__CORE__EXECUTOR`             | executor Airflow              | `LocalExecutor`                                           |
-| `AIRFLOW__CORE__DAGS_FOLDER`          | путь к DAG внутри контейнера  | `/app/src/competency_system/presentation/airflow/dags`    |
-| `AIRFLOW__CORE__LOAD_EXAMPLES`        | включение demo DAG            | `False`                                                   |
-| `AIRFLOW__LOGGING__BASE_LOG_FOLDER`   | папка логов Airflow           | `/opt/airflow/logs`                                       |
-| `AIRFLOW__WEBSERVER__SECRET_KEY`      | webserver secret key          | `change-me`                                               |
-| `AIRFLOW__CORE__FERNET_KEY`           | fernet key для шифрования     | `change-me`                                               |
-| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` | connection string metadata DB | `postgresql+psycopg2://airflow:password@postgres/airflow` |
-
-### Auth and Bootstrap
-
-| Переменная                    | Что задаёт                | Пример              |
-| ----------------------------- | ------------------------- | ------------------- |
-| `JWT_ALGORITHM`               | алгоритм подписи JWT      | `HS256`             |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | TTL access token (мин)    | `15`                |
-| `REFRESH_TOKEN_EXPIRE_DAYS`   | TTL refresh token (дни)   | `7`                 |
-| `SECRET_KEY`                  | секрет подписи токенов    | `change-me`         |
-| `AUTH_COOKIE_SECURE`          | secure-флаг cookie        | `false`             |
-| `AUTH_COOKIE_SAMESITE`        | same-site политика cookie | `lax`               |
-| `BOOTSTRAP_ADMIN_EMAIL`       | email bootstrap-админа    | `admin@example.com` |
-| `BOOTSTRAP_ADMIN_PASSWORD`    | пароль bootstrap-админа   | `change-me`         |
-
-### Postgres container (system DB for Airflow)
-
-| Переменная          | Что задаёт                                 | Пример     |
-| ------------------- | ------------------------------------------ | ---------- |
-| `POSTGRES_USER`     | системный пользователь postgres-контейнера | `airflow`  |
-| `POSTGRES_DB`       | системная БД postgres-контейнера           | `airflow`  |
-| `POSTGRES_PASSWORD` | пароль системного пользователя             | `password` |
-
-### Docker socket
-
-| Переменная      | Что задаёт                                          | Пример                       |
-| --------------- | --------------------------------------------------- | ---------------------------- |
-| `DOCKER_SOCKET` | путь к docker.sock на хосте для Airflow-контейнеров | `/run/user/1000/docker.sock` |
+- В README были переменные `AIRFLOW_USERNAME`, `AIRFLOW_PASSWORD`, `AIRFLOW__WEBSERVER__SECRET_KEY`, но они не используются в текущем коде/compose; удалены из документации.
+- В `.env.example` была `AIRFLOW__WEBSERVER__BASE_URL`, а в README ожидалась `AIRFLOW__WEBSERVER__SECRET_KEY`; README приведён к `AIRFLOW__WEBSERVER__BASE_URL`.
+- В README отсутствовали runtime-переменные Airflow/Celery (`AIRFLOW__API_*`, `AIRFLOW__SCHEDULER_*`, `AIRFLOW__CORE__PARALLELISM`, `CELERY_WORKER_*`); добавлены.
+- В `docker-compose.yml` используется `AIRFLOW_IMAGE_NAME`; переменная добавлена в `.env.example` и отражена в README.
 
 ## Краткая структура проекта
 
