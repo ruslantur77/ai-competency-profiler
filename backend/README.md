@@ -33,7 +33,7 @@ cp .env.example .env
 3. Поднимите сервисы:
 
 ```bash
-docker compose up -d --build
+export DOCKER_GID=$(stat -c '%g' /var/run/docker.sock) docker compose up -d
 ```
 
 4. Проверка доступности:
@@ -106,34 +106,34 @@ docker compose up -d --build
 
 Переменные, которые не читаются `Settings` приложения, но используются docker-compose, Airflow и контейнерами.
 
-| Переменная                                      | Required             | Пример                                                    | Consumer                 |
-| ----------------------------------------------- | -------------------- | --------------------------------------------------------- | ------------------------ |
-| `AIRFLOW_IMAGE_NAME`                            | optional             | `competency-system/airflow:latest`                        | docker-compose image tag |
-| `TASK_SYNC_IMAGE`                               | optional             | `competency-system/api:latest`                            | task_sync DockerOperator |
-| `AIRFLOW_DOCKER_NETWORK`                        | required for task_sync | `backend_default`                                       | task_sync DockerOperator |
-| `AIRFLOW__CORE__EXECUTOR`                       | required for airflow | `LocalExecutor`                                           | airflow                  |
-| `AIRFLOW__CORE__PARALLELISM`                    | optional             | `1`                                                       | airflow                  |
-| `AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG`       | optional             | `1`                                                       | airflow                  |
-| `AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG`        | optional             | `1`                                                       | airflow                  |
-| `AIRFLOW__CORE__DAGS_FOLDER`                    | required for airflow | `/app/src/competency_system/presentation/airflow/dags`    | airflow                  |
-| `AIRFLOW__CORE__LOAD_EXAMPLES`                  | optional             | `False`                                                   | airflow                  |
-| `AIRFLOW__SCHEDULER__PARSING_PROCESSES`         | optional             | `1`                                                       | airflow                  |
-| `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL` | optional             | `30`                                                      | airflow                  |
-| `AIRFLOW__LOGGING__BASE_LOG_FOLDER`             | optional             | `/opt/airflow/logs`                                       | airflow                  |
-| `AIRFLOW__CORE__FERNET_KEY`                     | required             | `change-me`                                               | airflow                  |
-| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`           | required             | `postgresql+psycopg2://airflow:password@postgres/airflow` | airflow                  |
-| `AIRFLOW__WEBSERVER__BASE_URL`                  | optional             | `http://example.com/airflow`                              | airflow                  |
-| `AIRFLOW__API_AUTH__JWT_SECRET`                 | required             | `secret`                                                  | airflow api auth         |
-| `AIRFLOW__API_AUTH__JWT_ISSUER`                 | optional             | `airflow`                                                 | airflow api auth         |
-| `AIRFLOW__API__SECRET_KEY`                      | required             | `secret`                                                  | airflow api              |
-| `AIRFLOW__API__BASE_URL`                        | required             | `http://airflow-webserver:8080`                           | airflow scheduler        |
-| `CELERY_WORKER_CONCURRENCY`                     | optional             | `2`                                                       | celery worker command    |
-| `CELERY_MAX_TASKS_PER_CHILD`                    | optional             | `100`                                                     | celery worker command    |
-| `CELERY_WORKER_EXTRA_FLAGS`                     | optional             | `--without-gossip --without-mingle --without-heartbeat`   | celery worker command    |
-| `POSTGRES_USER`                                 | required             | `airflow`                                                 | postgres container init  |
-| `POSTGRES_DB`                                   | required             | `airflow`                                                 | postgres container init  |
-| `POSTGRES_PASSWORD`                             | required             | `password`                                                | postgres container init  |
-| `DOCKER_SOCKET`                                 | required             | `/run/user/1000/docker.sock`                              | airflow container mount  |
+| Переменная                                      | Required               | Пример                                                    | Consumer                 |
+| ----------------------------------------------- | ---------------------- | --------------------------------------------------------- | ------------------------ |
+| `AIRFLOW_IMAGE_NAME`                            | optional               | `competency-system/airflow:latest`                        | docker-compose image tag |
+| `TASK_SYNC_IMAGE`                               | optional               | `competency-system/api:latest`                            | task_sync DockerOperator |
+| `AIRFLOW_DOCKER_NETWORK`                        | required for task_sync | `backend_default`                                         | task_sync DockerOperator |
+| `AIRFLOW__CORE__EXECUTOR`                       | required for airflow   | `LocalExecutor`                                           | airflow                  |
+| `AIRFLOW__CORE__PARALLELISM`                    | optional               | `1`                                                       | airflow                  |
+| `AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG`       | optional               | `1`                                                       | airflow                  |
+| `AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG`        | optional               | `1`                                                       | airflow                  |
+| `AIRFLOW__CORE__DAGS_FOLDER`                    | required for airflow   | `/app/src/competency_system/presentation/airflow/dags`    | airflow                  |
+| `AIRFLOW__CORE__LOAD_EXAMPLES`                  | optional               | `False`                                                   | airflow                  |
+| `AIRFLOW__SCHEDULER__PARSING_PROCESSES`         | optional               | `1`                                                       | airflow                  |
+| `AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL` | optional               | `30`                                                      | airflow                  |
+| `AIRFLOW__LOGGING__BASE_LOG_FOLDER`             | optional               | `/opt/airflow/logs`                                       | airflow                  |
+| `AIRFLOW__CORE__FERNET_KEY`                     | required               | `change-me`                                               | airflow                  |
+| `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`           | required               | `postgresql+psycopg2://airflow:password@postgres/airflow` | airflow                  |
+| `AIRFLOW__WEBSERVER__BASE_URL`                  | optional               | `http://example.com/airflow`                              | airflow                  |
+| `AIRFLOW__API_AUTH__JWT_SECRET`                 | required               | `secret`                                                  | airflow api auth         |
+| `AIRFLOW__API_AUTH__JWT_ISSUER`                 | optional               | `airflow`                                                 | airflow api auth         |
+| `AIRFLOW__API__SECRET_KEY`                      | required               | `secret`                                                  | airflow api              |
+| `AIRFLOW__API__BASE_URL`                        | required               | `http://airflow-webserver:8080`                           | airflow scheduler        |
+| `CELERY_WORKER_CONCURRENCY`                     | optional               | `2`                                                       | celery worker command    |
+| `CELERY_MAX_TASKS_PER_CHILD`                    | optional               | `100`                                                     | celery worker command    |
+| `CELERY_WORKER_EXTRA_FLAGS`                     | optional               | `--without-gossip --without-mingle --without-heartbeat`   | celery worker command    |
+| `POSTGRES_USER`                                 | required               | `airflow`                                                 | postgres container init  |
+| `POSTGRES_DB`                                   | required               | `airflow`                                                 | postgres container init  |
+| `POSTGRES_PASSWORD`                             | required               | `password`                                                | postgres container init  |
+| `DOCKER_SOCKET`                                 | required               | `/run/user/1000/docker.sock`                              | airflow container mount  |
 
 ### Рассинхроны и решения (2026-04-08)
 

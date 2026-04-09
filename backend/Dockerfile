@@ -14,7 +14,7 @@ ENV PYTHONUNBUFFERED=1 \
     APP_HOME=${APP_HOME} \
     UV_PYTHON_DOWNLOADS=0 \
     UV_PROJECT_ENVIRONMENT=${APP_HOME}/.venv \
-    UV_COMPILE_BYTECODE=1 \
+    UV_COMPILE_BYTECODE=0 \
     UV_LINK_MODE=copy \
     PYTHONPATH=${APP_HOME}/src \
     PATH="${APP_HOME}/.venv/bin:${PATH}"
@@ -47,6 +47,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project --no-dev
 
+RUN find ${APP_HOME}/.venv -type d -name "__pycache__" -exec rm -rf {} + \
+    && find ${APP_HOME}/.venv -type f -name "*.pyc" -delete \
+    && find ${APP_HOME}/.venv -type d -name "tests" -exec rm -rf {} + \
+    && find ${APP_HOME}/.venv -type d -name "*.dist-info" -exec rm -rf {} + || true
 
 FROM builder AS api_builder
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -77,15 +81,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM base AS api
 
 ARG APP_HOME
-ENV PATH="${APP_HOME}/.venv-api/bin:${PATH}"
+ENV PATH="${APP_HOME}/.venv/bin:${PATH}"
 
-COPY --from=api_builder ${APP_HOME}/.venv ${APP_HOME}/.venv
-COPY alembic.ini ./alembic.ini
-COPY alembic ./alembic
-COPY src ./src
+COPY --from=api_builder --chown=appuser:appuser ${APP_HOME}/.venv ${APP_HOME}/.venv
+COPY --chown=appuser:appuser alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser alembic ./alembic
+COPY --chown=appuser:appuser src ./src
 
-RUN useradd -m -u 1000 appuser \
-    && chown -R appuser:appuser ${APP_HOME}
+RUN useradd -m -u 1000 appuser 
 
 USER appuser
 EXPOSE 8000
@@ -102,14 +105,13 @@ CMD ["uvicorn", "competency_system.presentation.api.main:app", "--host", "0.0.0.
 FROM base AS worker
 
 ARG APP_HOME
-ENV PATH="${APP_HOME}/.venv-worker/bin:${PATH}" \
+ENV PATH="${APP_HOME}/.venv/bin:${PATH}" \
     C_FORCE_ROOT=0
 
-COPY --from=worker_builder ${APP_HOME}/.venv ${APP_HOME}/.venv
-COPY src ./src
+COPY --from=worker_builder --chown=appuser:appuser ${APP_HOME}/.venv ${APP_HOME}/.venv
+COPY --chown=appuser:appuser src ./src
 
-RUN useradd -m -u 1000 appuser \
-    && chown -R appuser:appuser ${APP_HOME}
+RUN useradd -m -u 1000 appuser
 
 USER appuser
 
@@ -126,41 +128,21 @@ CMD ["celery", "-A", "competency_system.presentation.worker.celery_worker:celery
 FROM base AS airflow
 
 ARG APP_HOME
-ENV PATH="${APP_HOME}/.venv-airflow/bin:${PATH}" \
+ENV PATH="${APP_HOME}/.venv/bin:${PATH}" \
     AIRFLOW_HOME=/opt/airflow \
     AIRFLOW__CORE__EXECUTOR=DockerExecutor \
     AIRFLOW__CORE__DAGS_FOLDER=${APP_HOME}/src/competency_system/presentation/airflow/dags \
     AIRFLOW__CORE__LOAD_EXAMPLES=False \
     AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
 
-COPY --from=airflow_builder ${APP_HOME}/.venv ${APP_HOME}/.venv
-COPY src ./src
+COPY --from=airflow_builder --chown=appuser:appuser ${APP_HOME}/.venv ${APP_HOME}/.venv
+COPY --chown=appuser:appuser src ./src
 
 RUN useradd -m -u 1000 appuser \
-    && mkdir -p /opt/airflow/logs /opt/airflow/plugins \
-    && chown -R appuser:appuser ${APP_HOME} /opt/airflow
+    && install -d -o appuser -g appuser /opt/airflow \
+    && install -d -o appuser -g appuser /opt/airflow/logs /opt/airflow/plugins
 
 USER appuser
 EXPOSE 8080
 
 CMD ["airflow", "webserver"]
-
-# =============================================================================
-# test
-# =============================================================================
-FROM builder AS test
-
-ARG APP_HOME
-ENV PATH="${APP_HOME}/.venv/bin:${PATH}"
-
-RUN --mount=type=cache,target=/root/.cache/uv \
-    --mount=type=bind,source=uv.lock,target=uv.lock \
-    --mount=type=bind,source=.python-version,target=.python-version \
-    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --all-groups
-
-COPY alembic/ ${APP_HOME}/alembic/
-COPY tests/ ${APP_HOME}/tests/
-COPY src ./src
-
-CMD ["pytest"]
