@@ -177,7 +177,9 @@ docker compose logs -f api
 2. `DockerOperator` поднимает отдельный backend-контейнер (`TASK_SYNC_IMAGE`).
 3. В контейнере запускается CLI-раннер `task_sync_runner`, который вызывает `SyncTasksUseCase` напрямую.
 4. Период берётся из `data_interval_start/data_interval_end` (UTC), либо переопределяется через `dag_run.conf`.
-5. Для каждой синхронизированной задачи ставится LLM job `TASK_MAPPING` в очередь (обычно Celery).
+5. DAG передаёт в контейнер только явно собранный env (whitelist).
+6. БД для runner резолвится в DAG из Airflow Connection `competency_app_db` (или `APP_DB_CONN_ID`) с fallback на env.
+7. Для каждой синхронизированной задачи ставится LLM job `TASK_MAPPING` в очередь (обычно Celery).
 
 ## Контракт синка задач
 
