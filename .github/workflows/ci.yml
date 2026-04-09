@@ -220,6 +220,7 @@ jobs:
           AIRFLOW__LOGGING__BASE_LOG_FOLDER=${{ vars.AIRFLOW__LOGGING__BASE_LOG_FOLDER }}
 
           AIRFLOW__WEBSERVER__BASE_URL=${{ vars.AIRFLOW__WEBSERVER__BASE_URL }}
+          AIRFLOW_DOCKER_NETWORK=${{ vars.AIRFLOW_DOCKER_NETWORK }}
 
           # =========================
           # Security
