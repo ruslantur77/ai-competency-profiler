@@ -156,17 +156,25 @@ jobs:
       - name: Create .env file
         run: |
           cat > .env << 'EOF'
+          # =========================
           # Application Settings
+          # =========================
           LOG_LEVEL=${{ vars.LOG_LEVEL }}
           DEBUG=${{ vars.DEBUG }}
           ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
+
+          # =========================
           # Database Configuration
+          # =========================
           DB_HOST=${{ secrets.DB_HOST }}
           DB_PORT=${{ secrets.DB_PORT }}
           DB_NAME=${{ secrets.DB_NAME }}
           DB_USER=${{ secrets.DB_USER }}
           DB_PASS=${{ secrets.DB_PASS }}
+
+          # =========================
           # LLM Configuration
+          # =========================
           API_KEY=${{ secrets.API_KEY }}
           BASE_URL=${{ vars.BASE_URL }}
           MODEL=${{ vars.MODEL }}
@@ -178,20 +186,44 @@ jobs:
           LLM_MAX_SUGGESTED_NEW_PER_STAGE=${{ vars.LLM_MAX_SUGGESTED_NEW_PER_STAGE }}
           LLM_REASONING_MAX_TOKENS=${{ vars.LLM_REASONING_MAX_TOKENS }}
           LLM_QUEUE_BACKEND=${{ vars.LLM_QUEUE_BACKEND }}
+
+          # =========================
           # External Testing System
+          # =========================
           TESTING_SYSTEM_BASE_URL=${{ vars.TESTING_SYSTEM_BASE_URL }}
           TESTING_SYSTEM_API_TOKEN=${{ secrets.TESTING_SYSTEM_API_TOKEN }}
+
+          # =========================
           # Airflow Configuration
+          # =========================
+          AIRFLOW__API_AUTH__JWT_ISSUER=${{ secrets.AIRFLOW__API_AUTH__JWT_ISSUER }}
+          AIRFLOW__API_AUTH__JWT_SECRET=${{ secrets.AIRFLOW__API_AUTH__JWT_SECRET }}
+          AIRFLOW__API__SECRET_KEY=${{ secrets.AIRFLOW__API__SECRET_KEY }}
+          AIRFLOW__API__AUTH_BACKENDS=${{ vars.AIRFLOW__API__AUTH_BACKENDS }}
+          AIRFLOW__API__BASE_URL=${{ vars.AIRFLOW__API__BASE_URL }}
+
           AIRFLOW__CORE__EXECUTOR=${{ vars.AIRFLOW__CORE__EXECUTOR }}
           AIRFLOW__CORE__DAGS_FOLDER=${{ vars.AIRFLOW__CORE__DAGS_FOLDER }}
           AIRFLOW__CORE__LOAD_EXAMPLES=${{ vars.AIRFLOW__CORE__LOAD_EXAMPLES }}
-          AIRFLOW__LOGGING__BASE_LOG_FOLDER=${{ vars.AIRFLOW__LOGGING__BASE_LOG_FOLDER }}
-          AIRFLOW__WEBSERVER__SECRET_KEY=${{ secrets.AIRFLOW__WEBSERVER__SECRET_KEY }}
           AIRFLOW__CORE__FERNET_KEY=${{ secrets.AIRFLOW__CORE__FERNET_KEY }}
+          AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG=${{ vars.AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG }}
+          AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=${{ vars.AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG }}
+          AIRFLOW__CORE__PARALLELISM=${{ vars.AIRFLOW__CORE__PARALLELISM }}
+
           AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${{ secrets.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
-          AIRFLOW__WEBSERVER__WEB_SERVER_ROOT_URL=${{ vars.AIRFLOW__WEBSERVER__WEB_SERVER_ROOT_URL }}
+
+          AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL=${{ vars.AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL }}
+
+          AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL=${{ vars.AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL }}
+          AIRFLOW__SCHEDULER__PARSING_PROCESSES=${{ vars.AIRFLOW__SCHEDULER__PARSING_PROCESSES }}
+
+          AIRFLOW__LOGGING__BASE_LOG_FOLDER=${{ vars.AIRFLOW__LOGGING__BASE_LOG_FOLDER }}
+
           AIRFLOW__WEBSERVER__BASE_URL=${{ vars.AIRFLOW__WEBSERVER__BASE_URL }}
+
+          # =========================
           # Security
+          # =========================
           SECRET_KEY=${{ secrets.SECRET_KEY }}
           JWT_ALGORITHM=${{ secrets.JWT_ALGORITHM }}
           ACCESS_TOKEN_EXPIRE_MINUTES=${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
@@ -200,22 +232,38 @@ jobs:
           AUTH_COOKIE_SAMESITE=${{ vars.AUTH_COOKIE_SAMESITE }}
           BOOTSTRAP_ADMIN_EMAIL=${{ secrets.BOOTSTRAP_ADMIN_EMAIL }}
           BOOTSTRAP_ADMIN_PASSWORD=${{ secrets.BOOTSTRAP_ADMIN_PASSWORD }}
+
+          # =========================
           # Redis
+          # =========================
           REDIS_HOST=${{ secrets.REDIS_HOST }}
           REDIS_PORT=${{ secrets.REDIS_PORT }}
           REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+
+          # =========================
           # Celery
+          # =========================
           CELERY_QUEUE_NAME=${{ vars.CELERY_QUEUE_NAME }}
           CELERY_RESULT_EXPIRES_SECONDS=${{ vars.CELERY_RESULT_EXPIRES_SECONDS }}
           CELERY_RETRY_ATTEMPTS=${{ vars.CELERY_RETRY_ATTEMPTS }}
           CELERY_RETRY_BACKOFF_SECONDS=${{ vars.CELERY_RETRY_BACKOFF_SECONDS }}
           CELERY_RETRY_BACKOFF_MAX_SECONDS=${{ vars.CELERY_RETRY_BACKOFF_MAX_SECONDS }}
+          CELERY_MAX_TASKS_PER_CHILD=${{ vars.CELERY_MAX_TASKS_PER_CHILD }}
+          CELERY_WORKER_CONCURRENCY=${{ vars.CELERY_WORKER_CONCURRENCY }}
+          CELERY_WORKER_EXTRA_FLAGS=${{ vars.CELERY_WORKER_EXTRA_FLAGS }}
+
+          # =========================
           # Postgres (Airflow)
+          # =========================
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+
+          # =========================
           # Docker
+          # =========================
           DOCKER_SOCKET=${{ vars.DOCKER_SOCKET }}
+
           EOF
 
       - name: Copy files
