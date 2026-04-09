@@ -6,6 +6,9 @@ from datetime import UTC, datetime
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag
 
+DEFAULT_APP_DB_CONN_ID = "competency_app_db"
+APP_DB_CONN_ID_ENV = "APP_DB_CONN_ID"
+
 DEFAULT_ARGS = {
     "owner": "competency-system",
     "retries": 1,
@@ -24,6 +27,74 @@ END_TEMPLATE = (
     "else (data_interval_start + macros.timedelta(hours=1)).in_timezone('UTC').isoformat() }}"  # noqa: E501
 )
 
+RUNTIME_ENV_WHITELIST = (
+    "LOG_LEVEL",
+    "DEBUG",
+    "ENVIRONMENT",
+    "TESTING_SYSTEM_BASE_URL",
+    "TESTING_SYSTEM_API_TOKEN",
+    "LLM_QUEUE_BACKEND",
+    "REDIS_HOST",
+    "REDIS_PORT",
+    "REDIS_PASSWORD",
+    "CELERY_QUEUE_NAME",
+    "CELERY_RESULT_EXPIRES_SECONDS",
+)
+
+DB_ENV_KEYS = ("DB_HOST", "DB_PORT", "DB_USER", "DB_PASS", "DB_NAME")
+
+
+def _get_connection(conn_id: str) -> object | None:
+    try:
+        from airflow.sdk.bases.hook import BaseHook
+    except Exception:  # pragma: no cover - optional Airflow import path
+        try:
+            from airflow.hooks.base import BaseHook
+        except Exception:  # pragma: no cover - optional Airflow import path
+            return None
+    try:
+        return BaseHook.get_connection(conn_id)
+    except Exception:  # pragma: no cover - connection may be absent
+        return None
+
+
+def _resolve_db_env() -> dict[str, str]:
+    conn_id = os.getenv(APP_DB_CONN_ID_ENV, DEFAULT_APP_DB_CONN_ID)
+    connection = _get_connection(conn_id)
+    if connection is not None:
+        get_uri = getattr(connection, "get_uri", None)
+        if callable(get_uri):
+            uri = str(get_uri())
+            if uri:
+                return {"DATABASE_URL": uri}
+
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return {"DATABASE_URL": database_url}
+
+    resolved: dict[str, str] = {}
+    for key in DB_ENV_KEYS:
+        value = os.getenv(key)
+        if value is not None and value != "":
+            resolved[key] = value
+    return resolved
+
+
+def _resolve_runtime_env() -> dict[str, str]:
+    resolved: dict[str, str] = {}
+    for key in RUNTIME_ENV_WHITELIST:
+        value = os.getenv(key)
+        if value is None:
+            continue
+        resolved[key] = value
+    return resolved
+
+
+def _build_task_environment() -> dict[str, str]:
+    environment = _resolve_runtime_env()
+    environment.update(_resolve_db_env())
+    return environment
+
 
 @dag(
     dag_id="task_sync",
@@ -39,6 +110,7 @@ def task_sync_dag() -> None:
         image=TASK_SYNC_IMAGE,
         docker_url="unix://var/run/docker.sock",
         network_mode=AIRFLOW_DOCKER_NETWORK,
+        environment=_build_task_environment(),
         mount_tmp_dir=False,
         auto_remove="success",
         command=(
