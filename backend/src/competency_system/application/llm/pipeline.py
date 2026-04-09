@@ -59,7 +59,7 @@ class LLMSelectionSubCompetenciesOutput(BaseModel):
     class _SubCompetencyItem(BaseModel):
         id: UUID | None = None
         llm_id: int | None = None
-        target_level: int
+        target_level: int = 0
         weight: float
 
         @model_validator(mode="after")
