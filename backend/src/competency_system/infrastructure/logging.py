@@ -6,8 +6,6 @@ from typing import Any
 
 import structlog
 
-from competency_system.infrastructure.settings import Settings, get_settings
-
 _LOGGING_CONFIGURED = False
 Processor = Callable[
     [Any, str, MutableMapping[str, Any]],
@@ -15,13 +13,12 @@ Processor = Callable[
 ]
 
 
-def configure_logging(settings: Settings | None = None) -> None:
+def configure_logging(*, log_level: str, environment: str) -> None:
     global _LOGGING_CONFIGURED
     if _LOGGING_CONFIGURED:
         return
 
-    resolved_settings = settings or get_settings()
-    log_level = getattr(logging, resolved_settings.log_level.upper(), logging.INFO)
+    resolved_log_level = getattr(logging, log_level.upper(), logging.INFO)
 
     shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
@@ -57,26 +54,26 @@ def configure_logging(settings: Settings | None = None) -> None:
 
     handlers = [console_handler]
 
-    if resolved_settings.environment == "production":
+    if environment == "production":
         handlers = [json_handler]
-    elif resolved_settings.environment == "local":
+    elif environment == "local":
         handlers = [console_handler]
     else:
         handlers = [console_handler, json_handler]
 
     logging.basicConfig(
-        level=log_level,
+        level=resolved_log_level,
         handlers=handlers,
         force=True,
     )
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(log_level)
+    root_logger.setLevel(resolved_log_level)
 
     for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"):
         framework_logger = logging.getLogger(logger_name)
         framework_logger.handlers = root_logger.handlers
-        framework_logger.setLevel(log_level)
+        framework_logger.setLevel(resolved_log_level)
         framework_logger.propagate = False
 
     _LOGGING_CONFIGURED = True

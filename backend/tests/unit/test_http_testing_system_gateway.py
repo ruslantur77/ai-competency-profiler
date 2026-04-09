@@ -8,7 +8,6 @@ import pytest
 from competency_system.infrastructure.external.testing_system import (
     HTTPTestingSystemGateway,
 )
-from competency_system.infrastructure.settings import Settings
 
 pytestmark = pytest.mark.unit
 
@@ -33,11 +32,10 @@ async def test_http_testing_system_gateway_passes_period_and_auth_header() -> No
             ],
         )
 
-    settings = Settings(
-        TESTING_SYSTEM_BASE_URL="http://testing.local",
-        TESTING_SYSTEM_API_TOKEN="secret",
+    gateway = HTTPTestingSystemGateway(
+        base_url="http://testing.local",
+        api_token="secret",
     )
-    gateway = HTTPTestingSystemGateway(settings)
     await gateway._client.aclose()
     gateway._client = httpx.AsyncClient(
         base_url="http://testing.local",

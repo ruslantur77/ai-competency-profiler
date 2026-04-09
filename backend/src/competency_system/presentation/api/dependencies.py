@@ -58,13 +58,15 @@ from competency_system.application.use_cases.vacancy import (
     UpdateVacancyStatusUseCase,
 )
 from competency_system.domain.value_objects.enums import UserRole
-from competency_system.infrastructure.database import create_session_factory
 from competency_system.infrastructure.health.database_health import (
     SQLAlchemyHealthCheckPort,
 )
 from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWork
 from competency_system.infrastructure.security import decode_jwt, oauth2_scheme
-from competency_system.infrastructure.settings import Settings, get_settings
+from competency_system.presentation.api.runtime_config import (
+    AuthCookieConfig,
+    RebuildTaskMappingConfig,
+)
 
 
 def get_db_engine(request: Request) -> AsyncEngine:
@@ -84,8 +86,12 @@ def get_uow(
     return SQLAlchemyUnitOfWork(session_factory)
 
 
-def get_app_settings() -> Settings:
-    return get_settings()
+def get_rebuild_task_mapping_config(request: Request) -> RebuildTaskMappingConfig:
+    return cast(RebuildTaskMappingConfig, request.app.state.rebuild_task_mapping_config)
+
+
+def get_auth_cookie_config(request: Request) -> AuthCookieConfig:
+    return cast(AuthCookieConfig, request.app.state.auth_cookie_config)
 
 
 def get_llm_gateway(request: Request) -> LLMGateway:
@@ -105,11 +111,9 @@ def get_llm_job_queue(request: Request) -> LLMJobQueuePort:
 
 def get_health_check_port(request: Request) -> HealthCheckPort:
     session_factory = cast(
-        async_sessionmaker[AsyncSession] | None,
-        getattr(request.app.state, "session_factory", None),
+        async_sessionmaker[AsyncSession],
+        request.app.state.session_factory,
     )
-    if session_factory is None:
-        session_factory = create_session_factory(get_settings())
     return SQLAlchemyHealthCheckPort(session_factory)
 
 
@@ -208,15 +212,17 @@ def get_rebuild_task_mapping_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
     job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
-    settings: Annotated[Settings, Depends(get_app_settings)],
+    config: Annotated[
+        RebuildTaskMappingConfig, Depends(get_rebuild_task_mapping_config)
+    ],
 ) -> RebuildTaskMappingUseCase:
     return RebuildTaskMappingUseCase(
         uow,
         llm_gateway,
         job_queue,
-        max_parallel_requests=settings.llm_max_parallel_requests,
-        stage_timeout_seconds=settings.llm_stage_timeout_seconds,
-        prompt_version=settings.llm_task_prompt_version,
+        max_parallel_requests=config.max_parallel_requests,
+        stage_timeout_seconds=config.stage_timeout_seconds,
+        prompt_version=config.task_prompt_version,
     )
 
 
@@ -414,10 +420,13 @@ def require_admin_or_system(
 
 
 def verify_testing_system_webhook_secret(
+    request: Request,
     webhook_secret: Annotated[str | None, Header(alias="X-Webhook-Secret")] = None,
 ) -> None:
-    settings = get_settings()
-    expected_secret = settings.testing_system_webhook_secret
+    expected_secret = cast(
+        str,
+        getattr(request.app.state, "testing_system_webhook_secret", ""),
+    )
     if not expected_secret:
         return
     if webhook_secret != expected_secret:

@@ -56,8 +56,11 @@ class AirflowRuntime:
 @asynccontextmanager
 async def build_runtime() -> AsyncIterator[AirflowRuntime]:
     settings = get_settings()
-    configure_logging(settings)
-    db_engine, session_factory = create_engine_and_session_factory(settings)
+    configure_logging(log_level=settings.log_level, environment=settings.environment)
+    db_engine, session_factory = create_engine_and_session_factory(
+        database_url=settings.database_url,
+        debug=settings.debug,
+    )
 
     async def _noop_dispatcher(*_: object) -> None:
         return None
@@ -66,8 +69,18 @@ async def build_runtime() -> AsyncIterator[AirflowRuntime]:
         settings=settings,
         db_engine=db_engine,
         session_factory=session_factory,
-        llm_gateway_client=OpenAICompatibleLLMGateway(settings),
-        testing_gateway_client=HTTPTestingSystemGateway(settings),
+        llm_gateway_client=OpenAICompatibleLLMGateway(
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            timeout_seconds=settings.llm_timeout_seconds,
+            model=settings.llm_model,
+            retry_attempts=settings.llm_retry_attempts,
+            reasoning_max_tokens=settings.llm_reasoning_max_tokens,
+        ),
+        testing_gateway_client=HTTPTestingSystemGateway(
+            base_url=settings.testing_system_base_url,
+            api_token=settings.testing_system_api_token,
+        ),
         llm_job_queue_client=InMemoryLLMJobQueue(_noop_dispatcher),
     )
     try:

@@ -11,7 +11,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 from competency_system.application.llm.llm_dispatch import dispatch_llm_job
 from competency_system.application.ports.llm_jobs import LLMJobType
 from competency_system.infrastructure.database import create_engine_and_session_factory
-from competency_system.infrastructure.llm.celery_app import get_celery_app
+from competency_system.infrastructure.llm.celery_app import celery_app
 from competency_system.infrastructure.llm.celery_job_queue import (
     CELERY_DISPATCH_TASK_NAME,
 )
@@ -24,7 +24,6 @@ from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWor
 from competency_system.infrastructure.settings import Settings, get_settings
 
 logger = get_logger(__name__).bind(component="llm_worker")
-celery_app = get_celery_app()
 
 TRANSIENT_EXCEPTIONS: Final[tuple[type[BaseException], ...]] = (
     LLMAdapterError,
@@ -120,8 +119,18 @@ async def _run_dispatch(
     payload: dict[str, object],
     settings: Settings,
 ) -> None:
-    db_engine, session_factory = create_engine_and_session_factory(settings)
-    llm_gateway = OpenAICompatibleLLMGateway(settings)
+    db_engine, session_factory = create_engine_and_session_factory(
+        database_url=settings.database_url,
+        debug=settings.debug,
+    )
+    llm_gateway = OpenAICompatibleLLMGateway(
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
+        timeout_seconds=settings.llm_timeout_seconds,
+        model=settings.llm_model,
+        retry_attempts=settings.llm_retry_attempts,
+        reasoning_max_tokens=settings.llm_reasoning_max_tokens,
+    )
     try:
         await dispatch_llm_job(
             job_type,

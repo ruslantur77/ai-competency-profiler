@@ -10,14 +10,14 @@ from competency_system.application.ports.external_testing_system import (
     ExternalTestingSystemGateway,
 )
 from competency_system.domain.value_objects.enums import TaskType
-from competency_system.infrastructure.settings import Settings, get_settings
 
 
 class HTTPTestingSystemGateway(ExternalTestingSystemGateway):
-    def __init__(self, settings: Settings | None = None) -> None:
-        self._settings = settings or get_settings()
+    def __init__(self, *, base_url: str, api_token: str) -> None:
+        self._base_url = base_url
+        self._api_token = api_token
         self._client = httpx.AsyncClient(
-            base_url=self._settings.testing_system_base_url,
+            base_url=self._base_url,
             headers=self._build_headers(),
             timeout=30.0,
         )
@@ -27,10 +27,8 @@ class HTTPTestingSystemGateway(ExternalTestingSystemGateway):
 
     def _build_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {}
-        if self._settings.testing_system_api_token:
-            headers["Authorization"] = (
-                f"Bearer {self._settings.testing_system_api_token}"
-            )
+        if self._api_token:
+            headers["Authorization"] = f"Bearer {self._api_token}"
         return headers
 
     async def list_tasks(

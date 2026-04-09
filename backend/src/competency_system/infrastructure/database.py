@@ -10,29 +10,30 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from competency_system.infrastructure.settings import Settings, get_settings
 
-
-def create_async_db_engine(settings: Settings | None = None) -> AsyncEngine:
-    resolved_settings = settings or get_settings()
+def create_async_db_engine(*, database_url: str, debug: bool) -> AsyncEngine:
     return create_async_engine(
-        resolved_settings.database_url,
-        echo=resolved_settings.debug,
+        database_url,
+        echo=debug,
         pool_pre_ping=True,
     )
 
 
 def create_session_factory(
-    settings: Settings | None = None,
+    *,
+    database_url: str,
+    debug: bool,
 ) -> async_sessionmaker[AsyncSession]:
-    engine = create_async_db_engine(settings)
+    engine = create_async_db_engine(database_url=database_url, debug=debug)
     return async_sessionmaker(engine, expire_on_commit=False)
 
 
 def create_engine_and_session_factory(
-    settings: Settings | None = None,
+    *,
+    database_url: str,
+    debug: bool,
 ) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
-    engine = create_async_db_engine(settings)
+    engine = create_async_db_engine(database_url=database_url, debug=debug)
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 

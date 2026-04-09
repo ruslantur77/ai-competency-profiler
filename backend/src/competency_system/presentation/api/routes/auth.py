@@ -15,9 +15,8 @@ from competency_system.application.use_cases.auth import (
     LogoutUseCase,
     RefreshTokenPairUseCase,
 )
-from competency_system.infrastructure.settings import Settings
 from competency_system.presentation.api.dependencies import (
-    get_app_settings,
+    get_auth_cookie_config,
     get_authenticate_user_use_case,
     get_issue_token_pair_use_case,
     get_login_data,
@@ -26,18 +25,21 @@ from competency_system.presentation.api.dependencies import (
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
 )
+from competency_system.presentation.api.runtime_config import AuthCookieConfig
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
+def _set_refresh_cookie(
+    response: Response, token: str, auth_cookie_config: AuthCookieConfig
+) -> None:
     response.set_cookie(
         key="refresh_token",
         value=token,
         httponly=True,
-        secure=settings.auth_cookie_secure,
-        samesite=settings.auth_cookie_samesite,
-        max_age=settings.refresh_token_expire_days * 24 * 3600,
+        secure=auth_cookie_config.secure,
+        samesite=auth_cookie_config.samesite,
+        max_age=auth_cookie_config.refresh_token_expire_days * 24 * 3600,
         path="/api/v1/auth",
     )
 
@@ -53,7 +55,7 @@ async def login(
         IssueTokenPairUseCase,
         Depends(get_issue_token_pair_use_case),
     ],
-    settings: Annotated[Settings, Depends(get_app_settings)],
+    auth_cookie_config: Annotated[AuthCookieConfig, Depends(get_auth_cookie_config)],
 ) -> TokenResponseDTO:
     user = await auth_use_case.execute(credentials)
     if user is None:
@@ -71,7 +73,7 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    _set_refresh_cookie(response, token_pair.refresh_token, settings)
+    _set_refresh_cookie(response, token_pair.refresh_token, auth_cookie_config)
     return TokenResponseDTO(access_token=token_pair.access_token)
 
 
@@ -83,7 +85,7 @@ async def refresh_token(
     refresh_use_case: Annotated[
         RefreshTokenPairUseCase, Depends(get_refresh_token_pair_use_case)
     ],
-    settings: Annotated[Settings, Depends(get_app_settings)],
+    auth_cookie_config: Annotated[AuthCookieConfig, Depends(get_auth_cookie_config)],
 ) -> TokenResponseDTO:
     token_pair = await refresh_use_case.execute(
         refresh_token_raw=refresh_token_raw,
@@ -96,7 +98,7 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    _set_refresh_cookie(response, token_pair.refresh_token, settings)
+    _set_refresh_cookie(response, token_pair.refresh_token, auth_cookie_config)
     return TokenResponseDTO(access_token=token_pair.access_token)
 
 

@@ -17,19 +17,30 @@ from tenacity import (
 from competency_system.application.ports.llm import LLMGateway, LLMMessage, LLMResponseT
 from competency_system.infrastructure.llm.errors import LLMAdapterError
 from competency_system.infrastructure.logging import get_logger
-from competency_system.infrastructure.settings import Settings, get_settings
 
 
 class OpenAICompatibleLLMGateway(LLMGateway):
     _FAILED_AUDIT_LIMIT = 2000
 
-    def __init__(self, settings: Settings | None = None) -> None:
-        self._settings = settings or get_settings()
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        base_url: str,
+        timeout_seconds: float,
+        model: str,
+        retry_attempts: int,
+        reasoning_max_tokens: int,
+    ) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._retry_attempts = retry_attempts
+        self._reasoning_max_tokens = reasoning_max_tokens
         self._logger = get_logger(__name__).bind(component="llm", provider="openai")
         self._client = AsyncOpenAI(
-            api_key=self._settings.llm_api_key or None,
-            base_url=self._settings.llm_base_url,
-            timeout=self._settings.llm_timeout_seconds,
+            api_key=self._api_key or None,
+            base_url=base_url,
+            timeout=timeout_seconds,
             max_retries=0,
         )
 
@@ -44,7 +55,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
         temperature: float = 0.2,
         max_tokens: int = 700,
     ) -> LLMResponseT:
-        attempts = max(1, self._settings.llm_retry_attempts)
+        attempts = max(1, self._retry_attempts)
         self._logger.info(messages)
         try:
             async for attempt in AsyncRetrying(
@@ -64,11 +75,11 @@ class OpenAICompatibleLLMGateway(LLMGateway):
         except Exception as exc:  # pragma: no cover - infra boundary
             self._logger.exception(
                 "llm_request_failed",
-                model=self._settings.llm_model,
+                model=self._model,
                 attempts=attempts,
             )
             raise LLMAdapterError(
-                f"LLM request failed for model {self._settings.llm_model}"
+                f"LLM request failed for model {self._model}"
             ) from exc
 
     async def _generate_once(
@@ -81,7 +92,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
     ) -> LLMResponseT:
         self._logger.info(
             "llm_request_started",
-            model=self._settings.llm_model,
+            model=self._model,
             message_count=len(messages),
             temperature=temperature,
         )
@@ -93,7 +104,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
             for message in messages
         ]
         response = await self._client.chat.completions.create(
-            model=self._settings.llm_model,
+            model=self._model,
             messages=messages_payload,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -107,7 +118,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
         except Exception as exc:
             self._logger.warning(
                 "llm_response_validation_failed",
-                model=self._settings.llm_model,
+                model=self._model,
                 message_count=len(messages),
                 error=str(exc),
                 request_excerpt=self._truncate(self._messages_excerpt(messages)),
@@ -116,7 +127,7 @@ class OpenAICompatibleLLMGateway(LLMGateway):
             raise
         self._logger.info(
             "llm_request_finished",
-            model=self._settings.llm_model,
+            model=self._model,
             message_count=len(messages),
         )
         return result
@@ -142,6 +153,6 @@ class OpenAICompatibleLLMGateway(LLMGateway):
             return json.loads(match.group())
 
     def _extra_body(self) -> dict[str, object] | None:
-        if self._settings.llm_reasoning_max_tokens <= 0:
+        if self._reasoning_max_tokens <= 0:
             return None
-        return {"reasoning": {"max_tokens": self._settings.llm_reasoning_max_tokens}}
+        return {"reasoning": {"max_tokens": self._reasoning_max_tokens}}

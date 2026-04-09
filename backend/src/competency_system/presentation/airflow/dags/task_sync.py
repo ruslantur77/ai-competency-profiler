@@ -21,7 +21,7 @@ START_TEMPLATE = (
 END_TEMPLATE = (
     "{{ dag_run.conf.get('end') "
     "if dag_run and dag_run.conf and dag_run.conf.get('end') "
-    "else (data_interval_start + macros.timedelta(hours=1)).in_timezone('UTC').isoformat() }}"
+    "else (data_interval_start + macros.timedelta(hours=1)).in_timezone('UTC').isoformat() }}"  # noqa: E501
 )
 
 

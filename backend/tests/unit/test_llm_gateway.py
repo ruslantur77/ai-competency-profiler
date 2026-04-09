@@ -11,7 +11,6 @@ from competency_system.infrastructure.llm.errors import LLMAdapterError
 from competency_system.infrastructure.llm.openai_compatible import (
     OpenAICompatibleLLMGateway,
 )
-from competency_system.infrastructure.settings import Settings
 
 pytestmark = pytest.mark.unit
 
@@ -55,10 +54,12 @@ async def test_llm_gateway_retries_and_parses_json(
     monkeypatch.setattr(llm_module, "AsyncOpenAI", lambda **_: fake_client)
 
     gateway = OpenAICompatibleLLMGateway(
-        Settings(
-            llm_retry_attempts=2,
-            llm_timeout_seconds=1.0,
-        )
+        api_key="",
+        base_url="http://llm.local",
+        timeout_seconds=1.0,
+        model="test-model",
+        retry_attempts=2,
+        reasoning_max_tokens=0,
     )
     result = await gateway.generate(
         [LLMMessage(role="user", content="hello")],
@@ -77,10 +78,12 @@ async def test_llm_gateway_wraps_invalid_json_after_retries(
     monkeypatch.setattr(llm_module, "AsyncOpenAI", lambda **_: fake_client)
 
     gateway = OpenAICompatibleLLMGateway(
-        Settings(
-            llm_retry_attempts=2,
-            llm_timeout_seconds=1.0,
-        )
+        api_key="",
+        base_url="http://llm.local",
+        timeout_seconds=1.0,
+        model="test-model",
+        retry_attempts=2,
+        reasoning_max_tokens=0,
     )
 
     with pytest.raises(LLMAdapterError):

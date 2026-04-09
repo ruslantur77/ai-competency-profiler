@@ -40,9 +40,15 @@ def _parse_payload(start: str, end: str) -> TaskSyncPayloadDTO:
 
 async def _run(start: datetime, end: datetime) -> dict[str, Any]:
     settings = get_settings()
-    configure_logging(settings)
-    db_engine, session_factory = create_engine_and_session_factory(settings)
-    testing_gateway = HTTPTestingSystemGateway(settings)
+    configure_logging(log_level=settings.log_level, environment=settings.environment)
+    db_engine, session_factory = create_engine_and_session_factory(
+        database_url=settings.database_url,
+        debug=settings.debug,
+    )
+    testing_gateway = HTTPTestingSystemGateway(
+        base_url=settings.testing_system_base_url,
+        api_token=settings.testing_system_api_token,
+    )
 
     async def _noop_dispatcher(*_: object) -> None:
         return None
@@ -55,7 +61,13 @@ async def _run(start: datetime, end: datetime) -> dict[str, Any]:
         )
 
         llm_job_queue = CeleryLLMJobQueue(
-            create_celery_app(settings),
+            create_celery_app(
+                redis_url=settings.redis_url,
+                queue_name=settings.celery_queue_name,
+                result_expires_seconds=settings.celery_result_expires_seconds,
+                log_level=settings.log_level,
+                environment=settings.environment,
+            ),
             queue_name=settings.celery_queue_name,
         )
     else:

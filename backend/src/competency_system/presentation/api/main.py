@@ -43,6 +43,10 @@ from competency_system.presentation.api.routes.tasks import webhook_router
 from competency_system.presentation.api.routes.vacancies import (
     router as vacancies_router,
 )
+from competency_system.presentation.api.runtime_config import (
+    AuthCookieConfig,
+    RebuildTaskMappingConfig,
+)
 
 API_PREFIX = "/api/v1"
 logger = get_logger(__name__)
@@ -52,9 +56,22 @@ logger = get_logger(__name__)
 async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
 
-    db_engine, session_factory = create_engine_and_session_factory(settings)
-    llm_gateway = OpenAICompatibleLLMGateway(settings)
-    testing_gateway = HTTPTestingSystemGateway(settings)
+    db_engine, session_factory = create_engine_and_session_factory(
+        database_url=settings.database_url,
+        debug=settings.debug,
+    )
+    llm_gateway = OpenAICompatibleLLMGateway(
+        api_key=settings.llm_api_key,
+        base_url=settings.llm_base_url,
+        timeout_seconds=settings.llm_timeout_seconds,
+        model=settings.llm_model,
+        retry_attempts=settings.llm_retry_attempts,
+        reasoning_max_tokens=settings.llm_reasoning_max_tokens,
+    )
+    testing_gateway = HTTPTestingSystemGateway(
+        base_url=settings.testing_system_base_url,
+        api_token=settings.testing_system_api_token,
+    )
 
     async def _noop_dispatcher(*_: object) -> None:
         return None
@@ -67,7 +84,13 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
         llm_job_queue = CeleryLLMJobQueue(
-            create_celery_app(settings),
+            create_celery_app(
+                redis_url=settings.redis_url,
+                queue_name=settings.celery_queue_name,
+                result_expires_seconds=settings.celery_result_expires_seconds,
+                log_level=settings.log_level,
+                environment=settings.environment,
+            ),
             queue_name=settings.celery_queue_name,
         )
     else:
@@ -78,6 +101,17 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.llm_gateway = llm_gateway
     app.state.testing_system_gateway = testing_gateway
     app.state.llm_job_queue = llm_job_queue
+    app.state.rebuild_task_mapping_config = RebuildTaskMappingConfig(
+        max_parallel_requests=settings.llm_max_parallel_requests,
+        stage_timeout_seconds=settings.llm_stage_timeout_seconds,
+        task_prompt_version=settings.llm_task_prompt_version,
+    )
+    app.state.auth_cookie_config = AuthCookieConfig(
+        secure=settings.auth_cookie_secure,
+        samesite=settings.auth_cookie_samesite,
+        refresh_token_expire_days=settings.refresh_token_expire_days,
+    )
+    app.state.testing_system_webhook_secret = settings.testing_system_webhook_secret
 
     await ensure_bootstrap_admin(session_factory, settings)
 
@@ -100,7 +134,7 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    configure_logging(settings)
+    configure_logging(log_level=settings.log_level, environment=settings.environment)
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=app_lifespan)
 
     app.add_middleware(
