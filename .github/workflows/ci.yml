@@ -153,6 +153,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6.0.2
 
+      - name: Set API image
+        id: api-image
+        run: echo "value=${{ env.REGISTRY }}/ruslantur77/api:sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> $GITHUB_OUTPUT
+
       - name: Create .env file
         run: |
           cat > .env << 'EOF'
@@ -221,6 +225,7 @@ jobs:
 
           AIRFLOW__WEBSERVER__BASE_URL=${{ vars.AIRFLOW__WEBSERVER__BASE_URL }}
           AIRFLOW_DOCKER_NETWORK=${{ vars.AIRFLOW_DOCKER_NETWORK }}
+          TASK_SYNC_IMAGE=${{ steps.api-image.outputs.value }}
 
           # =========================
           # Security

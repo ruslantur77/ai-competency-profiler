@@ -68,7 +68,7 @@ services:
           celery -A competency_system.presentation.worker.celery_worker:celery_app inspect ping || exit 1
         "
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 3
 
   airflow-init:
@@ -96,7 +96,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/v2/monitor/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 5
       start_period: 30s
     networks:
@@ -116,7 +116,7 @@ services:
           airflow jobs check --job-type SchedulerJob --hostname $(hostname) || exit 1
         "
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 3
 
   airflow-triggerer:
@@ -128,7 +128,7 @@ services:
           airflow jobs check --job-type TriggererJob --hostname $(hostname) || exit 1
         "
       interval: 30s
-      timeout: 10s
+      timeout: 30s
       retries: 3
 
 networks:

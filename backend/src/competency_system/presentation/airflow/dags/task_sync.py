@@ -76,7 +76,10 @@ def _resolve_database_env() -> dict[str, str]:
     if database_url:
         return {"DATABASE_URL": database_url}
 
-    return {key: os.environ[key] for key in DB_ENV_KEYS if os.getenv(key)}
+    db = {key: os.environ[key] for key in DB_ENV_KEYS if os.getenv(key)}
+    return {
+        "DATABASE_URL": f"postgresql://{db['DB_USER']}:{db['DB_PASS']}@{db['DB_HOST']}:{db['DB_PORT']}/{db['DB_NAME']}"
+    }
 
 
 def _resolve_runtime_env() -> dict[str, str]:

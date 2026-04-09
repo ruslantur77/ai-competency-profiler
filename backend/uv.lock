@@ -237,6 +237,22 @@ wheels = [
 ]
 
 [[package]]
+name = "apache-airflow-providers-postgres"
+version = "6.6.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-common-sql" },
+    { name = "asyncpg" },
+    { name = "psycopg2-binary" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/3c/cc789b82766afc34c2da402c56863c3049e1d1f6674acadc72afe7f989a7/apache_airflow_providers_postgres-6.6.2.tar.gz", hash = "sha256:66fb5b51c2bcd7ea3dd699a37a93eeab46439af1969cda75fc737a5291efb45b", size = 62480, upload-time = "2026-03-28T10:59:59.298Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/76/9e/5cad0bf1459a116473878d1682430a8345a1b9ece20f591e99fdf4d70891/apache_airflow_providers_postgres-6.6.2-py3-none-any.whl", hash = "sha256:7582bf4a9c43f2e092ab3c03b66ea6adf77a2f7ea4f09e69aecb6f3d3e9f0296", size = 24017, upload-time = "2026-03-28T10:58:14.106Z" },
+]
+
+[[package]]
 name = "apache-airflow-providers-smtp"
 version = "2.4.4"
 source = { registry = "https://pypi.org/simple" }
@@ -673,6 +689,7 @@ dependencies = [
 airflow = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-docker" },
+    { name = "apache-airflow-providers-postgres" },
     { name = "docker" },
 ]
 api = [
@@ -710,6 +727,7 @@ requires-dist = [
 airflow = [
     { name = "apache-airflow", specifier = ">=2.11.0" },
     { name = "apache-airflow-providers-docker", specifier = ">=3.13.0" },
+    { name = "apache-airflow-providers-postgres", specifier = ">=6.6.2" },
     { name = "docker", specifier = ">=7.1.0" },
 ]
 api = [
