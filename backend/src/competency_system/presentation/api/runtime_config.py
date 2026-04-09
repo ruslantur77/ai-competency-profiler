@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 
 @dataclass(frozen=True, slots=True)
 class AuthCookieConfig:
     secure: bool
-    samesite: str
+    samesite: Literal["lax", "strict", "none"] | None
     refresh_token_expire_days: int
 
 

@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.sdk import dag
+from airflow.sdk.bases.hook import BaseHook
+from airflow.sdk.definitions.connection import Connection
 
 DEFAULT_APP_DB_CONN_ID = "competency_app_db"
 APP_DB_CONN_ID_ENV = "APP_DB_CONN_ID"
@@ -16,16 +18,6 @@ DEFAULT_ARGS = {
 
 TASK_SYNC_IMAGE = os.getenv("TASK_SYNC_IMAGE", "competency-system/api:latest")
 AIRFLOW_DOCKER_NETWORK = os.getenv("AIRFLOW_DOCKER_NETWORK", "bridge")
-START_TEMPLATE = (
-    "{{ dag_run.conf.get('start') "
-    "if dag_run and dag_run.conf and dag_run.conf.get('start') "
-    "else data_interval_start.in_timezone('UTC').isoformat() }}"
-)
-END_TEMPLATE = (
-    "{{ dag_run.conf.get('end') "
-    "if dag_run and dag_run.conf and dag_run.conf.get('end') "
-    "else (data_interval_start + macros.timedelta(hours=1)).in_timezone('UTC').isoformat() }}"  # noqa: E501
-)
 
 RUNTIME_ENV_WHITELIST = (
     "LOG_LEVEL",
@@ -44,56 +36,68 @@ RUNTIME_ENV_WHITELIST = (
 DB_ENV_KEYS = ("DB_HOST", "DB_PORT", "DB_USER", "DB_PASS", "DB_NAME")
 
 
-def _get_connection(conn_id: str) -> object | None:
-    try:
-        from airflow.sdk.bases.hook import BaseHook
-    except Exception:  # pragma: no cover - optional Airflow import path
-        try:
-            from airflow.hooks.base import BaseHook
-        except Exception:  # pragma: no cover - optional Airflow import path
-            return None
+START_TEMPLATE = """
+{{ dag_run.conf.get('start')
+   if dag_run and dag_run.conf and dag_run.conf.get('start')
+   else data_interval_start.in_timezone('UTC').isoformat() }}
+""".strip()
+
+END_TEMPLATE = """
+{{ dag_run.conf.get('end')
+   if dag_run and dag_run.conf and dag_run.conf.get('end')
+   else (data_interval_start + macros.timedelta(hours=1)).in_timezone('UTC').isoformat() }}
+""".strip()  # noqa: E501
+
+
+def _get_airflow_connection(conn_id: str) -> Connection | None:
+    """Safely get Airflow connection if Airflow is available."""
     try:
         return BaseHook.get_connection(conn_id)
-    except Exception:  # pragma: no cover - connection may be absent
+    except Exception:
         return None
 
 
-def _resolve_db_env() -> dict[str, str]:
+def _resolve_database_env() -> dict[str, str]:
+    """Resolve DB configuration in priority order.
+
+    1. Airflow connection (as DATABASE_URL)
+    2. DATABASE_URL env var
+    3. Individual DB_* env vars
+    """
     conn_id = os.getenv(APP_DB_CONN_ID_ENV, DEFAULT_APP_DB_CONN_ID)
-    connection = _get_connection(conn_id)
-    if connection is not None:
-        get_uri = getattr(connection, "get_uri", None)
-        if callable(get_uri):
-            uri = str(get_uri())
-            if uri:
-                return {"DATABASE_URL": uri}
+    connection = _get_airflow_connection(conn_id)
+
+    if connection and hasattr(connection, "get_uri"):
+        uri = connection.get_uri()
+        if uri:
+            return {"DATABASE_URL": str(uri)}
 
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         return {"DATABASE_URL": database_url}
 
-    resolved: dict[str, str] = {}
-    for key in DB_ENV_KEYS:
-        value = os.getenv(key)
-        if value is not None and value != "":
-            resolved[key] = value
-    return resolved
+    return {key: os.environ[key] for key in DB_ENV_KEYS if os.getenv(key)}
 
 
 def _resolve_runtime_env() -> dict[str, str]:
-    resolved: dict[str, str] = {}
-    for key in RUNTIME_ENV_WHITELIST:
-        value = os.getenv(key)
-        if value is None:
-            continue
-        resolved[key] = value
-    return resolved
+    """Pass through only allowed runtime environment variables."""
+    return {
+        key: os.getenv(key, "")
+        for key in RUNTIME_ENV_WHITELIST
+        if os.getenv(key) is not None
+    }
 
 
 def _build_task_environment() -> dict[str, str]:
-    environment = _resolve_runtime_env()
-    environment.update(_resolve_db_env())
-    return environment
+    return {
+        **_resolve_runtime_env(),
+        **_resolve_database_env(),
+    }
+
+
+# ----------------------------
+# DAG
+# ----------------------------
 
 
 @dag(
