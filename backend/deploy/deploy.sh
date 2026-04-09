@@ -4,20 +4,31 @@ cd "$(dirname "$0")"
 set -x
 
 PROJECT_NAME="competency_system"
-TIMEOUT=120
+TIMEOUT=320
 INTERVAL=5
 DEPLOY_LOG="deploy.log"
 
 ENV_FILE="$(realpath ../.env)"
 DOCKER_SOCKET="/var/run/docker.sock"
+DOCKER_GID="$(stat -c '%g' "$DOCKER_SOCKET")"
 
 : > "$DEPLOY_LOG"
 
 # --- args ---
-NEW_TAG="${1:-}"
-if [ -z "$NEW_TAG" ]; then
+RAW_TAG="${1:-}"
+if [ -z "$RAW_TAG" ]; then
     echo "Usage: $0 <image_tag>"
     exit 1
+fi
+
+# Allow either plain tag (sha-xxxx) or full image ref (ghcr.io/...:sha-xxxx).
+NEW_TAG="$RAW_TAG"
+if [[ "$NEW_TAG" == */* ]] || [[ "$NEW_TAG" == *@* ]]; then
+    if [[ "$NEW_TAG" == *@* ]]; then
+        NEW_TAG="${NEW_TAG##*@}"
+    elif [[ "$NEW_TAG" == *:* ]]; then
+        NEW_TAG="${NEW_TAG##*:}"
+    fi
 fi
 
 # --- helpers ---
@@ -34,16 +45,28 @@ wait_for_stack() {
     while [ "$elapsed" -lt "$TIMEOUT" ]; do
         ALL_OK=1
 
-        for c in $(
+        container_ids=$(
             IMAGE_TAG="$stack_tag" \
             ENV_FILE="$stack_env" \
             DOCKER_SOCKET="$DOCKER_SOCKET" \
+            DOCKER_GID="$DOCKER_GID" \
             docker compose \
                 -p "$stack_project" \
                 -f "$stack_compose" \
                 --env-file "$stack_env" \
                 ps -q
-        ); do
+        )
+
+        if [ -z "$container_ids" ]; then
+            echo "  no containers found for $label yet"
+            ALL_OK=0
+            echo "  ${elapsed}s — waiting for $label..."
+            sleep "$INTERVAL"
+            elapsed=$((elapsed + INTERVAL))
+            continue
+        fi
+
+        for c in $container_ids; do
             name=$(docker inspect --format='{{.Name}}' "$c" | tr -d '/')
             health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$c")
             state=$(docker inspect --format='{{.State.Status}}' "$c")
@@ -100,6 +123,7 @@ echo "Starting shared stack..."
 IMAGE_TAG="placeholder" \
 ENV_FILE="$ENV_FILE" \
 DOCKER_SOCKET="$DOCKER_SOCKET" \
+DOCKER_GID="$DOCKER_GID" \
 docker compose \
     -p "${PROJECT_NAME}_shared" \
     -f ./shared/docker-compose.yml \
@@ -136,18 +160,14 @@ echo "New tag      : $NEW_TAG"
 
 # --- update image tag for standby ---
 TAG_FILE="./$STANDBY/tag"
-touch "$TAG_FILE"
-if grep -q '^IMAGE_TAG=' "$TAG_FILE"; then
-    sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$NEW_TAG/" "$TAG_FILE"
-else
-    echo "IMAGE_TAG=$NEW_TAG" >> "$TAG_FILE"
-fi
+printf 'IMAGE_TAG=%s\n' "$NEW_TAG" > "$TAG_FILE"
 
 # --- start standby ---
 echo "Starting standby slot ($STANDBY)..."
 IMAGE_TAG="$NEW_TAG" \
 ENV_FILE="$ENV_FILE" \
 DOCKER_SOCKET="$DOCKER_SOCKET" \
+DOCKER_GID="$DOCKER_GID" \
 docker compose \
     -p "${PROJECT_NAME}_${STANDBY}" \
     -f "./$STANDBY/docker-compose.yml" \
@@ -166,6 +186,7 @@ wait_for_stack \
         IMAGE_TAG="$NEW_TAG" \
         ENV_FILE="$ENV_FILE" \
         DOCKER_SOCKET="$DOCKER_SOCKET" \
+        DOCKER_GID="$DOCKER_GID" \
         docker compose \
             -p "${PROJECT_NAME}_${STANDBY}" \
             -f "./$STANDBY/docker-compose.yml" \
@@ -209,6 +230,7 @@ sleep 15
 IMAGE_TAG="${OLD_TAG:-placeholder}" \
 ENV_FILE="$ENV_FILE" \
 DOCKER_SOCKET="$DOCKER_SOCKET" \
+DOCKER_GID="$DOCKER_GID" \
 docker compose \
     -p "${PROJECT_NAME}_${ACTIVE}" \
     -f "./$ACTIVE/docker-compose.yml" \
