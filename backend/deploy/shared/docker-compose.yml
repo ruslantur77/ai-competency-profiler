@@ -59,7 +59,7 @@ services:
     networks:
       - shared_net
     volumes:
-      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/:/etc/nginx/:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
