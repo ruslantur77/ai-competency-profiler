@@ -32,6 +32,10 @@ class TaskBlueprint(TypedDict):
     difficulty: Literal["junior", "middle"]
 
 
+class ExtraTasksState(BaseModel):
+    extra_tasks_count: int = Field(ge=0)
+
+
 TASK_BLUEPRINTS: list[TaskBlueprint] = [
     {
         "title": "Реализовать CRUD для заметок на FastAPI",
@@ -246,6 +250,7 @@ TASK_BLUEPRINTS: list[TaskBlueprint] = [
 ]
 
 app = FastAPI(title="mock-testing-system", version="1.0.0")
+app.state.extra_tasks_count = 0
 
 
 def _utc_iso(value: datetime) -> str:
@@ -286,6 +291,12 @@ def _build_seed(start: datetime, end: datetime) -> tuple[str, int]:
     return key, int.from_bytes(digest[:8], byteorder="big", signed=False)
 
 
+def _build_rng(seed_key: str) -> random.Random:
+    digest = hashlib.sha256(seed_key.encode("utf-8")).digest()
+    seed_value = int.from_bytes(digest[:8], byteorder="big", signed=False)
+    return random.Random(seed_value)
+
+
 def _sample_count(rng: random.Random, start: datetime, end: datetime) -> int:
     duration_days = (end - start).total_seconds() / 86_400
     baseline = max(1, round(duration_days * 12))
@@ -298,35 +309,137 @@ def _external_id(seed_key: str, index: int) -> str:
     return f"mock-task-{value}"
 
 
-def _generate_tasks(start: datetime, end: datetime) -> list[ExternalTask]:
-    seed_key, seed_value = _build_seed(start, end)
-    rng = random.Random(seed_value)
+def _extra_external_id(seed_key: str, index: int) -> str:
+    value = hashlib.sha256(f"{seed_key}|extra|{index}".encode("utf-8")).hexdigest()[:12]
+    return f"mock-extra-task-{index}-{value}"
+
+
+def _generate_task(
+    *,
+    seed_key: str,
+    index: int,
+    start: datetime,
+    window_seconds: float,
+    external_id: str,
+) -> ExternalTask:
+    rng = _build_rng(f"{seed_key}|item|{index}")
+    blueprint = TASK_BLUEPRINTS[rng.randrange(len(TASK_BLUEPRINTS))]
+    offset = rng.random() * window_seconds
+    created_at = start + timedelta(seconds=offset)
+
+    tags = list(blueprint["tags"])
+    rng.shuffle(tags)
+    selected_tags = sorted(tags[: rng.randint(2, min(4, len(tags)))])
+
+    return ExternalTask(
+        external_id=external_id,
+        title=blueprint["title"],
+        description=blueprint["description"],
+        type=blueprint["type"],
+        tags=selected_tags,
+        created_at=created_at,
+    )
+
+
+def _generate_base_tasks(
+    *,
+    start: datetime,
+    end: datetime,
+    seed_key: str,
+) -> list[ExternalTask]:
+    rng = _build_rng(f"{seed_key}|base-count")
     count = _sample_count(rng, start, end)
     window_seconds = (end - start).total_seconds()
 
     tasks: list[ExternalTask] = []
     for index in range(count):
-        blueprint = TASK_BLUEPRINTS[rng.randrange(len(TASK_BLUEPRINTS))]
-        offset = rng.random() * window_seconds
-        created_at = start + timedelta(seconds=offset)
-
-        tags = list(blueprint["tags"])
-        rng.shuffle(tags)
-        selected_tags = sorted(tags[: rng.randint(2, min(4, len(tags)))])
-
         tasks.append(
-            ExternalTask(
+            _generate_task(
+                seed_key=seed_key,
+                index=index,
+                start=start,
+                window_seconds=window_seconds,
                 external_id=_external_id(seed_key, index),
-                title=blueprint["title"],
-                description=blueprint["description"],
-                type=blueprint["type"],
-                tags=selected_tags,
-                created_at=created_at,
             )
         )
 
+    return tasks
+
+
+def _generate_extra_tasks(
+    *,
+    start: datetime,
+    end: datetime,
+    seed_key: str,
+    extra_tasks_count: int,
+) -> list[ExternalTask]:
+    window_seconds = (end - start).total_seconds()
+
+    tasks: list[ExternalTask] = []
+    for index in range(extra_tasks_count):
+        tasks.append(
+            _generate_task(
+                seed_key=f"{seed_key}|extra",
+                index=index,
+                start=start,
+                window_seconds=window_seconds,
+                external_id=_extra_external_id(seed_key, index),
+            )
+        )
+    return tasks
+
+
+def _deduplicate_external_ids(tasks: list[ExternalTask]) -> None:
+    seen: dict[str, int] = {}
+    for task in tasks:
+        original = task.external_id
+        count = seen.get(original, 0)
+        if count:
+            task.external_id = f"{original}-dup-{count}"
+        seen[original] = count + 1
+
+
+def _get_extra_tasks_count() -> int:
+    return int(app.state.extra_tasks_count)
+
+
+def _set_extra_tasks_count(value: int) -> int:
+    app.state.extra_tasks_count = value
+    return _get_extra_tasks_count()
+
+
+def _generate_tasks(start: datetime, end: datetime) -> list[ExternalTask]:
+    seed_key, _ = _build_seed(start, end)
+    base_tasks = _generate_base_tasks(start=start, end=end, seed_key=seed_key)
+    extra_tasks = _generate_extra_tasks(
+        start=start,
+        end=end,
+        seed_key=seed_key,
+        extra_tasks_count=_get_extra_tasks_count(),
+    )
+    tasks = [*base_tasks, *extra_tasks]
+    _deduplicate_external_ids(tasks)
     tasks.sort(key=lambda item: (item.created_at, item.external_id))
     return tasks
+
+
+@app.get("/internal/control/extra-tasks", response_model=ExtraTasksState)
+async def get_extra_tasks_state() -> ExtraTasksState:
+    return ExtraTasksState(extra_tasks_count=_get_extra_tasks_count())
+
+
+@app.post("/internal/control/extra-tasks/set", response_model=ExtraTasksState)
+async def set_extra_tasks_state(
+    count: Annotated[int, Query(ge=0)],
+) -> ExtraTasksState:
+    value = _set_extra_tasks_count(count)
+    return ExtraTasksState(extra_tasks_count=value)
+
+
+@app.post("/internal/control/extra-tasks/reset", response_model=ExtraTasksState)
+async def reset_extra_tasks_state() -> ExtraTasksState:
+    value = _set_extra_tasks_count(0)
+    return ExtraTasksState(extra_tasks_count=value)
 
 
 @app.get("/external/tasks", response_model=list[ExternalTask])

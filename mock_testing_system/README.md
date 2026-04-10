@@ -29,6 +29,20 @@
 
 Примечание: уровень сложности используется только внутри генератора и не отдается в API.
 
+## Runtime control (для демо backfill)
+
+Сервис поддерживает in-memory счетчик добавочных задач для каждого окна:
+- `GET /internal/control/extra-tasks` — текущее значение `extra_tasks_count`.
+- `POST /internal/control/extra-tasks/set?count=<N>` — установить точное значение `N >= 0`.
+- `POST /internal/control/extra-tasks/reset` — сбросить в `0`.
+
+Поведение:
+- при `extra_tasks_count = N` сервис добавляет `N` дополнительных задач в каждое окно `[start, end)`;
+- базовые задачи не пропадают;
+- `external_id` остаются уникальными;
+- при неизменном `start/end` и `extra_tasks_count` ответ стабилен;
+- состояние счетчика живет только в памяти процесса и сбрасывается после рестарта контейнера.
+
 ## Auth
 
 Если задан `TESTING_SYSTEM_API_TOKEN`, сервис требует:
@@ -63,4 +77,21 @@ docker run --rm -p 9000:9000 \
 ```bash
 curl -s "http://localhost:9000/external/tasks?start=2026-04-01T00:00:00Z&end=2026-04-02T00:00:00Z" \
   -H "Authorization: Bearer dev-token"
+```
+
+## Пример демо из запущенного контейнера
+
+```bash
+# 1) проверить текущее значение добавки
+curl -s "http://127.0.0.1:9000/internal/control/extra-tasks"
+
+# 2) установить +1 дополнительную задачу в каждое окно
+curl -s -X POST "http://127.0.0.1:9000/internal/control/extra-tasks/set?count=1"
+
+# 3) убедиться, что в том же окне появилась новая задача
+curl -s "http://127.0.0.1:9000/external/tasks?start=2026-04-01T00:00:00Z&end=2026-04-02T00:00:00Z" \
+  -H "Authorization: Bearer dev-token"
+
+# 4) вернуть базовое состояние
+curl -s -X POST "http://127.0.0.1:9000/internal/control/extra-tasks/reset"
 ```
