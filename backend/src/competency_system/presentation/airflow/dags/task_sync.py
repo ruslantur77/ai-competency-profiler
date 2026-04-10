@@ -118,7 +118,21 @@ def _build_task_environment() -> dict[str, str]:
     tags=["tasks", "sync", "batch"],
 )
 def task_sync_dag() -> None:
-    DockerOperator(
+    precheck_runtime = DockerOperator(
+        task_id="precheck_runtime",
+        image=TASK_SYNC_IMAGE,
+        docker_url="unix://var/run/docker.sock",
+        network_mode=AIRFLOW_DOCKER_NETWORK,
+        environment=_build_task_environment(),
+        mount_tmp_dir=False,
+        auto_remove="success",
+        command=(
+            "python -m "
+            "competency_system.presentation.airflow.jobs.task_sync_precheck_runner"
+        ),
+    )
+
+    sync_tasks = DockerOperator(
         task_id="sync_tasks",
         image=TASK_SYNC_IMAGE,
         docker_url="unix://var/run/docker.sock",
@@ -133,6 +147,8 @@ def task_sync_dag() -> None:
             f'--force "{FORCE_TEMPLATE}"'
         ),
     )
+
+    precheck_runtime >> sync_tasks
 
 
 task_sync = task_sync_dag()

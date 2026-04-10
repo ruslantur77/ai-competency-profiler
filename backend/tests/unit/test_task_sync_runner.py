@@ -20,7 +20,9 @@ def test_task_sync_runner_parse_payload_success() -> None:
 @pytest.mark.unit
 def test_task_sync_runner_parse_payload_rejects_non_utc() -> None:
     with pytest.raises(ValueError, match="Datetime must be in UTC"):
-        _parse_payload("2026-04-09T03:00:00+03:00", "2026-04-09T04:00:00+03:00", "false")
+        _parse_payload(
+            "2026-04-09T03:00:00+03:00", "2026-04-09T04:00:00+03:00", "false"
+        )
 
 
 @pytest.mark.unit
