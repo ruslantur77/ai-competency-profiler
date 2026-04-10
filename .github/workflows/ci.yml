@@ -272,6 +272,23 @@ jobs:
 
           EOF
 
+      - name: Backup current deployment on server
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            BACKUP_DIR=~/backups/$(date +%Y%m%d_%H%M%S)
+            mkdir -p ~/backups
+            if [ -d ~/app ]; then
+              cp -r ~/app "$BACKUP_DIR"
+              echo "Backup created: $BACKUP_DIR"
+              ls -dt ~/backups/*/ | tail -n +6 | xargs rm -rf
+            else
+              echo "No existing deployment to backup"
+            fi
+
       - name: Copy files
         run: |
           cp -r backend/deploy .
@@ -297,8 +314,6 @@ jobs:
             IMAGE_TAG="${FULL_IMAGE##*:}"
             echo "Deploying tag: $IMAGE_TAG"
 
-            export XDG_RUNTIME_DIR=/run/user/$(id -u)
-            export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/docker.sock
             cd ~/app
             chmod +x deploy/deploy.sh
             ./deploy/deploy.sh $IMAGE_TAG
