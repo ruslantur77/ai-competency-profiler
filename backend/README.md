@@ -179,7 +179,8 @@ docker compose logs -f api
 4. Период берётся из `data_interval_start/data_interval_end` (UTC), либо переопределяется через `dag_run.conf`.
 5. DAG передаёт в контейнер только явно собранный env (whitelist).
 6. БД для runner резолвится в DAG из Airflow Connection `competency_app_db` (или `APP_DB_CONN_ID`) с fallback на env.
-7. Для каждой синхронизированной задачи ставится LLM job `TASK_MAPPING` в очередь (обычно Celery).
+7. Если `force=true`, для каждой синхронизированной задачи гарантированно очищается mapping и ставится LLM job `TASK_MAPPING`.
+8. Если `force=false` (дефолт), mapping пересобирается только для новых/изменившихся задач.
 
 ## Контракт синка задач
 
@@ -192,7 +193,8 @@ docker compose logs -f api
 ```json
 {
   "start": "2026-04-01T00:00:00Z",
-  "end": "2026-04-02T00:00:00Z"
+  "end": "2026-04-02T00:00:00Z",
+  "force": false
 }
 ```
 
@@ -201,8 +203,10 @@ docker compose logs -f api
 - только UTC (ISO-8601, суффикс `Z`);
 - интервал задаётся как `[start, end)`;
 - `end` должен быть строго больше `start`.
+- `force` опционален, по умолчанию `false`.
 
 Ручной запуск Airflow DAG `task_sync`:
 
 - `dag_run.conf.start` и `dag_run.conf.end` опциональны;
+- `dag_run.conf.force` опционален (по умолчанию `false`);
 - если не переданы, используются границы часового `data interval` самого Airflow.

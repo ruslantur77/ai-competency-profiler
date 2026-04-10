@@ -231,14 +231,25 @@ class SyncTasksUseCase:
         self._gateway = gateway
         self._job_queue = job_queue
 
-    async def execute(self, *, start: datetime, end: datetime) -> SyncTasksResultDTO:
-        external_tasks = await self._gateway.list_tasks(start=start, end=end)
+    async def execute(
+        self,
+        *,
+        start: datetime,
+        end: datetime,
+        force: bool = False,
+    ) -> SyncTasksResultDTO:
+        external_tasks = await self._gateway.list_tasks(
+            start=start,
+            end=end,
+            force=force,
+        )
 
         async with self._uow as uow:
             synced: list[TaskDTO] = []
 
             for record in external_tasks:
                 task = await uow.tasks.get_by_external_id(record.external_id)
+                should_reset_mapping = force
                 if task is None:
                     task = Task(
                         id=uuid4(),
@@ -247,19 +258,29 @@ class SyncTasksUseCase:
                         description=record.description,
                         type=record.type,
                     )
+                    should_reset_mapping = True
                 else:
-                    task.title = record.title
-                    task.description = record.description
-                    task.type = record.type
+                    has_changes = (
+                        task.title != record.title
+                        or task.description != record.description
+                        or task.type != record.type
+                    )
+                    if has_changes:
+                        task.title = record.title
+                        task.description = record.description
+                        task.type = record.type
+                        should_reset_mapping = True
 
-                task.sub_competency_mappings = []
-                task.mapping_status = TaskMappingStatus.PENDING
-                task.mapping_error_message = None
-                task.mapping_validated = False
-                await uow.tasks.add(task)
-                await self._enqueue_mapping(task.id)
+                if should_reset_mapping:
+                    task.sub_competency_mappings = []
+                    task.mapping_status = TaskMappingStatus.PENDING
+                    task.mapping_error_message = None
+                    task.mapping_validated = False
+                    await uow.tasks.add(task)
+                    await self._enqueue_mapping(task.id)
+                    await uow.commit()
+
                 synced.append(task_dto_from_domain(task))
-                await uow.commit()
 
         return SyncTasksResultDTO(synced_tasks=synced)
 

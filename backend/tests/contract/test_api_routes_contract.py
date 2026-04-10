@@ -203,6 +203,7 @@ def test_tasks_admin_and_webhook_routes_contract(
             json={
                 "start": "2026-04-01T00:00:00Z",
                 "end": "2026-04-02T00:00:00Z",
+                "force": True,
             },
         )
         assert sync.status_code == 200

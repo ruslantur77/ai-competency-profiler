@@ -53,4 +53,5 @@ async def test_http_testing_system_gateway_passes_period_and_auth_header() -> No
     assert captured_request.url.path == "/external/tasks"
     assert captured_request.url.params["start"] == "2026-04-01T00:00:00Z"
     assert captured_request.url.params["end"] == "2026-04-01T01:00:00Z"
+    assert captured_request.url.params["force"] == "false"
     assert captured_request.headers["Authorization"] == "Bearer secret"

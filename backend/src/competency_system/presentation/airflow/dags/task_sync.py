@@ -48,6 +48,12 @@ END_TEMPLATE = """
    else data_interval_start.in_timezone('UTC').isoformat() }}
 """.strip()  # noqa: E501
 
+FORCE_TEMPLATE = """
+{{ dag_run.conf.get('force')
+   if dag_run and dag_run.conf and dag_run.conf.get('force') is not none
+   else false }}
+""".strip()  # noqa: E501
+
 
 def _get_airflow_connection(conn_id: str) -> Connection | None:
     """Safely get Airflow connection if Airflow is available."""
@@ -123,7 +129,8 @@ def task_sync_dag() -> None:
         command=(
             "python -m competency_system.presentation.airflow.jobs.task_sync_runner "
             f'--start "{START_TEMPLATE}" '
-            f'--end "{END_TEMPLATE}"'
+            f'--end "{END_TEMPLATE}" '
+            f'--force "{FORCE_TEMPLATE}"'
         ),
     )
 

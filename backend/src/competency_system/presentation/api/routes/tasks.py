@@ -10,7 +10,7 @@ from competency_system.application.dtos.task import (
     CandidateTaskAssessmentDTO,
     SyncTasksResultDTO,
     TaskDTO,
-    TaskSyncPeriodDTO,
+    TaskSyncRequestDTO,
 )
 from competency_system.application.use_cases.candidate import AssessCandidateUseCase
 from competency_system.application.use_cases.task import (
@@ -32,11 +32,15 @@ webhook_router = APIRouter(prefix="/webhook", tags=["webhook"])
 
 @router.post("/sync", response_model=SyncTasksResultDTO)
 async def sync_tasks(
-    payload: TaskSyncPeriodDTO,
+    payload: TaskSyncRequestDTO,
     _: Annotated[None, Depends(require_admin_or_system)],
     use_case: Annotated[SyncTasksUseCase, Depends(get_sync_tasks_use_case)],
 ) -> SyncTasksResultDTO:
-    return await use_case.execute(start=payload.start, end=payload.end)
+    return await use_case.execute(
+        start=payload.start,
+        end=payload.end,
+        force=payload.force,
+    )
 
 
 @router.get("/{task_id}/mapping", response_model=TaskDTO)

@@ -122,6 +122,10 @@ class TaskSyncPeriodDTO(BaseDTO):
         return self
 
 
+class TaskSyncRequestDTO(TaskSyncPeriodDTO):
+    force: bool = False
+
+
 class TaskSyncCommandDTO(BaseDTO):
     tasks: list[ExternalTaskDTO]
 

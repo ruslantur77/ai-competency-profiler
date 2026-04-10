@@ -8,5 +8,5 @@ from competency_system.application.dtos.external_system import ExternalTaskRecor
 
 class ExternalTestingSystemGateway(Protocol):
     async def list_tasks(
-        self, start: datetime, end: datetime
+        self, start: datetime, end: datetime, force: bool = False
     ) -> list[ExternalTaskRecord]: ...

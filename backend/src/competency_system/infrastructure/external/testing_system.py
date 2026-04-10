@@ -32,13 +32,14 @@ class HTTPTestingSystemGateway(ExternalTestingSystemGateway):
         return headers
 
     async def list_tasks(
-        self, start: datetime, end: datetime
+        self, start: datetime, end: datetime, force: bool = False
     ) -> list[ExternalTaskRecord]:
         response = await self._client.get(
             "/external/tasks",
             params={
                 "start": self._to_utc_iso(start),
                 "end": self._to_utc_iso(end),
+                "force": str(force).lower(),
             },
         )
         response.raise_for_status()

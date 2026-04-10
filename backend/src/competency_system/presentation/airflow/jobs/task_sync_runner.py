@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import os
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
 
 from competency_system.application.use_cases.task import SyncTasksUseCase
@@ -51,14 +50,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--start", required=True, help="UTC datetime in ISO-8601")
     parser.add_argument("--end", required=True, help="UTC datetime in ISO-8601")
+    parser.add_argument(
+        "--force",
+        default="false",
+        help="Force full overwrite for synced tasks (true/false).",
+    )
     return parser
 
 
-def _parse_payload(start: str, end: str) -> TaskSyncPayloadDTO:
+def _parse_payload(start: str, end: str, force: str) -> TaskSyncPayloadDTO:
     return TaskSyncPayloadDTO.model_validate(
         {
             "start": start,
             "end": end,
+            "force": force,
         }
     )
 
@@ -138,8 +143,7 @@ def _load_runner_config() -> TaskSyncRunnerConfig:
 
 
 async def _run(
-    start: datetime,
-    end: datetime,
+    payload: TaskSyncPayloadDTO,
     config: TaskSyncRunnerConfig,
 ) -> dict[str, Any]:
     configure_logging(log_level=config.log_level, environment=config.environment)
@@ -181,7 +185,11 @@ async def _run(
             testing_gateway,
             llm_job_queue,
         )
-        result = await use_case.execute(start=start, end=end)
+        result = await use_case.execute(
+            start=payload.start,
+            end=payload.end,
+            force=payload.force,
+        )
         return result.model_dump(mode="json")
     finally:
         await llm_job_queue.close()
@@ -191,13 +199,14 @@ async def _run(
 
 def main() -> None:
     args = _build_parser().parse_args()
-    payload = _parse_payload(args.start, args.end)
+    payload = _parse_payload(args.start, args.end, args.force)
     config = _load_runner_config()
-    result = asyncio.run(_run(payload.start, payload.end, config))
+    result = asyncio.run(_run(payload, config))
     logger.info(
         "task_sync_finished",
         period_start=payload.start.isoformat(),
         period_end=payload.end.isoformat(),
+        force=payload.force,
         synced_tasks_count=len(result.get("synced_tasks", [])),
     )
 

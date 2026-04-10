@@ -52,20 +52,28 @@ async def test_sync_tasks_use_case_creates_task_and_enqueues_mapping(
     mock_uow.commit.assert_awaited_once()
     job_queue_mock.enqueue.assert_awaited_once()
     external_testing_gateway_mock.list_tasks.assert_awaited_once_with(
-        start=start, end=end
+        start=start, end=end, force=False
     )
 
 
-async def test_sync_tasks_use_case_updates_existing_task(
+async def test_sync_tasks_use_case_skips_unchanged_task_when_force_is_false(
     use_case: SyncTasksUseCase,
     mock_uow,
     external_testing_gateway_mock,
+    job_queue_mock,
     external_record: ExternalTaskRecord,
 ) -> None:
     start = datetime(2026, 4, 1, tzinfo=UTC)
     end = datetime(2026, 4, 2, tzinfo=UTC)
     existing = TaskFactory().make(
-        {"external_id": external_record.external_id, "mapping_validated": True}
+        {
+            "external_id": external_record.external_id,
+            "title": external_record.title,
+            "description": external_record.description,
+            "type": external_record.type,
+            "mapping_validated": True,
+            "mapping_status": TaskMappingStatus.COMPLETED,
+        }
     )
     external_testing_gateway_mock.list_tasks.return_value = [external_record]
     mock_uow.tasks.get_by_external_id.return_value = existing
@@ -74,7 +82,83 @@ async def test_sync_tasks_use_case_updates_existing_task(
 
     assert len(result.synced_tasks) == 1
     assert result.synced_tasks[0].id == existing.id
-    assert existing.mapping_validated is False
+    assert existing.mapping_validated is True
+    mock_uow.tasks.add.assert_not_awaited()
+    mock_uow.commit.assert_not_awaited()
+    job_queue_mock.enqueue.assert_not_awaited()
     external_testing_gateway_mock.list_tasks.assert_awaited_once_with(
-        start=start, end=end
+        start=start, end=end, force=False
+    )
+
+
+async def test_sync_tasks_use_case_force_resets_even_unchanged_task(
+    use_case: SyncTasksUseCase,
+    mock_uow,
+    external_testing_gateway_mock,
+    job_queue_mock,
+    external_record: ExternalTaskRecord,
+) -> None:
+    start = datetime(2026, 4, 1, tzinfo=UTC)
+    end = datetime(2026, 4, 2, tzinfo=UTC)
+    existing = TaskFactory().make(
+        {
+            "external_id": external_record.external_id,
+            "title": external_record.title,
+            "description": external_record.description,
+            "type": external_record.type,
+            "mapping_validated": True,
+            "mapping_status": TaskMappingStatus.COMPLETED,
+        }
+    )
+    external_testing_gateway_mock.list_tasks.return_value = [external_record]
+    mock_uow.tasks.get_by_external_id.return_value = existing
+    job_queue_mock.enqueue.return_value = uuid4()
+
+    result = await use_case.execute(start=start, end=end, force=True)
+
+    assert len(result.synced_tasks) == 1
+    assert existing.mapping_validated is False
+    assert existing.mapping_status == TaskMappingStatus.PENDING
+    mock_uow.tasks.add.assert_awaited_once()
+    mock_uow.commit.assert_awaited_once()
+    job_queue_mock.enqueue.assert_awaited_once()
+    external_testing_gateway_mock.list_tasks.assert_awaited_once_with(
+        start=start, end=end, force=True
+    )
+
+
+async def test_sync_tasks_use_case_resets_when_existing_task_changed(
+    use_case: SyncTasksUseCase,
+    mock_uow,
+    external_testing_gateway_mock,
+    job_queue_mock,
+    external_record: ExternalTaskRecord,
+) -> None:
+    start = datetime(2026, 4, 1, tzinfo=UTC)
+    end = datetime(2026, 4, 2, tzinfo=UTC)
+    existing = TaskFactory().make(
+        {
+            "external_id": external_record.external_id,
+            "title": "Old title",
+            "description": external_record.description,
+            "type": external_record.type,
+            "mapping_validated": True,
+            "mapping_status": TaskMappingStatus.COMPLETED,
+        }
+    )
+    external_testing_gateway_mock.list_tasks.return_value = [external_record]
+    mock_uow.tasks.get_by_external_id.return_value = existing
+    job_queue_mock.enqueue.return_value = uuid4()
+
+    result = await use_case.execute(start=start, end=end, force=False)
+
+    assert len(result.synced_tasks) == 1
+    assert existing.title == external_record.title
+    assert existing.mapping_validated is False
+    assert existing.mapping_status == TaskMappingStatus.PENDING
+    mock_uow.tasks.add.assert_awaited_once()
+    mock_uow.commit.assert_awaited_once()
+    job_queue_mock.enqueue.assert_awaited_once()
+    external_testing_gateway_mock.list_tasks.assert_awaited_once_with(
+        start=start, end=end, force=False
     )
