@@ -270,6 +270,8 @@ class SyncTasksUseCase:
                         task.description = record.description
                         task.type = record.type
                         should_reset_mapping = True
+                    if task.mapping_status == TaskMappingStatus.FAILED:
+                        should_reset_mapping = True
 
                 if should_reset_mapping:
                     task.sub_competency_mappings = []
