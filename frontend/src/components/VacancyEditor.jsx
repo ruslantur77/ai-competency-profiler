@@ -7,7 +7,7 @@ import MindMap from './MindMap'
 import EditCategoryDialog from './EditCategoryDialog'
 import { getVacancy, updateGraph } from '../api/client'
 import './VacancyEditor.css'
-
+import SuggestionsPanel from './SuggestionsPanel'
 // ===== HELPERS =====
 
 // Генерация временного ID для новых узлов (до сохранения)
@@ -232,7 +232,7 @@ export default function VacancyEditor({ notify, onLogout }) {
   return (
     <div className="workspace">
       <VacancySidebar vacancy={vacancy} />
-
+  
       <main className="main-content">
         <div className="editor-topbar">
           <button
@@ -241,9 +241,9 @@ export default function VacancyEditor({ notify, onLogout }) {
           >
             <ArrowLeft size={18} /> К вакансиям
           </button>
-
+  
           <h2 className="editor-topbar__title">{vacancy?.name}</h2>
-
+  
           <div className="editor-topbar__actions">
             {isDirty && (
               <button
@@ -266,7 +266,16 @@ export default function VacancyEditor({ notify, onLogout }) {
             </button>
           </div>
         </div>
-
+  
+        {/* ===== ПАНЕЛЬ SUGGESTIONS ===== */}
+        {vacancy?.status === 'draft' && (
+          <SuggestionsPanel
+            vacancyId={vacancyId}
+            onApplied={loadVacancy}
+            notify={notify}
+          />
+        )}
+  
         <MindMap
           categoryNodes={categoryNodes}
           competencyNodes={competencyNodes}
@@ -281,7 +290,7 @@ export default function VacancyEditor({ notify, onLogout }) {
           onDeleteSub={handleDeleteSub}
           onAddSub={handleAddSub}
         />
-
+  
         {addingCategory && (
           <EditCategoryDialog
             category={{ id: '', name: '', emoji: '📌', description: '' }}
