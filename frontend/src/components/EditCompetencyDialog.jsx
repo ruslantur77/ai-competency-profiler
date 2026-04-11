@@ -4,17 +4,30 @@ import { X, Save } from 'lucide-react'
 import './EditCompetencyDialog.css'
 
 export default function EditCompetencyDialog({ competency, onSave, onClose }) {
-  const [skill, setSkill] = useState('')
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    is_required: true,
+  })
 
   useEffect(() => {
     if (competency) {
-      setSkill(competency.skill || '')
+      setForm({
+        name: competency.competency_name || '',
+        description: competency.competency_description || '',
+        is_required: competency.is_required ?? true,
+      })
     }
   }, [competency])
 
   const handleSave = () => {
-    if (!skill.trim()) return
-    onSave({ ...competency, skill: skill.trim() })
+    if (!form.name.trim()) return
+    onSave({
+      ...competency,
+      competency_name: form.name.trim(),
+      competency_description: form.description.trim(),
+      is_required: form.is_required,
+    })
   }
 
   return (
@@ -29,17 +42,39 @@ export default function EditCompetencyDialog({ competency, onSave, onClose }) {
           <label>
             Название компетенции
             <textarea
-              value={skill}
-              onChange={e => setSkill(e.target.value)}
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
               rows={3}
               autoFocus
             />
+          </label>
+
+          <label>
+            Описание
+            <textarea
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              rows={2}
+            />
+          </label>
+
+          <label className="edit-comp__checkbox-label">
+            <input
+              type="checkbox"
+              checked={form.is_required}
+              onChange={e => setForm({ ...form, is_required: e.target.checked })}
+            />
+            Обязательная компетенция
           </label>
         </div>
 
         <div className="edit-comp__footer">
           <button className="btn-secondary" onClick={onClose}>Отмена</button>
-          <button className="btn-primary" onClick={handleSave} disabled={!skill.trim()}>
+          <button
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={!form.name.trim()}
+          >
             <Save size={16} /> Сохранить
           </button>
         </div>

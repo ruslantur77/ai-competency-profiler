@@ -1,22 +1,24 @@
 // frontend/src/components/MindMap.jsx
 import React, { useState } from 'react'
 import {
-  ChevronRight, ChevronDown, Edit3, Trash2,
-  Sparkles, Plus
+  ChevronRight, ChevronDown, Edit3, Trash2, Sparkles, Plus
 } from 'lucide-react'
 import NodeEditor from './NodeEditor'
 import ConfirmDialog from './ConfirmDialog'
 import AddSubDialog from './AddSubDialog'
-import AiFixDialog from './AiFixDialog'
 import EditCategoryDialog from './EditCategoryDialog'
 import EditCompetencyDialog from './EditCompetencyDialog'
 import AddCompetencyDialog from './AddCompetencyDialog'
 import './MindMap.css'
 
-const LEVEL_COLORS = {
-  beginner: { bg: '#dcfce7', border: '#22c55e', text: '#15803d', badge: '🟢' },
-  intermediate: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', badge: '🟡' },
-  advanced: { bg: '#fee2e2', border: '#ef4444', text: '#b91c1c', badge: '🔴' },
+// ===== КОНСТАНТЫ =====
+const LEVEL_CONFIG = {
+  0: { bg: '#1e293b', border: '#475569', text: '#94a3b8', label: '⚪ No level' },
+  1: { bg: '#dcfce7', border: '#22c55e', text: '#15803d', label: '🟢 Beginner' },
+  2: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', label: '🟡 Intermediate' },
+  3: { bg: '#fef9c3', border: '#eab308', text: '#854d0e', label: '🟠 Upper-Int.' },
+  4: { bg: '#fee2e2', border: '#ef4444', text: '#b91c1c', label: '🔴 Advanced' },
+  5: { bg: '#fae8ff', border: '#a855f7', text: '#7e22ce', label: '⭐ Expert' },
 }
 
 const CAT_COLORS = [
@@ -24,76 +26,84 @@ const CAT_COLORS = [
   '#9C27B0', '#00BCD4', '#FF5722', '#795548',
 ]
 
-// ===== SUB COMPETENCY =====
-function SubCompetencyNode({ sub, competencyId, onEdit, onDelete, onAiFix }) {
+// ===== SUB COMPETENCY NODE =====
+function SubCompetencyNode({ sub, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false)
-  const colors = LEVEL_COLORS[sub.level] || LEVEL_COLORS.intermediate
+  const level = sub.target_level ?? 2
+  const colors = LEVEL_CONFIG[level] || LEVEL_CONFIG[2]
 
   return (
     <div className="mindmap__sub-node" style={{ borderLeftColor: colors.border }}>
       <div className="mindmap__sub-header">
-        <button className="mindmap__expand-btn" onClick={() => setExpanded(!expanded)}>
+        <button
+          className="mindmap__expand-btn"
+          onClick={() => setExpanded(!expanded)}
+        >
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
 
-        <span className="mindmap__level-badge" style={{
-          backgroundColor: colors.bg, color: colors.text
-        }}>
-          {colors.badge} {sub.level}
+        <span
+          className="mindmap__level-badge"
+          style={{ backgroundColor: colors.bg, color: colors.text }}
+        >
+          {colors.label}
         </span>
 
-        <span className="mindmap__sub-name">{sub.name}</span>
+        <span className="mindmap__sub-name">{sub.sub_competency_name}</span>
+
+        {sub.weight !== 1.0 && (
+          <span className="mindmap__weight-badge">×{sub.weight}</span>
+        )}
 
         <div className="mindmap__sub-actions">
-          <button title="Редактировать" onClick={() => onEdit(sub, competencyId)}>
+          <button title="Редактировать" onClick={() => onEdit(sub)}>
             <Edit3 size={14} />
           </button>
-          <button title="AI исправление" onClick={() => onAiFix(sub, competencyId)}>
-            <Sparkles size={14} />
-          </button>
-          <button title="Удалить" onClick={() => onDelete(sub, competencyId)}>
+          <button title="Удалить" onClick={() => onDelete(sub)}>
             <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {expanded && (
+      {expanded && sub.sub_competency_description && (
         <div className="mindmap__sub-details">
-          <p className="mindmap__sub-description">{sub.description}</p>
-          {sub.sub_skills?.length > 0 && (
-            <ul className="mindmap__sub-skills-list">
-              {sub.sub_skills.map((ss, i) => (
-                <li key={i}>{ss}</li>
-              ))}
-            </ul>
-          )}
+          <p className="mindmap__sub-description">
+            {sub.sub_competency_description}
+          </p>
         </div>
       )}
     </div>
   )
 }
 
-// ===== COMPETENCY =====
-function CompetencyNode({ comp, onEdit, onDelete, onAiFix, onAdd, onEditComp, onDeleteComp, onAiFixComp }) {
+// ===== COMPETENCY NODE =====
+function CompetencyNode({
+  comp, subNodes,
+  onEditComp, onDeleteComp,
+  onEditSub, onDeleteSub, onAddSub,
+}) {
   const [expanded, setExpanded] = useState(true)
 
   return (
     <div className="mindmap__comp-node">
       <div className="mindmap__comp-header">
-        <div className="mindmap__comp-header-left" onClick={() => setExpanded(!expanded)}>
+        <div
+          className="mindmap__comp-header-left"
+          onClick={() => setExpanded(!expanded)}
+        >
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          <span className="mindmap__comp-name">{comp.skill}</span>
-          <span className="mindmap__comp-count">{comp.sub_competencies?.length || 0}</span>
+          <span className="mindmap__comp-name">{comp.competency_name}</span>
+          {!comp.is_required && (
+            <span className="mindmap__optional-badge">опц.</span>
+          )}
+          <span className="mindmap__comp-count">{subNodes.length}</span>
         </div>
 
         <div className="mindmap__comp-actions">
-          <button title="Редактировать компетенцию" onClick={() => onEditComp(comp)}>
+          <button title="Редактировать" onClick={() => onEditComp(comp)}>
             <Edit3 size={14} />
           </button>
-          <button title="AI исправление" onClick={() => onAiFixComp(comp)}>
-            <Sparkles size={14} />
-          </button>
-          <button title="Удалить компетенцию" onClick={() => onDeleteComp(comp)}>
+          <button title="Удалить" onClick={() => onDeleteComp(comp)}>
             <Trash2 size={14} />
           </button>
         </div>
@@ -101,17 +111,18 @@ function CompetencyNode({ comp, onEdit, onDelete, onAiFix, onAdd, onEditComp, on
 
       {expanded && (
         <div className="mindmap__comp-children">
-          {comp.sub_competencies?.map(sub => (
+          {subNodes.map(sub => (
             <SubCompetencyNode
-              key={sub.id}
+              key={sub.sub_competency_id}
               sub={sub}
-              competencyId={comp.id}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onAiFix={onAiFix}
+              onEdit={onEditSub}
+              onDelete={onDeleteSub}
             />
           ))}
-          <button className="mindmap__add-btn" onClick={() => onAdd(comp)}>
+          <button
+            className="mindmap__add-btn"
+            onClick={() => onAddSub(comp)}
+          >
             <Plus size={14} /> Добавить подкомпетенцию
           </button>
         </div>
@@ -122,61 +133,81 @@ function CompetencyNode({ comp, onEdit, onDelete, onAiFix, onAdd, onEditComp, on
 
 // ===== MAIN MINDMAP =====
 export default function MindMap({
-  categories,
-  competencies,
-  onUpdateSub,
-  onDeleteSub,
-  onAddSub,
-  onAiFix,
+  categoryNodes,
+  competencyNodes,
+  subCompetencyNodes,
   onUpdateCategory,
   onDeleteCategory,
-  onAiFixCategory,
+  onAddCategory,
   onUpdateCompetency,
   onDeleteCompetency,
   onAddCompetency,
-  onAiFixCompetency,
-  onAddCategory,
+  onUpdateSub,
+  onDeleteSub,
+  onAddSub,
 }) {
   // Подкомпетенции
-  const [editing, setEditing] = useState(null)
-  const [editingCompId, setEditingCompId] = useState(null)
-  const [deleting, setDeleting] = useState(null)
-  const [deletingCompId, setDeletingCompId] = useState(null)
-  const [adding, setAdding] = useState(null)
-  const [aiFixing, setAiFixing] = useState(null)
-  const [aiFixingCompId, setAiFixingCompId] = useState(null)
+  const [editingSub, setEditingSub] = useState(null)
+  const [deletingSub, setDeletingSub] = useState(null)
+  const [addingSubComp, setAddingSubComp] = useState(null) // объект comp
 
   // Категории
   const [editingCat, setEditingCat] = useState(null)
   const [deletingCat, setDeletingCat] = useState(null)
-  const [aiFixingCat, setAiFixingCat] = useState(null)
 
   // Компетенции
   const [editingComp, setEditingComp] = useState(null)
   const [deletingComp, setDeletingComp] = useState(null)
-  const [aiFixingComp, setAiFixingComp] = useState(null)
-  const [addingComp, setAddingComp] = useState(null) // категория, к которой добавляем
+  const [addingComp, setAddingComp] = useState(null) // объект cat
 
-  // ===== ПОДКОМПЕТЕНЦИИ =====
-  const handleEditSub = (sub, competencyId) => { setEditing(sub); setEditingCompId(competencyId) }
-  const handleSaveSub = (updatedSub) => { onUpdateSub(editingCompId, updatedSub); setEditing(null) }
-  const handleDeleteSubClick = (sub, competencyId) => { setDeleting(sub); setDeletingCompId(competencyId) }
-  const handleDeleteSubConfirm = () => { onDeleteSub(deleting.id, deletingCompId); setDeleting(null) }
-  const handleAddSubClick = (comp) => { setAdding(comp) }
-  const handleAddSubSubmit = (newSub) => { onAddSub(adding.id, newSub); setAdding(null) }
-  const handleAiFixSubClick = (sub, competencyId) => { setAiFixing(sub); setAiFixingCompId(competencyId) }
-  const handleAiFixSubSubmit = (instruction) => { onAiFix(aiFixingCompId, aiFixing.id, instruction); setAiFixing(null) }
+  // ===== HANDLERS — ПОДКОМПЕТЕНЦИИ =====
+  const handleEditSubSave = (updated) => {
+    onUpdateSub(updated)
+    setEditingSub(null)
+  }
 
-  // ===== КАТЕГОРИИ =====
-  const handleSaveCat = (updated) => { onUpdateCategory(updated); setEditingCat(null) }
-  const handleDeleteCatConfirm = () => { onDeleteCategory(deletingCat.id); setDeletingCat(null) }
-  const handleAiFixCatSubmit = (instruction) => { onAiFixCategory(aiFixingCat.id, instruction); setAiFixingCat(null) }
+  const handleDeleteSubConfirm = () => {
+    onDeleteSub(deletingSub.sub_competency_id)
+    setDeletingSub(null)
+  }
 
-  // ===== КОМПЕТЕНЦИИ =====
-  const handleSaveComp = (updated) => { onUpdateCompetency(updated); setEditingComp(null) }
-  const handleDeleteCompConfirm = () => { onDeleteCompetency(deletingComp.id); setDeletingComp(null) }
-  const handleAiFixCompSubmit = (instruction) => { onAiFixCompetency(editingComp?.id || aiFixingComp.id, instruction); setAiFixingComp(null) }
-  const handleAddCompSubmit = (skill) => { onAddCompetency(addingComp.id, skill); setAddingComp(null) }
+  const handleAddSubSubmit = (newSub) => {
+    onAddSub(addingSubComp.competency_id, newSub)
+    setAddingSubComp(null)
+  }
+
+  // ===== HANDLERS — КАТЕГОРИИ =====
+  const handleEditCatSave = (updated) => {
+    onUpdateCategory({
+      ...updated,
+      category_id: updated.category_id || editingCat.category_id,
+      category_name: updated.name || updated.category_name,
+      category_emoji: updated.emoji || updated.category_emoji,
+      category_description: updated.description || updated.category_description,
+    })
+    setEditingCat(null)
+  }
+
+  const handleDeleteCatConfirm = () => {
+    onDeleteCategory(deletingCat.category_id)
+    setDeletingCat(null)
+  }
+
+  // ===== HANDLERS — КОМПЕТЕНЦИИ =====
+  const handleEditCompSave = (updated) => {
+    onUpdateCompetency(updated)
+    setEditingComp(null)
+  }
+
+  const handleDeleteCompConfirm = () => {
+    onDeleteCompetency(deletingComp.competency_id)
+    setDeletingComp(null)
+  }
+
+  const handleAddCompSubmit = (newComp) => {
+    onAddCompetency(addingComp.category_id, newComp)
+    setAddingComp(null)
+  }
 
   return (
     <div className="mindmap">
@@ -184,9 +215,9 @@ export default function MindMap({
         <h2>🧠 Граф компетенций</h2>
         <div className="mindmap__header-right">
           <div className="mindmap__legend">
-            <span>🟢 Beginner</span>
-            <span>🟡 Intermediate</span>
-            <span>🔴 Advanced</span>
+            {Object.entries(LEVEL_CONFIG).map(([lvl, cfg]) => (
+              <span key={lvl}>{cfg.label}</span>
+            ))}
           </div>
           <button className="mindmap__add-cat-btn" onClick={onAddCategory}>
             <Plus size={14} /> Категория
@@ -195,47 +226,65 @@ export default function MindMap({
       </div>
 
       <div className="mindmap__tree">
-        {categories?.map((cat, catIdx) => {
-          const catComps = competencies?.filter(c => c.category_id === cat.id) || []
+        {categoryNodes.map((cat, catIdx) => {
+          const catComps = competencyNodes.filter(
+            c => c.category_id === cat.category_id
+          )
 
           return (
-            <div key={cat.id} className="mindmap__category">
+            <div key={cat.category_id} className="mindmap__category">
               <div
                 className="mindmap__category-header"
                 style={{ borderLeftColor: CAT_COLORS[catIdx % CAT_COLORS.length] }}
               >
-                <span className="mindmap__category-emoji">{cat.emoji}</span>
-                <span className="mindmap__category-name">{cat.name}</span>
-                <span className="mindmap__category-count">{catComps.length}</span>
+                <span className="mindmap__category-emoji">
+                  {cat.category_emoji}
+                </span>
+                <span className="mindmap__category-name">
+                  {cat.category_name}
+                </span>
+                <span className="mindmap__category-count">
+                  {catComps.length}
+                </span>
 
                 <div className="mindmap__category-actions">
-                  <button title="Редактировать категорию" onClick={() => setEditingCat(cat)}>
+                  <button
+                    title="Редактировать"
+                    onClick={() => setEditingCat(cat)}
+                  >
                     <Edit3 size={14} />
                   </button>
-                  <button title="AI исправление" onClick={() => setAiFixingCat(cat)}>
-                    <Sparkles size={14} />
-                  </button>
-                  <button title="Удалить категорию" onClick={() => setDeletingCat(cat)}>
+                  <button
+                    title="Удалить категорию"
+                    onClick={() => setDeletingCat(cat)}
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>
               </div>
 
               <div className="mindmap__category-children">
-                {catComps.map(comp => (
-                  <CompetencyNode
-                    key={comp.id}
-                    comp={comp}
-                    onEdit={handleEditSub}
-                    onDelete={handleDeleteSubClick}
-                    onAiFix={handleAiFixSubClick}
-                    onAdd={handleAddSubClick}
-                    onEditComp={setEditingComp}
-                    onDeleteComp={setDeletingComp}
-                    onAiFixComp={setAiFixingComp}
-                  />
-                ))}
-                <button className="mindmap__add-btn" onClick={() => setAddingComp(cat)}>
+                {catComps.map(comp => {
+                  const compSubs = subCompetencyNodes.filter(
+                    s => s.competency_id === comp.competency_id
+                  )
+                  return (
+                    <CompetencyNode
+                      key={comp.competency_id}
+                      comp={comp}
+                      subNodes={compSubs}
+                      onEditComp={setEditingComp}
+                      onDeleteComp={setDeletingComp}
+                      onEditSub={setEditingSub}
+                      onDeleteSub={setDeletingSub}
+                      onAddSub={setAddingSubComp}
+                    />
+                  )
+                })}
+                <button
+                  className="mindmap__add-btn"
+                  onClick={() => setAddingComp(cat)}
+                >
                   <Plus size={14} /> Добавить компетенцию
                 </button>
               </div>
@@ -245,21 +294,74 @@ export default function MindMap({
       </div>
 
       {/* ===== МОДАЛКИ ПОДКОМПЕТЕНЦИЙ ===== */}
-      {editing && <NodeEditor sub={editing} onSave={handleSaveSub} onClose={() => setEditing(null)} />}
-      {deleting && <ConfirmDialog title="Удаление подкомпетенции" message={`Удалить "${deleting.name}"? Это действие нельзя отменить.`} onConfirm={handleDeleteSubConfirm} onCancel={() => setDeleting(null)} />}
-      {adding && <AddSubDialog competencyName={adding.skill} onAdd={handleAddSubSubmit} onClose={() => setAdding(null)} />}
-      {aiFixing && <AiFixDialog subName={aiFixing.name} onSubmit={handleAiFixSubSubmit} onClose={() => setAiFixing(null)} />}
+      {editingSub && (
+        <NodeEditor
+          sub={editingSub}
+          onSave={handleEditSubSave}
+          onClose={() => setEditingSub(null)}
+        />
+      )}
+      {deletingSub && (
+        <ConfirmDialog
+          title="Удаление подкомпетенции"
+          message={`Удалить "${deletingSub.sub_competency_name}"? Это действие нельзя отменить.`}
+          onConfirm={handleDeleteSubConfirm}
+          onCancel={() => setDeletingSub(null)}
+        />
+      )}
+      {addingSubComp && (
+        <AddSubDialog
+          competencyName={addingSubComp.competency_name}
+          onAdd={handleAddSubSubmit}
+          onClose={() => setAddingSubComp(null)}
+        />
+      )}
 
       {/* ===== МОДАЛКИ КАТЕГОРИЙ ===== */}
-      {editingCat && <EditCategoryDialog category={editingCat} onSave={handleSaveCat} onClose={() => setEditingCat(null)} />}
-      {deletingCat && <ConfirmDialog title="Удаление категории" message={`Удалить категорию "${deletingCat.name}" и все её компетенции? Это действие нельзя отменить.`} onConfirm={handleDeleteCatConfirm} onCancel={() => setDeletingCat(null)} />}
-      {aiFixingCat && <AiFixDialog subName={`Категория: ${aiFixingCat.name}`} onSubmit={handleAiFixCatSubmit} onClose={() => setAiFixingCat(null)} />}
+      {editingCat && (
+        <EditCategoryDialog
+          category={{
+            ...editingCat,
+            name: editingCat.category_name,
+            emoji: editingCat.category_emoji,
+            description: editingCat.category_description,
+          }}
+          onSave={handleEditCatSave}
+          onClose={() => setEditingCat(null)}
+        />
+      )}
+      {deletingCat && (
+        <ConfirmDialog
+          title="Удаление категории"
+          message={`Удалить категорию "${deletingCat.category_name}" и все её компетенции?`}
+          onConfirm={handleDeleteCatConfirm}
+          onCancel={() => setDeletingCat(null)}
+        />
+      )}
 
       {/* ===== МОДАЛКИ КОМПЕТЕНЦИЙ ===== */}
-      {editingComp && <EditCompetencyDialog competency={editingComp} onSave={handleSaveComp} onClose={() => setEditingComp(null)} />}
-      {deletingComp && <ConfirmDialog title="Удаление компетенции" message={`Удалить "${deletingComp.skill}" и все подкомпетенции? Это действие нельзя отменить.`} onConfirm={handleDeleteCompConfirm} onCancel={() => setDeletingComp(null)} />}
-      {aiFixingComp && <AiFixDialog subName={`Компетенция: ${aiFixingComp.skill}`} onSubmit={handleAiFixCompSubmit} onClose={() => setAiFixingComp(null)} />}
-      {addingComp && <AddCompetencyDialog categoryName={addingComp.name} onAdd={handleAddCompSubmit} onClose={() => setAddingComp(null)} />}
+      {editingComp && (
+        <EditCompetencyDialog
+          competency={editingComp}
+          onSave={handleEditCompSave}
+          onClose={() => setEditingComp(null)}
+        />
+      )}
+      {deletingComp && (
+        <ConfirmDialog
+          title="Удаление компетенции"
+          message={`Удалить "${deletingComp.competency_name}" и все подкомпетенции?`}
+          onConfirm={handleDeleteCompConfirm}
+          onCancel={() => setDeletingComp(null)}
+        />
+      )}
+      {addingComp && (
+        <AddCompetencyDialog
+          categoryName={addingComp.category_name}
+          onAdd={handleAddCompSubmit}
+          onClose={() => setAddingComp(null)}
+        />
+      )}
     </div>
   )
 }

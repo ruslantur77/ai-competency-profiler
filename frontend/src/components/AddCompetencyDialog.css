@@ -92,3 +92,16 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+  .add-comp__checkbox-label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+  
+  .add-comp__checkbox-label input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }

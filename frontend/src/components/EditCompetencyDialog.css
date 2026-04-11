@@ -81,3 +81,16 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+  .edit-comp__checkbox-label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+  
+  .edit-comp__checkbox-label input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }

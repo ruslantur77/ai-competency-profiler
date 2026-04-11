@@ -3,21 +3,30 @@ import React, { useState } from 'react'
 import { X, Plus } from 'lucide-react'
 import './AddSubDialog.css'
 
+const LEVEL_OPTIONS = [
+  { value: 0, label: '⚪ No level' },
+  { value: 1, label: '🟢 Beginner' },
+  { value: 2, label: '🟡 Intermediate' },
+  { value: 3, label: '🟠 Upper-Intermediate' },
+  { value: 4, label: '🔴 Advanced' },
+  { value: 5, label: '⭐ Expert' },
+]
+
 export default function AddSubDialog({ competencyName, onAdd, onClose }) {
   const [form, setForm] = useState({
     name: '',
-    level: 'intermediate',
+    target_level: 2,
     description: '',
-    sub_skills: '',
+    weight: 1.0,
   })
 
   const handleAdd = () => {
     if (!form.name.trim()) return
     onAdd({
-      name: form.name,
-      level: form.level,
-      description: form.description,
-      sub_skills: form.sub_skills.split(';').map(s => s.trim()).filter(Boolean),
+      name: form.name.trim(),
+      target_level: form.target_level,
+      description: form.description.trim(),
+      weight: parseFloat(form.weight) || 1.0,
     })
   }
 
@@ -47,12 +56,12 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
           <label>
             Уровень
             <select
-              value={form.level}
-              onChange={e => setForm({ ...form, level: e.target.value })}
+              value={form.target_level}
+              onChange={e => setForm({ ...form, target_level: parseInt(e.target.value) })}
             >
-              <option value="beginner">🟢 Beginner</option>
-              <option value="intermediate">🟡 Intermediate</option>
-              <option value="advanced">🔴 Advanced</option>
+              {LEVEL_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </label>
 
@@ -67,19 +76,25 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
           </label>
 
           <label>
-            Навыки (через ;)
-            <textarea
-              value={form.sub_skills}
-              onChange={e => setForm({ ...form, sub_skills: e.target.value })}
-              placeholder="Навык 1; Навык 2; Навык 3"
-              rows={2}
+            Вес (0.1 — 2.0)
+            <input
+              type="number"
+              min="0.1"
+              max="2.0"
+              step="0.1"
+              value={form.weight}
+              onChange={e => setForm({ ...form, weight: e.target.value })}
             />
           </label>
         </div>
 
         <div className="add-dialog__footer">
           <button className="btn-secondary" onClick={onClose}>Отмена</button>
-          <button className="btn-primary" onClick={handleAdd} disabled={!form.name.trim()}>
+          <button
+            className="btn-primary"
+            onClick={handleAdd}
+            disabled={!form.name.trim()}
+          >
             <Plus size={16} /> Добавить
           </button>
         </div>

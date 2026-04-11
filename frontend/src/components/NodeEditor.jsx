@@ -3,32 +3,42 @@ import React, { useState, useEffect } from 'react'
 import { X, Save } from 'lucide-react'
 import './NodeEditor.css'
 
+const LEVEL_OPTIONS = [
+  { value: 0, label: '⚪ No level' },
+  { value: 1, label: '🟢 Beginner' },
+  { value: 2, label: '🟡 Intermediate' },
+  { value: 3, label: '🟠 Upper-Intermediate' },
+  { value: 4, label: '🔴 Advanced' },
+  { value: 5, label: '⭐ Expert' },
+]
+
 export default function NodeEditor({ sub, onSave, onClose }) {
   const [form, setForm] = useState({
     name: '',
-    level: 'intermediate',
+    target_level: 2,
     description: '',
-    sub_skills: '',
+    weight: 1.0,
   })
 
   useEffect(() => {
     if (sub) {
       setForm({
-        name: sub.name || '',
-        level: sub.level || 'intermediate',
-        description: sub.description || '',
-        sub_skills: (sub.sub_skills || []).join('; '),
+        name: sub.sub_competency_name || '',
+        target_level: sub.target_level ?? 2,
+        description: sub.sub_competency_description || '',
+        weight: sub.weight ?? 1.0,
       })
     }
   }, [sub])
 
   const handleSave = () => {
+    if (!form.name.trim()) return
     onSave({
       ...sub,
-      name: form.name,
-      level: form.level,
-      description: form.description,
-      sub_skills: form.sub_skills.split(';').map(s => s.trim()).filter(Boolean),
+      sub_competency_name: form.name.trim(),
+      target_level: form.target_level,
+      sub_competency_description: form.description.trim(),
+      weight: parseFloat(form.weight) || 1.0,
     })
   }
 
@@ -46,18 +56,19 @@ export default function NodeEditor({ sub, onSave, onClose }) {
             <input
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
+              autoFocus
             />
           </label>
 
           <label>
             Уровень
             <select
-              value={form.level}
-              onChange={e => setForm({ ...form, level: e.target.value })}
+              value={form.target_level}
+              onChange={e => setForm({ ...form, target_level: parseInt(e.target.value) })}
             >
-              <option value="beginner">🟢 Beginner</option>
-              <option value="intermediate">🟡 Intermediate</option>
-              <option value="advanced">🔴 Advanced</option>
+              {LEVEL_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </label>
 
@@ -71,18 +82,25 @@ export default function NodeEditor({ sub, onSave, onClose }) {
           </label>
 
           <label>
-            Навыки (через ;)
-            <textarea
-              value={form.sub_skills}
-              onChange={e => setForm({ ...form, sub_skills: e.target.value })}
-              rows={2}
+            Вес (0.1 — 2.0)
+            <input
+              type="number"
+              min="0.1"
+              max="2.0"
+              step="0.1"
+              value={form.weight}
+              onChange={e => setForm({ ...form, weight: e.target.value })}
             />
           </label>
         </div>
 
         <div className="editor__footer">
           <button className="btn-secondary" onClick={onClose}>Отмена</button>
-          <button className="btn-primary" onClick={handleSave}>
+          <button
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={!form.name.trim()}
+          >
             <Save size={16} /> Сохранить
           </button>
         </div>
