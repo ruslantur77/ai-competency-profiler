@@ -1,70 +1,98 @@
 // frontend/src/components/VacancyList.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Edit3, Trash2, Loader2, CheckCircle, ExternalLink } from 'lucide-react'
-import { listVacancies, createVacancy, deleteVacancy } from '../api/client'
+import { Plus, Trash2, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit } from 'lucide-react'
+import { listVacancies, createVacancy } from '../api/client'
 import CreateVacancyDialog from './CreateVacancyDialog'
-import ConfirmDialog from './ConfirmDialog'
 import './VacancyList.css'
 
-export default function VacancyList({ notify }) {
+const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
+
+const STATUS_CONFIG = {
+  pending: {
+    label: 'Извлечение компетенций...',
+    badge: 'extracting',
+    icon: (size) => <Loader2 size={size} className="spin" />,
+  },
+  draft: {
+    label: 'Ожидает валидации',
+    badge: 'draft',
+    icon: (size) => <FileEdit size={size} />,
+  },
+  ready: {
+    label: 'Готово к редактированию',
+    badge: 'ready',
+    icon: (size) => <CheckCircle size={size} />,
+  },
+  failed: {
+    label: 'Ошибка обработки',
+    badge: 'failed',
+    icon: (size) => <AlertCircle size={size} />,
+  },
+}
+
+export default function VacancyList({ notify, onLogout }) {
   const navigate = useNavigate()
   const [vacancies, setVacancies] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
-  const [deleting, setDeleting] = useState(null)
 
-  const fetchVacancies = async () => {
+  const fetchVacancies = useCallback(async () => {
     try {
-      const { data } = await listVacancies()
-      setVacancies(data.vacancies || [])
+      // Бек требует status_filter — делаем запросы для каждого статуса параллельно
+      const results = await Promise.all(
+        ALL_STATUSES.map(status => listVacancies(status).then(r => r.data))
+      )
+      // Объединяем все массивы в один и сортируем по дате создания
+      const all = results
+        .flat()
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      setVacancies(all)
     } catch (err) {
       notify('Ошибка загрузки вакансий', 'error')
     } finally {
       setLoading(false)
     }
-  }
+  }, [notify])
 
   useEffect(() => {
     fetchVacancies()
-  }, [])
+  }, [fetchVacancies])
 
+  // Поллинг пока есть pending вакансии
   useEffect(() => {
-    const hasExtracting = vacancies.some(v => v.status === 'extracting')
-    
-    if (!hasExtracting) return
-
+    const hasPending = vacancies.some(v => v.status === 'pending')
+    if (!hasPending) return
     const interval = setInterval(fetchVacancies, 3000)
     return () => clearInterval(interval)
-  }, [vacancies])
+  }, [vacancies, fetchVacancies])
 
   const handleCreate = async (data) => {
     try {
-      const { data: result } = await createVacancy(data)
+      await createVacancy(data)
       setCreating(false)
-      fetchVacancies()
-      notify(`✅ Вакансия "${data.name}" создана`)
+      await fetchVacancies()
+      notify(`✅ Вакансия "${data.name}" создана, запущено извлечение компетенций`)
     } catch (err) {
-      notify('Ошибка создания', 'error')
-    }
-  }
-
-  const handleDelete = async () => {
-    try {
-      await deleteVacancy(deleting.id)
-      setDeleting(null)
-      fetchVacancies()
-      notify('🗑️ Вакансия удалена')
-    } catch (err) {
-      notify('Ошибка удаления', 'error')
+      notify('Ошибка создания вакансии', 'error')
     }
   }
 
   const handleOpen = (vacancy) => {
-    if (vacancy.status === 'ready') {
+    if (vacancy.status === 'ready' || vacancy.status === 'draft') {
       navigate(`/vacancy/${vacancy.id}`)
     }
   }
+
+  const handleLogout = async () => {
+    try {
+      await onLogout()
+    } catch {
+      // игнорируем ошибку logout
+    }
+  }
+
+  const isClickable = (status) => status === 'ready' || status === 'draft'
 
   return (
     <div className="vacancy-list">
@@ -73,9 +101,14 @@ export default function VacancyList({ notify }) {
           <h1>🎯 Competency Profiler</h1>
           <p>Формирование компетентностного профиля специалиста</p>
         </div>
-        <button className="btn-primary" onClick={() => setCreating(true)}>
-          <Plus size={18} /> Создать вакансию
-        </button>
+        <div className="vacancy-list__header-actions">
+          <button className="btn-primary" onClick={() => setCreating(true)}>
+            <Plus size={18} /> Создать вакансию
+          </button>
+          <button className="btn-secondary vacancy-list__logout" onClick={handleLogout}>
+            <LogOut size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="vacancy-list__content">
@@ -94,50 +127,40 @@ export default function VacancyList({ notify }) {
           </div>
         ) : (
           <div className="vacancy-list__grid">
-            {vacancies.map(vac => (
-              <div
-                key={vac.id}
-                className={`vacancy-card ${vac.status === 'ready' ? 'vacancy-card--ready' : 'vacancy-card--extracting'}`}
-                onClick={() => handleOpen(vac)}
-              >
-                <div className="vacancy-card__header">
-                  <h3>{vac.name}</h3>
-                  <div className="vacancy-card__actions" onClick={e => e.stopPropagation()}>
-                    <button
-                      title="Удалить"
-                      onClick={() => setDeleting(vac)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+            {vacancies.map(vac => {
+              const config = STATUS_CONFIG[vac.status] || STATUS_CONFIG.pending
+              const clickable = isClickable(vac.status)
+
+              return (
+                <div
+                  key={vac.id}
+                  className={`vacancy-card vacancy-card--${vac.status} ${clickable ? 'vacancy-card--clickable' : ''}`}
+                  onClick={() => handleOpen(vac)}
+                >
+                  <div className="vacancy-card__header">
+                    <h3>{vac.name}</h3>
+                  </div>
+
+                  <div className="vacancy-card__status">
+                    <span className={`vacancy-card__badge vacancy-card__badge--${config.badge}`}>
+                      {config.icon(14)}
+                      {config.label}
+                    </span>
+                  </div>
+
+                  <div className="vacancy-card__footer">
+                    <span className="vacancy-card__date">
+                      {new Date(vac.created_at).toLocaleDateString('ru-RU')}
+                    </span>
+                    {clickable && (
+                      <span className="vacancy-card__open">
+                        Открыть <ExternalLink size={14} />
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                <div className="vacancy-card__status">
-                  {vac.status === 'extracting' ? (
-                    <span className="vacancy-card__badge vacancy-card__badge--extracting">
-                      <Loader2 size={14} className="spin" />
-                      Извлечение компетенций...
-                    </span>
-                  ) : (
-                    <span className="vacancy-card__badge vacancy-card__badge--ready">
-                      <CheckCircle size={14} />
-                      Готово к редактированию
-                    </span>
-                  )}
-                </div>
-
-                <div className="vacancy-card__footer">
-                  <span className="vacancy-card__date">
-                    {new Date(vac.created_at).toLocaleDateString('ru-RU')}
-                  </span>
-                  {vac.status === 'ready' && (
-                    <span className="vacancy-card__open">
-                      Открыть <ExternalLink size={14} />
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -146,15 +169,6 @@ export default function VacancyList({ notify }) {
         <CreateVacancyDialog
           onClose={() => setCreating(false)}
           onCreate={handleCreate}
-        />
-      )}
-
-      {deleting && (
-        <ConfirmDialog
-          title="Удаление вакансии"
-          message={`Удалить "${deleting.name}" и все её компетенции? Это действие нельзя отменить.`}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleting(null)}
         />
       )}
     </div>

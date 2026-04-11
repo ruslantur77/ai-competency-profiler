@@ -157,3 +157,44 @@
     align-items: center;
     gap: 4px;
   }
+
+  /* Добавить в конец VacancyList.css */
+
+.vacancy-list__header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.vacancy-list__logout {
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vacancy-card--clickable {
+  cursor: pointer;
+}
+
+.vacancy-card--pending,
+.vacancy-card--failed {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.vacancy-card--ready:hover,
+.vacancy-card--draft:hover {
+  border-color: #3b82f6;
+  background: #1e3050;
+}
+
+.vacancy-card__badge--draft {
+  background: #1e3a5f;
+  color: #60a5fa;
+}
+
+.vacancy-card__badge--failed {
+  background: #2d1515;
+  color: #ef4444;
+}
