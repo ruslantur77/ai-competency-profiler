@@ -155,3 +155,32 @@
     background: #7f1d1d;
     color: #fef2f2;
   }
+  .suggestions-panel__decided {
+    font-size: 0.8rem;
+    color: #fbbf24;
+    font-weight: 400;
+    margin-left: 0.5rem;
+  }
+  
+  .suggestions-panel__item--approved {
+    border-color: #166534 !important;
+    background: #052e16 !important;
+  }
+  
+  .suggestions-panel__item--rejected {
+    border-color: #7f1d1d !important;
+    background: #2d1515 !important;
+    opacity: 0.6;
+  }
+  
+  .suggestions-panel__btn--approve-active {
+    background: #166534 !important;
+    color: #f0fdf4 !important;
+    border: 1px solid #166534 !important;
+  }
+  
+  .suggestions-panel__btn--reject-active {
+    background: #7f1d1d !important;
+    color: #fef2f2 !important;
+    border: 1px solid #7f1d1d !important;
+  }

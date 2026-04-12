@@ -1,7 +1,7 @@
 // frontend/src/components/SuggestionsPanel.jsx
 import React, { useState, useEffect } from 'react'
 import { Check, X, CheckCheck, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
-import { getSuggestions, decideSuggestion } from '../api/client'
+import { getSuggestions } from '../api/client'
 import './SuggestionsPanel.css'
 
 const STAGE_LABELS = {
@@ -12,58 +12,54 @@ const STAGE_LABELS = {
 
 const STAGE_ORDER = ['category', 'competency', 'sub_competency']
 
-export default function SuggestionsPanel({ vacancyId, onApplied, notify }) {
+export default function SuggestionsPanel({ vacancyId, onDecisionsChange, notify }) {
   const [suggestions, setSuggestions] = useState([])
+  const [decisions, setDecisions] = useState({}) // id -> 'approved' | 'rejected'
   const [loading, setLoading] = useState(true)
-  const [deciding, setDeciding] = useState({}) // id -> true
   const [expanded, setExpanded] = useState(true)
 
-  const fetchSuggestions = async () => {
-    try {
-      const { data } = await getSuggestions(vacancyId)
-      // Показываем только pending
-      setSuggestions(data.filter(s => s.status === 'pending'))
-    } catch {
-      notify('Ошибка загрузки предложений', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    fetchSuggestions()
+    const fetch = async () => {
+      try {
+        const { data } = await getSuggestions(vacancyId)
+        // Только pending
+        const pending = data.filter(s => s.status === 'pending')
+        setSuggestions(pending)
+        // Инициализируем decisions пустым
+        setDecisions({})
+        onDecisionsChange([])
+      } catch {
+        notify('Ошибка загрузки предложений', 'error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetch()
   }, [vacancyId])
 
-  const decide = async (suggestionId, status) => {
-    setDeciding(prev => ({ ...prev, [suggestionId]: true }))
-    try {
-      await decideSuggestion(vacancyId, suggestionId, status)
-      setSuggestions(prev => prev.filter(s => s.id !== suggestionId))
-      if (status === 'approved') {
-        // После одобрения обновляем граф
-        onApplied()
-      }
-    } catch {
-      notify('Ошибка при обработке предложения', 'error')
-    } finally {
-      setDeciding(prev => ({ ...prev, [suggestionId]: false }))
-    }
+  const decide = (suggestionId, status) => {
+    const newDecisions = { ...decisions, [suggestionId]: status }
+    setDecisions(newDecisions)
+    // Передаём наверх массив для PATCH /graph
+    const decisionsArray = Object.entries(newDecisions).map(([id, st]) => ({
+      suggestion_id: id,
+      status: st,
+    }))
+    onDecisionsChange(decisionsArray)
   }
 
-  const approveAll = async () => {
-    const pending = suggestions.filter(s => s.status === 'pending')
-    for (const s of pending) {
-      await decide(s.id, 'approved')
-    }
-    notify('✅ Все предложения одобрены')
+  const approveAll = () => {
+    const newDecisions = {}
+    suggestions.forEach(s => { newDecisions[s.id] = 'approved' })
+    setDecisions(newDecisions)
+    onDecisionsChange(suggestions.map(s => ({ suggestion_id: s.id, status: 'approved' })))
   }
 
-  const rejectAll = async () => {
-    const pending = suggestions.filter(s => s.status === 'pending')
-    for (const s of pending) {
-      await decide(s.id, 'rejected')
-    }
-    notify('❌ Все предложения отклонены')
+  const rejectAll = () => {
+    const newDecisions = {}
+    suggestions.forEach(s => { newDecisions[s.id] = 'rejected' })
+    setDecisions(newDecisions)
+    onDecisionsChange(suggestions.map(s => ({ suggestion_id: s.id, status: 'rejected' })))
   }
 
   if (loading) {
@@ -79,12 +75,13 @@ export default function SuggestionsPanel({ vacancyId, onApplied, notify }) {
 
   if (suggestions.length === 0) return null
 
-  // Группируем по stage
   const grouped = STAGE_ORDER.reduce((acc, stage) => {
     const items = suggestions.filter(s => s.stage === stage)
     if (items.length > 0) acc[stage] = items
     return acc
   }, {})
+
+  const decidedCount = Object.keys(decisions).length
 
   return (
     <div className="suggestions-panel">
@@ -96,6 +93,11 @@ export default function SuggestionsPanel({ vacancyId, onApplied, notify }) {
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           <span>✨ Предложения AI</span>
           <span className="suggestions-panel__count">{suggestions.length}</span>
+          {decidedCount > 0 && (
+            <span className="suggestions-panel__decided">
+              {decidedCount} отмечено — нажмите Сохранить
+            </span>
+          )}
         </div>
         <div
           className="suggestions-panel__header-actions"
@@ -104,14 +106,12 @@ export default function SuggestionsPanel({ vacancyId, onApplied, notify }) {
           <button
             className="suggestions-panel__btn suggestions-panel__btn--approve"
             onClick={approveAll}
-            title="Одобрить все"
           >
             <CheckCheck size={14} /> Одобрить все
           </button>
           <button
             className="suggestions-panel__btn suggestions-panel__btn--reject"
             onClick={rejectAll}
-            title="Отклонить все"
           >
             <X size={14} /> Отклонить все
           </button>
@@ -125,45 +125,52 @@ export default function SuggestionsPanel({ vacancyId, onApplied, notify }) {
               <div className="suggestions-panel__group-label">
                 {STAGE_LABELS[stage]}
               </div>
-              {items.map(s => (
-                <div key={s.id} className="suggestions-panel__item">
-                  <div className="suggestions-panel__item-info">
-                    <span className="suggestions-panel__item-name">{s.name}</span>
-                    {s.description && (
-                      <span className="suggestions-panel__item-desc">
-                        {s.description}
-                      </span>
-                    )}
-                    {s.reason && (
-                      <span className="suggestions-panel__item-reason">
-                        💡 {s.reason}
-                      </span>
-                    )}
+              {items.map(s => {
+                const decision = decisions[s.id]
+                return (
+                  <div
+                    key={s.id}
+                    className={`suggestions-panel__item ${
+                      decision === 'approved' ? 'suggestions-panel__item--approved' :
+                      decision === 'rejected' ? 'suggestions-panel__item--rejected' : ''
+                    }`}
+                  >
+                    <div className="suggestions-panel__item-info">
+                      <span className="suggestions-panel__item-name">{s.name}</span>
+                      {s.description && (
+                        <span className="suggestions-panel__item-desc">{s.description}</span>
+                      )}
+                      {s.reason && (
+                        <span className="suggestions-panel__item-reason">💡 {s.reason}</span>
+                      )}
+                    </div>
+                    <div className="suggestions-panel__item-actions">
+                      <button
+                        className={`suggestions-panel__btn ${
+                          decision === 'approved'
+                            ? 'suggestions-panel__btn--approve-active'
+                            : 'suggestions-panel__btn--approve'
+                        }`}
+                        onClick={() => decide(s.id, decision === 'approved' ? null : 'approved')}
+                        title="Одобрить"
+                      >
+                        <Check size={14} />
+                      </button>
+                      <button
+                        className={`suggestions-panel__btn ${
+                          decision === 'rejected'
+                            ? 'suggestions-panel__btn--reject-active'
+                            : 'suggestions-panel__btn--reject'
+                        }`}
+                        onClick={() => decide(s.id, decision === 'rejected' ? null : 'rejected')}
+                        title="Отклонить"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="suggestions-panel__item-actions">
-                    {deciding[s.id] ? (
-                      <Loader2 size={16} className="spin" />
-                    ) : (
-                      <>
-                        <button
-                          className="suggestions-panel__btn suggestions-panel__btn--approve"
-                          onClick={() => decide(s.id, 'approved')}
-                          title="Одобрить"
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          className="suggestions-panel__btn suggestions-panel__btn--reject"
-                          onClick={() => decide(s.id, 'rejected')}
-                          title="Отклонить"
-                        >
-                          <X size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ))}
         </div>

@@ -5,16 +5,14 @@ import { ArrowLeft, Save, RotateCcw, Loader2 } from 'lucide-react'
 import VacancySidebar from './VacancySidebar'
 import MindMap from './MindMap'
 import EditCategoryDialog from './EditCategoryDialog'
+import SuggestionsPanel from './SuggestionsPanel'
 import { getVacancy, updateGraph } from '../api/client'
 import './VacancyEditor.css'
-import SuggestionsPanel from './SuggestionsPanel'
-// ===== HELPERS =====
 
-// Генерация временного ID для новых узлов (до сохранения)
+// ===== HELPERS =====
 const tempId = () => crypto.randomUUID()
 
-// Собираем VacancyGraphUpdateDTO из локального состояния
-const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes) => ({
+const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes, suggestionDecisions = []) => ({
   categories: categoryNodes.map(cat => ({
     id: cat.category_id,
     name: cat.category_name,
@@ -39,6 +37,7 @@ const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes) => ({
           })),
       })),
   })),
+  suggestion_decisions: suggestionDecisions,
 })
 
 export default function VacancyEditor({ notify, onLogout }) {
@@ -59,6 +58,9 @@ export default function VacancyEditor({ notify, onLogout }) {
 
   const [isDirty, setIsDirty] = useState(false)
 
+  // Решения по suggestions — передаются в PATCH /graph
+  const [suggestionDecisions, setSuggestionDecisions] = useState([])
+
   // Для диалога добавления категории
   const [addingCategory, setAddingCategory] = useState(false)
 
@@ -75,6 +77,7 @@ export default function VacancyEditor({ notify, onLogout }) {
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
       setIsDirty(false)
+      setSuggestionDecisions([])
     } catch (err) {
       notify('Ошибка загрузки вакансии', 'error')
       navigate('/')
@@ -91,9 +94,13 @@ export default function VacancyEditor({ notify, onLogout }) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const dto = buildGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
+      const dto = buildGraphDTO(
+        categoryNodes,
+        competencyNodes,
+        subCompetencyNodes,
+        suggestionDecisions
+      )
       const { data } = await updateGraph(vacancyId, dto)
-      // Обновляем состояние из ответа бека
       const cats = data.category_nodes || []
       const comps = data.competency_nodes || []
       const subs = data.sub_competency_nodes || []
@@ -101,7 +108,10 @@ export default function VacancyEditor({ notify, onLogout }) {
       setCompetencyNodes(comps)
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
+      setSuggestionDecisions([])
       setIsDirty(false)
+      // Перезагружаем вакансию чтобы обновить статус и скрыть панель suggestions
+      await loadVacancy()
       notify('✅ Граф компетенций сохранён')
     } catch (err) {
       notify('Ошибка сохранения', 'error')
@@ -116,11 +126,11 @@ export default function VacancyEditor({ notify, onLogout }) {
     setCategoryNodes(originalNodes.cats)
     setCompetencyNodes(originalNodes.comps)
     setSubCompetencyNodes(originalNodes.subs)
+    setSuggestionDecisions([])
     setIsDirty(false)
     notify('↩️ Изменения отменены')
   }
 
-  // Помечаем граф как изменённый
   const markDirty = () => setIsDirty(true)
 
   // ===== КАТЕГОРИИ =====
@@ -132,11 +142,10 @@ export default function VacancyEditor({ notify, onLogout }) {
   }
 
   const handleDeleteCategory = (categoryId) => {
-    setCategoryNodes(prev => prev.filter(c => c.category_id !== categoryId))
-    // Удаляем все компетенции и подкомпетенции этой категории
     const removedCompIds = competencyNodes
       .filter(c => c.category_id === categoryId)
       .map(c => c.competency_id)
+    setCategoryNodes(prev => prev.filter(c => c.category_id !== categoryId))
     setCompetencyNodes(prev => prev.filter(c => c.category_id !== categoryId))
     setSubCompetencyNodes(prev =>
       prev.filter(s => !removedCompIds.includes(s.competency_id))
@@ -232,7 +241,7 @@ export default function VacancyEditor({ notify, onLogout }) {
   return (
     <div className="workspace">
       <VacancySidebar vacancy={vacancy} />
-  
+
       <main className="main-content">
         <div className="editor-topbar">
           <button
@@ -241,9 +250,9 @@ export default function VacancyEditor({ notify, onLogout }) {
           >
             <ArrowLeft size={18} /> К вакансиям
           </button>
-  
+
           <h2 className="editor-topbar__title">{vacancy?.name}</h2>
-  
+
           <div className="editor-topbar__actions">
             {isDirty && (
               <button
@@ -266,16 +275,19 @@ export default function VacancyEditor({ notify, onLogout }) {
             </button>
           </div>
         </div>
-  
+
         {/* ===== ПАНЕЛЬ SUGGESTIONS ===== */}
         {vacancy?.status === 'draft' && (
           <SuggestionsPanel
             vacancyId={vacancyId}
-            onApplied={loadVacancy}
+            onDecisionsChange={(decisions) => {
+              setSuggestionDecisions(decisions)
+              if (decisions.length > 0) setIsDirty(true)
+            }}
             notify={notify}
           />
         )}
-  
+
         <MindMap
           categoryNodes={categoryNodes}
           competencyNodes={competencyNodes}
@@ -290,7 +302,7 @@ export default function VacancyEditor({ notify, onLogout }) {
           onDeleteSub={handleDeleteSub}
           onAddSub={handleAddSub}
         />
-  
+
         {addingCategory && (
           <EditCategoryDialog
             category={{ id: '', name: '', emoji: '📌', description: '' }}
