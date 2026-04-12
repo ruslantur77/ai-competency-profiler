@@ -150,13 +150,22 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
 
         patch_payload = VacancyGraphUpdateDTO(
             categories=[],
-            suggestion_decisions=[],
             error_message=None,
         ).model_dump(mode="json")
         finalized = client.patch(
             f"/api/v1/vacancies/{vacancy.id}/graph", json=patch_payload
         )
         assert finalized.status_code == 200
+
+        legacy_payload = {
+            "categories": [],
+            "error_message": None,
+            "suggestion_decisions": [],
+        }
+        finalized_legacy = client.patch(
+            f"/api/v1/vacancies/{vacancy.id}/graph", json=legacy_payload
+        )
+        assert finalized_legacy.status_code == 422
 
         suggestions = client.get(f"/api/v1/vacancies/{vacancy.id}/suggestions")
         assert suggestions.status_code == 200

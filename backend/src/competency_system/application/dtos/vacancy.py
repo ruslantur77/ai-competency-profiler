@@ -107,11 +107,9 @@ class VacancyGraphCategoryInputDTO(BaseDTO):
 
 
 class VacancyGraphUpdateDTO(BaseDTO):
+    model_config = ConfigDict(extra="forbid")
     categories: list[VacancyGraphCategoryInputDTO]
     error_message: str | None = None
-    suggestion_decisions: list[VacancySuggestionDecisionDTO] = Field(
-        default_factory=list
-    )
 
 
 class _StrictExtractionDTO(BaseDTO):

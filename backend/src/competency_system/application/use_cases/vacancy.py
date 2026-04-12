@@ -388,41 +388,6 @@ class FinalizeVacancyGraphUseCase:
             vacancy.sub_competency_nodes = payload.sub_competency_nodes
             vacancy.error_message = graph.error_message
 
-            used_category_names = {c.name.strip().lower() for c in payload.categories}
-            used_competency_names = {
-                c.name.strip().lower()
-                for category in payload.categories
-                for c in category.competencies
-            }
-            used_sub_names = {
-                sub.name.strip().lower()
-                for category in payload.categories
-                for comp in category.competencies
-                for sub in comp.sub_competencies
-            }
-
-            for decision in graph.suggestion_decisions:
-                suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
-                if suggestion is None or suggestion.vacancy_id != vacancy_id:
-                    continue
-                suggestion.status = decision.status
-                await uow.vacancy_suggestions.add(suggestion)
-
-            suggestions = await uow.vacancy_suggestions.list_by_vacancy(vacancy_id)
-            for suggestion in suggestions:
-                if suggestion.status != SuggestionStatus.PENDING:
-                    continue
-                normalized_name = suggestion.name.strip().lower()
-                if suggestion.stage == SuggestionStage.CATEGORY:
-                    should_approve = normalized_name in used_category_names
-                elif suggestion.stage == SuggestionStage.COMPETENCY:
-                    should_approve = normalized_name in used_competency_names
-                else:
-                    should_approve = normalized_name in used_sub_names
-                if should_approve:
-                    suggestion.status = SuggestionStatus.APPROVED
-                    await uow.vacancy_suggestions.add(suggestion)
-
             for category in payload.categories:
                 await uow.categories.add(category)
             await uow.vacancies.add(vacancy)
