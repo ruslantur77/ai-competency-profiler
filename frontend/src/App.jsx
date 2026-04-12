@@ -1,5 +1,5 @@
 // frontend/src/App.jsx
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import VacancyList from './components/VacancyList'
 import VacancyEditor from './components/VacancyEditor'
@@ -7,26 +7,43 @@ import LoginPage from './components/LoginPage'
 import Notification from './components/Notification'
 import './App.css'
 
-function PrivateRoute({ children }) {
-  const token = localStorage.getItem('access_token')
-  return token ? children : <Navigate to="/login" replace />
+function PrivateRoute({ isAuth, children }) {
+  return isAuth ? children : <Navigate to="/login" replace />
 }
 
 export default function App() {
   const [notification, setNotification] = useState(null)
-  // Используем стейт чтобы перерисовать после логина
   const [isAuth, setIsAuth] = useState(!!localStorage.getItem('access_token'))
 
   const notify = useCallback((message, type = 'success') => {
     setNotification({ message, type })
   }, [])
 
-  const handleLogin = () => setIsAuth(true)
+  const handleLogin = useCallback(() => {
+    setIsAuth(true)
+  }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token')
-    setIsAuth(false)
-  }
+  const handleLogout = useCallback(async () => {
+    try {
+      const { logout } = await import('./api/client')
+      await logout()
+    } catch {
+      // игнорируем
+    } finally {
+      localStorage.removeItem('access_token')
+      setIsAuth(false)
+    }
+  }, [])
+
+  // Слушаем событие от interceptor когда refresh упал
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      localStorage.removeItem('access_token')
+      setIsAuth(false)
+    }
+    window.addEventListener('auth:logout', handleAuthLogout)
+    return () => window.removeEventListener('auth:logout', handleAuthLogout)
+  }, [])
 
   return (
     <div className="app">
@@ -50,7 +67,7 @@ export default function App() {
         <Route
           path="/"
           element={
-            <PrivateRoute>
+            <PrivateRoute isAuth={isAuth}>
               <VacancyList notify={notify} onLogout={handleLogout} />
             </PrivateRoute>
           }
@@ -58,7 +75,7 @@ export default function App() {
         <Route
           path="/vacancy/:vacancyId"
           element={
-            <PrivateRoute>
+            <PrivateRoute isAuth={isAuth}>
               <VacancyEditor notify={notify} onLogout={handleLogout} />
             </PrivateRoute>
           }

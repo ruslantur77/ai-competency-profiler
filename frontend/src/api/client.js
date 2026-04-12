@@ -38,7 +38,6 @@ api.interceptors.response.use(
   async (error) => {
     const original = error.config
 
-    // Если 401 и это не повторный запрос и не сам логин/рефреш
     if (
       error.response?.status === 401 &&
       !original._retry &&
@@ -46,7 +45,6 @@ api.interceptors.response.use(
       !original.url?.includes('/auth/refresh')
     ) {
       if (isRefreshing) {
-        // Ждём пока другой запрос обновит токен
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject })
         }).then((token) => {
@@ -67,8 +65,8 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         clearAccessToken()
-        // Редиректим на логин
-        window.location.href = '/login'
+        // Генерируем событие вместо прямого редиректа
+        window.dispatchEvent(new CustomEvent('auth:logout'))
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
