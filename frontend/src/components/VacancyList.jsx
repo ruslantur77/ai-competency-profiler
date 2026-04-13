@@ -1,7 +1,7 @@
 // frontend/src/components/VacancyList.jsx
 import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'  // ← добавили useLocation
+import { Plus, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit } from 'lucide-react'
 import { listVacancies, createVacancy } from '../api/client'
 import CreateVacancyDialog from './CreateVacancyDialog'
 import './VacancyList.css'
@@ -25,7 +25,7 @@ const STATUS_CONFIG = {
     icon: (size) => <CheckCircle size={size} />,
   },
   failed: {
-    label: 'Ошибка обработки',
+    label: 'Ошибка обработки, попробуйте позже',
     badge: 'failed',
     icon: (size) => <AlertCircle size={size} />,
   },
@@ -33,33 +33,39 @@ const STATUS_CONFIG = {
 
 export default function VacancyList({ notify, onLogout }) {
   const navigate = useNavigate()
+  const location = useLocation()  // ← добавили
   const [vacancies, setVacancies] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
 
   const fetchVacancies = useCallback(async () => {
     try {
-      // Бек требует status_filter — делаем запросы для каждого статуса параллельно
       const results = await Promise.all(
         ALL_STATUSES.map(status => listVacancies(status).then(r => r.data))
       )
-      // Объединяем все массивы в один и сортируем по дате создания
       const all = results
         .flat()
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       setVacancies(all)
-    } catch (err) {
+    } catch {
       notify('Ошибка загрузки вакансий', 'error')
     } finally {
       setLoading(false)
     }
   }, [notify])
 
+  // Первичная загрузка
   useEffect(() => {
     fetchVacancies()
   }, [fetchVacancies])
 
-  // Поллинг пока есть pending вакансии
+  // ← Перезагружаем список каждый раз когда возвращаемся на "/"
+  // location.key меняется при каждой навигации, даже если pathname тот же
+  useEffect(() => {
+    fetchVacancies()
+  }, [location.key])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Поллинг пока есть pending
   useEffect(() => {
     const hasPending = vacancies.some(v => v.status === 'pending')
     if (!hasPending) return
@@ -73,7 +79,7 @@ export default function VacancyList({ notify, onLogout }) {
       setCreating(false)
       await fetchVacancies()
       notify(`✅ Вакансия "${data.name}" создана, запущено извлечение компетенций`)
-    } catch (err) {
+    } catch {
       notify('Ошибка создания вакансии', 'error')
     }
   }
@@ -88,7 +94,7 @@ export default function VacancyList({ notify, onLogout }) {
     try {
       await onLogout()
     } catch {
-      // игнорируем ошибку logout
+      // игнорируем
     }
   }
 

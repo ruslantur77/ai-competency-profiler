@@ -85,17 +85,21 @@ export default function VacancyEditor({ notify, onLogout }) {
     setSaving(true)
     try {
       const dto = buildGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
-      const { data } = await updateGraph(vacancyId, dto)
-      const cats = data.category_nodes || []
-      const comps = data.competency_nodes || []
-      const subs = data.sub_competency_nodes || []
+      await updateGraph(vacancyId, dto)
+  
+      // Читаем свежие данные с именами через GET, не из ответа PATCH
+      const { data: fresh } = await getVacancy(vacancyId)
+      const cats = fresh.category_nodes || []
+      const comps = fresh.competency_nodes || []
+      const subs = fresh.sub_competency_nodes || []
+  
+      setVacancy(fresh)
       setCategoryNodes(cats)
       setCompetencyNodes(comps)
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
       setIsDirty(false)
       notify('✅ Граф компетенций сохранён')
-      await loadVacancy()
     } catch {
       notify('Ошибка сохранения', 'error')
     } finally {
@@ -118,23 +122,35 @@ export default function VacancyEditor({ notify, onLogout }) {
   // ===== SUGGESTIONS =====
   // Вызывается после того как SuggestionsPanel отправила все decisions на бек
   // Перечитываем граф — бек уже добавил approved узлы
-  const handleSuggestionsApplied = useCallback(async () => {
-    try {
-      const { data } = await getVacancy(vacancyId)
-      setVacancy(data)
-      const cats = data.category_nodes || []
-      const comps = data.competency_nodes || []
-      const subs = data.sub_competency_nodes || []
-      setCategoryNodes(cats)
-      setCompetencyNodes(comps)
-      setSubCompetencyNodes(subs)
-      setOriginalNodes({ cats, comps, subs })
-      // Граф обновился — нужно сохранить чтобы зафиксировать статус ready
-      setIsDirty(true)
-    } catch {
-      notify('Ошибка обновления графа', 'error')
-    }
-  }, [vacancyId, notify])
+// Вызывается после того как SuggestionsPanel отправила все decisions
+const handleSuggestionsApplied = useCallback(async () => {
+  try {
+    // 1. Читаем граф — бек уже добавил approved узлы
+    const { data } = await getVacancy(vacancyId)
+    const cats = data.category_nodes || []
+    const comps = data.competency_nodes || []
+    const subs = data.sub_competency_nodes || []
+
+    // 2. Сохраняем граф → бек переводит статус в ready
+    await updateGraph(vacancyId, buildGraphDTO(cats, comps, subs))
+
+    // 3. Читаем ЕЩЁ РАЗ — теперь с заполненными именами
+    const { data: fresh } = await getVacancy(vacancyId)
+    const freshCats = fresh.category_nodes || []
+    const freshComps = fresh.competency_nodes || []
+    const freshSubs = fresh.sub_competency_nodes || []
+
+    setVacancy(fresh)
+    setCategoryNodes(freshCats)
+    setCompetencyNodes(freshComps)
+    setSubCompetencyNodes(freshSubs)
+    setOriginalNodes({ cats: freshCats, comps: freshComps, subs: freshSubs })
+    setIsDirty(false)
+
+  } catch {
+    notify('Ошибка обновления графа', 'error')
+  }
+}, [vacancyId, notify])
 
   // ===== КАТЕГОРИИ =====
   const handleUpdateCategory = (updated) => {
