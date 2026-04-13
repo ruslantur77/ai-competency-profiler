@@ -12,7 +12,7 @@ import './VacancyEditor.css'
 // ===== HELPERS =====
 const tempId = () => crypto.randomUUID()
 
-const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes, suggestionDecisions = []) => ({
+const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes) => ({
   categories: categoryNodes.map(cat => ({
     id: cat.category_id,
     name: cat.category_name,
@@ -37,7 +37,6 @@ const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes, sugge
           })),
       })),
   })),
-  suggestion_decisions: suggestionDecisions,
 })
 
 export default function VacancyEditor({ notify, onLogout }) {
@@ -54,7 +53,6 @@ export default function VacancyEditor({ notify, onLogout }) {
 
   const [originalNodes, setOriginalNodes] = useState(null)
   const [isDirty, setIsDirty] = useState(false)
-  const [suggestionDecisions, setSuggestionDecisions] = useState([])
   const [addingCategory, setAddingCategory] = useState(false)
 
   // ===== ЗАГРУЗКА =====
@@ -70,8 +68,7 @@ export default function VacancyEditor({ notify, onLogout }) {
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
       setIsDirty(false)
-      setSuggestionDecisions([])
-    } catch (err) {
+    } catch {
       notify('Ошибка загрузки вакансии', 'error')
       navigate('/')
     } finally {
@@ -83,16 +80,11 @@ export default function VacancyEditor({ notify, onLogout }) {
     loadVacancy()
   }, [loadVacancy])
 
-  // ===== СОХРАНЕНИЕ =====
+  // ===== СОХРАНЕНИЕ ГРАФА =====
   const handleSave = async () => {
     setSaving(true)
     try {
-      const dto = buildGraphDTO(
-        categoryNodes,
-        competencyNodes,
-        subCompetencyNodes,
-        suggestionDecisions
-      )
+      const dto = buildGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
       const { data } = await updateGraph(vacancyId, dto)
       const cats = data.category_nodes || []
       const comps = data.competency_nodes || []
@@ -101,11 +93,10 @@ export default function VacancyEditor({ notify, onLogout }) {
       setCompetencyNodes(comps)
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
-      setSuggestionDecisions([])
       setIsDirty(false)
-      await loadVacancy()
       notify('✅ Граф компетенций сохранён')
-    } catch (err) {
+      await loadVacancy()
+    } catch {
       notify('Ошибка сохранения', 'error')
     } finally {
       setSaving(false)
@@ -118,149 +109,32 @@ export default function VacancyEditor({ notify, onLogout }) {
     setCategoryNodes(originalNodes.cats)
     setCompetencyNodes(originalNodes.comps)
     setSubCompetencyNodes(originalNodes.subs)
-    setSuggestionDecisions([])
     setIsDirty(false)
     notify('↩️ Изменения отменены')
   }
 
   const markDirty = () => setIsDirty(true)
 
-  // ===== SUGGESTIONS → ГРАФ =====
-  const handleApproveSuggestion = useCallback((suggestion) => {
-    const id = tempId()
-
-    if (suggestion.stage === 'category') {
-      setCategoryNodes(prev => {
-        if (prev.find(c => c.category_name === suggestion.name)) return prev
-        return [...prev, {
-          id,
-          vacancy_id: vacancyId,
-          category_id: id,
-          category_name: suggestion.name,
-          category_emoji: suggestion.parent_category_emoji || '',
-          category_description: suggestion.description || '',
-          position: prev.length,
-        }]
-      })
-
-    } else if (suggestion.stage === 'competency') {
-      const parentCatId = suggestion.parent_category_id
-      const parentCatName = suggestion.parent_category_name || 'Категория'
-      const parentCatEmoji = suggestion.parent_category_emoji || ''
-
-      // Гарантируем что категория есть в графе
-      setCategoryNodes(prev => {
-        if (prev.find(c => c.category_id === parentCatId)) return prev
-        return [...prev, {
-          id: parentCatId,
-          vacancy_id: vacancyId,
-          category_id: parentCatId,
-          category_name: parentCatName,
-          category_emoji: parentCatEmoji,
-          category_description: '',
-          position: prev.length,
-        }]
-      })
-
-      // Добавляем компетенцию
-      setCompetencyNodes(prev => {
-        if (prev.find(c =>
-          c.competency_name === suggestion.name &&
-          c.category_id === parentCatId
-        )) return prev
-        return [...prev, {
-          id,
-          vacancy_id: vacancyId,
-          competency_id: id,
-          category_id: parentCatId,
-          competency_name: suggestion.name,
-          competency_description: suggestion.description || '',
-          is_required: suggestion.is_required ?? true,
-          position: prev.filter(c => c.category_id === parentCatId).length,
-        }]
-      })
-
-    } else if (suggestion.stage === 'sub_competency') {
-      const parentCompId = suggestion.parent_competency_id
-      const parentCatId = suggestion.parent_category_id
-      const parentCatName = suggestion.parent_category_name || 'Категория'
-      const parentCatEmoji = suggestion.parent_category_emoji || ''
-      const parentCompName = suggestion.parent_competency_name || 'Компетенция'
-
-      // Гарантируем что категория есть
-      if (parentCatId) {
-        setCategoryNodes(prev => {
-          if (prev.find(c => c.category_id === parentCatId)) return prev
-          return [...prev, {
-            id: parentCatId,
-            vacancy_id: vacancyId,
-            category_id: parentCatId,
-            category_name: parentCatName,
-            category_emoji: parentCatEmoji,
-            category_description: '',
-            position: prev.length,
-          }]
-        })
-      }
-
-      // Гарантируем что компетенция есть
-      if (parentCompId) {
-        setCompetencyNodes(prev => {
-          if (prev.find(c => c.competency_id === parentCompId)) return prev
-          return [...prev, {
-            id: parentCompId,
-            vacancy_id: vacancyId,
-            competency_id: parentCompId,
-            category_id: parentCatId,
-            competency_name: parentCompName,
-            competency_description: '',
-            is_required: true,
-            position: prev.filter(c => c.category_id === parentCatId).length,
-          }]
-        })
-      }
-
-      // Добавляем подкомпетенцию
-      if (parentCompId) {
-        setSubCompetencyNodes(prev => {
-          if (prev.find(s =>
-            s.sub_competency_name === suggestion.name &&
-            s.competency_id === parentCompId
-          )) return prev
-          return [...prev, {
-            id,
-            vacancy_id: vacancyId,
-            sub_competency_id: id,
-            competency_id: parentCompId,
-            sub_competency_name: suggestion.name,
-            sub_competency_description: suggestion.description || '',
-            target_level: suggestion.target_level ?? 2,
-            weight: suggestion.weight ?? 1.0,
-            position: prev.filter(s => s.competency_id === parentCompId).length,
-          }]
-        })
-      }
+  // ===== SUGGESTIONS =====
+  // Вызывается после того как SuggestionsPanel отправила все decisions на бек
+  // Перечитываем граф — бек уже добавил approved узлы
+  const handleSuggestionsApplied = useCallback(async () => {
+    try {
+      const { data } = await getVacancy(vacancyId)
+      setVacancy(data)
+      const cats = data.category_nodes || []
+      const comps = data.competency_nodes || []
+      const subs = data.sub_competency_nodes || []
+      setCategoryNodes(cats)
+      setCompetencyNodes(comps)
+      setSubCompetencyNodes(subs)
+      setOriginalNodes({ cats, comps, subs })
+      // Граф обновился — нужно сохранить чтобы зафиксировать статус ready
+      setIsDirty(true)
+    } catch {
+      notify('Ошибка обновления графа', 'error')
     }
-
-    markDirty()
-  }, [vacancyId])
-
-  const handleRejectSuggestion = useCallback((suggestion) => {
-    if (suggestion.stage === 'category') {
-      setCategoryNodes(prev =>
-        prev.filter(c => c.category_name !== suggestion.name)
-      )
-    } else if (suggestion.stage === 'competency') {
-      setCompetencyNodes(prev =>
-        prev.filter(c => c.competency_name !== suggestion.name)
-      )
-    } else if (suggestion.stage === 'sub_competency') {
-      setSubCompetencyNodes(prev =>
-        prev.filter(s => s.sub_competency_name !== suggestion.name)
-      )
-    }
-    markDirty()
-  }, [])
+  }, [vacancyId, notify])
 
   // ===== КАТЕГОРИИ =====
   const handleUpdateCategory = (updated) => {
@@ -408,12 +282,10 @@ export default function VacancyEditor({ notify, onLogout }) {
         {vacancy?.status === 'draft' && (
           <SuggestionsPanel
             vacancyId={vacancyId}
-            onApprove={handleApproveSuggestion}
-            onReject={handleRejectSuggestion}
-            onDecisionsChange={(decisions) => {
-              setSuggestionDecisions(decisions)
-              if (decisions.length > 0) setIsDirty(true)
-            }}
+            categoryNodes={categoryNodes}
+            competencyNodes={competencyNodes}
+            onApprove={handleSuggestionsApplied}
+            onReject={handleSuggestionsApplied}
             notify={notify}
           />
         )}

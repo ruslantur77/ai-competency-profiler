@@ -1,61 +1,8 @@
 // frontend/src/components/SuggestionsPanel.jsx
-import React, { useState, useEffect } from 'react'
-import { Check, X, CheckCheck, XCircle, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
-import { getSuggestions } from '../api/client'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Check, X, CheckCheck, XCircle, Loader2, ChevronDown, ChevronRight, Save } from 'lucide-react'
+import { getSuggestions, decideSuggestion } from '../api/client'
 import './SuggestionsPanel.css'
-
-// ===== ПОЛНАЯ ОНТОЛОГИЯ ИЗ БД =====
-const ONTOLOGY = {
-  categories: {
-    '11111111-1111-1111-1111-111111111111': { name: 'Backend Development', emoji: '🧩' },
-    '22222222-2222-2222-2222-222222222222': { name: 'Data Storage', emoji: '🗄️' },
-    '33333333-3333-3333-3333-333333333333': { name: 'Infrastructure', emoji: '🚀' },
-  },
-  competencies: {
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1': { name: 'API Design',              categoryId: '11111111-1111-1111-1111-111111111111' },
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2': { name: 'Python Backend',          categoryId: '11111111-1111-1111-1111-111111111111' },
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3': { name: 'SQL Modeling',            categoryId: '22222222-2222-2222-2222-222222222222' },
-    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4': { name: 'Containers and Delivery', categoryId: '33333333-3333-3333-3333-333333333333' },
-  },
-  subCompetencies: {
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1': { name: 'REST principles',         competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2': { name: 'API security',            competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3': { name: 'Async programming',       competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4': { name: 'Typing and architecture', competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb5': { name: 'Indexes',                 competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb6': { name: 'Join optimization',       competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb7': { name: 'Docker',                  competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4' },
-    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb8': { name: 'CI/CD',                   competencyId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4' },
-  },
-}
-
-// Обогащаем suggestion данными из онтологии
-const enrichSuggestion = (s) => {
-  if (s.stage === 'competency' && s.parent_category_id) {
-    const cat = ONTOLOGY.categories[s.parent_category_id]
-    if (cat) {
-      return {
-        ...s,
-        parent_category_name: cat.name,
-        parent_category_emoji: cat.emoji,
-      }
-    }
-  }
-  if (s.stage === 'sub_competency' && s.parent_competency_id) {
-    const comp = ONTOLOGY.competencies[s.parent_competency_id]
-    if (comp) {
-      const cat = ONTOLOGY.categories[comp.categoryId]
-      return {
-        ...s,
-        parent_competency_name: comp.name,
-        parent_category_id: comp.categoryId,
-        parent_category_name: cat?.name || '',
-        parent_category_emoji: cat?.emoji || '',
-      }
-    }
-  }
-  return s
-}
 
 const STAGE_LABELS = {
   category: '📁 Категория',
@@ -67,88 +14,103 @@ const STAGE_ORDER = ['category', 'competency', 'sub_competency']
 
 export default function SuggestionsPanel({
   vacancyId,
+  categoryNodes,
+  competencyNodes,
   onApprove,
   onReject,
-  onDecisionsChange,
   notify,
 }) {
   const [suggestions, setSuggestions] = useState([])
-  const [decisions, setDecisions] = useState({})
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [expanded, setExpanded] = useState(true)
+  // id → 'approved' | 'rejected'
+  const [decisions, setDecisions] = useState({})
+
+  const loadSuggestions = useCallback(async () => {
+    try {
+      const { data } = await getSuggestions(vacancyId)
+      setSuggestions(data.filter(s => s.status === 'pending'))
+      setDecisions({})
+    } catch {
+      notify('Ошибка загрузки предложений', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [vacancyId, notify])
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const { data } = await getSuggestions(vacancyId)
-        const pending = data
-          .filter(s => s.status === 'pending')
-          .map(enrichSuggestion)
-        setSuggestions(pending)
-        setDecisions({})
-        onDecisionsChange([])
-      } catch {
-        notify('Ошибка загрузки предложений', 'error')
-      } finally {
-        setLoading(false)
+    loadSuggestions()
+  }, [loadSuggestions])
+
+  // ===== ХЛЕБНЫЕ КРОШКИ =====
+  const getCategoryName = useCallback((categoryId) => {
+    if (!categoryId) return null
+    const node = categoryNodes.find(c => c.category_id === categoryId)
+    return node ? `${node.category_emoji || ''} ${node.category_name}`.trim() : null
+  }, [categoryNodes])
+
+  const getCompetencyName = useCallback((competencyId) => {
+    if (!competencyId) return null
+    const node = competencyNodes.find(c => c.competency_id === competencyId)
+    return node ? node.competency_name : null
+  }, [competencyNodes])
+
+  // ===== ЛОКАЛЬНЫЕ РЕШЕНИЯ =====
+  const decide = useCallback((suggestion, status) => {
+    setDecisions(prev => {
+      // Повторный клик — снимаем решение
+      if (prev[suggestion.id] === status) {
+        const next = { ...prev }
+        delete next[suggestion.id]
+        return next
       }
-    }
-    load()
-  }, [vacancyId])
-
-  const updateDecisions = (newDecisions) => {
-    setDecisions(newDecisions)
-    onDecisionsChange(
-      Object.entries(newDecisions).map(([id, status]) => ({
-        suggestion_id: id,
-        status,
-      }))
-    )
-  }
-
-  const approve = (suggestion) => {
-    const current = decisions[suggestion.id]
-    if (current === 'approved') {
-      const newDecisions = { ...decisions }
-      delete newDecisions[suggestion.id]
-      updateDecisions(newDecisions)
-      onReject(suggestion)
-    } else {
-      updateDecisions({ ...decisions, [suggestion.id]: 'approved' })
-      onApprove(suggestion)
-    }
-  }
-
-  const reject = (suggestion) => {
-    const current = decisions[suggestion.id]
-    if (current === 'rejected') {
-      const newDecisions = { ...decisions }
-      delete newDecisions[suggestion.id]
-      updateDecisions(newDecisions)
-    } else {
-      if (current === 'approved') onReject(suggestion)
-      updateDecisions({ ...decisions, [suggestion.id]: 'rejected' })
-    }
-  }
-
-  const approveAll = () => {
-    const newDecisions = {}
-    suggestions.forEach(s => {
-      newDecisions[s.id] = 'approved'
-      if (decisions[s.id] !== 'approved') onApprove(s)
+      return { ...prev, [suggestion.id]: status }
     })
-    updateDecisions(newDecisions)
-  }
+  }, [])
 
-  const rejectAll = () => {
-    const newDecisions = {}
-    suggestions.forEach(s => {
-      newDecisions[s.id] = 'rejected'
-      if (decisions[s.id] === 'approved') onReject(s)
-    })
-    updateDecisions(newDecisions)
-  }
+  const approveAll = useCallback(() => {
+    const next = {}
+    suggestions.forEach(s => { next[s.id] = 'approved' })
+    setDecisions(next)
+  }, [suggestions])
 
+  const rejectAll = useCallback(() => {
+    const next = {}
+    suggestions.forEach(s => { next[s.id] = 'rejected' })
+    setDecisions(next)
+  }, [suggestions])
+
+  // ===== СОХРАНЕНИЕ ПРЕДЛОЖЕНИЙ =====
+  const handleSaveDecisions = useCallback(async () => {
+    setSaving(true)
+    try {
+      // Сначала approved, потом rejected — чтобы граф обновился до отклонений
+      const approved = suggestions.filter(s => decisions[s.id] === 'approved')
+      const rejected = suggestions.filter(s => decisions[s.id] === 'rejected')
+
+      for (const s of approved) {
+        await decideSuggestion(vacancyId, s.id, 'approved')
+      }
+      for (const s of rejected) {
+        await decideSuggestion(vacancyId, s.id, 'rejected')
+      }
+
+      // Обновляем граф один раз после всех запросов
+      await onApprove()
+
+      notify('✅ Предложения применены')
+
+      // Перезагружаем suggestions — pending должны исчезнуть
+      await loadSuggestions()
+    } catch {
+      notify('Ошибка при сохранении предложений', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }, [vacancyId, suggestions, decisions, onApprove, notify, loadSuggestions])
+
+  // ===== RENDER =====
   if (loading) {
     return (
       <div className="suggestions-panel">
@@ -168,23 +130,31 @@ export default function SuggestionsPanel({
   }, {})
 
   const decidedCount = Object.keys(decisions).length
+  const allDecided = decidedCount === suggestions.length
+  const canSave = allDecided && !saving
 
   return (
     <div className="suggestions-panel">
       <div
         className="suggestions-panel__header"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => setExpanded(e => !e)}
       >
         <div className="suggestions-panel__header-left">
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           <span>✨ Предложения AI</span>
           <span className="suggestions-panel__count">{suggestions.length}</span>
-          {decidedCount > 0 && (
+          {decidedCount > 0 && !allDecided && (
             <span className="suggestions-panel__decided">
-              {decidedCount} отмечено — нажмите Сохранить
+              {decidedCount} из {suggestions.length} отмечено
+            </span>
+          )}
+          {allDecided && (
+            <span className="suggestions-panel__decided suggestions-panel__decided--done">
+              ✅ Все отмечены
             </span>
           )}
         </div>
+
         <div
           className="suggestions-panel__header-actions"
           onClick={e => e.stopPropagation()}
@@ -192,14 +162,29 @@ export default function SuggestionsPanel({
           <button
             className="suggestions-panel__btn suggestions-panel__btn--approve"
             onClick={approveAll}
+            disabled={saving}
+            title="Отметить все как одобренные"
           >
-            <CheckCheck size={14} /> Добавить все в граф
+            <CheckCheck size={14} /> Добавить все
           </button>
           <button
             className="suggestions-panel__btn suggestions-panel__btn--reject"
             onClick={rejectAll}
+            disabled={saving}
+            title="Отметить все как отклонённые"
           >
             <XCircle size={14} /> Отклонить все
+          </button>
+          <button
+            className="suggestions-panel__btn suggestions-panel__btn--save"
+            onClick={handleSaveDecisions}
+            disabled={!canSave}
+            title={!allDecided ? 'Отметьте все предложения' : 'Применить решения'}
+          >
+            {saving
+              ? <><Loader2 size={14} className="spin" /> Сохранение...</>
+              : <><Save size={14} /> Сохранить предложения</>
+            }
           </button>
         </div>
       </div>
@@ -213,6 +198,9 @@ export default function SuggestionsPanel({
               </div>
               {items.map(s => {
                 const decision = decisions[s.id]
+                const categoryName = getCategoryName(s.parent_category_id)
+                const competencyName = getCompetencyName(s.parent_competency_id)
+
                 return (
                   <div
                     key={s.id}
@@ -223,26 +211,33 @@ export default function SuggestionsPanel({
                   >
                     <div className="suggestions-panel__item-info">
                       <span className="suggestions-panel__item-name">{s.name}</span>
-                      {/* Показываем хлебные крошки: куда попадёт узел */}
-                      {s.stage === 'competency' && s.parent_category_name && (
+
+                      {/* Хлебные крошки — только если нашли имя */}
+                      {s.stage === 'competency' && categoryName && (
                         <span className="suggestions-panel__item-meta">
-                          {s.parent_category_emoji} {s.parent_category_name}
+                          {categoryName}
                         </span>
                       )}
-                      {s.stage === 'sub_competency' && s.parent_competency_name && (
+                      {s.stage === 'sub_competency' && (competencyName || categoryName) && (
                         <span className="suggestions-panel__item-meta">
-                          {s.parent_category_emoji} {s.parent_category_name}
-                          {' → '}
-                          🎯 {s.parent_competency_name}
+                          {categoryName && <span>{categoryName}</span>}
+                          {categoryName && competencyName && <span> → </span>}
+                          {competencyName && <span>🎯 {competencyName}</span>}
                         </span>
                       )}
+
                       {s.description && (
-                        <span className="suggestions-panel__item-desc">{s.description}</span>
+                        <span className="suggestions-panel__item-desc">
+                          {s.description}
+                        </span>
                       )}
                       {s.reason && (
-                        <span className="suggestions-panel__item-reason">💡 {s.reason}</span>
+                        <span className="suggestions-panel__item-reason">
+                          💡 {s.reason}
+                        </span>
                       )}
                     </div>
+
                     <div className="suggestions-panel__item-actions">
                       <button
                         className={`suggestions-panel__btn ${
@@ -250,8 +245,9 @@ export default function SuggestionsPanel({
                             ? 'suggestions-panel__btn--approve-active'
                             : 'suggestions-panel__btn--approve'
                         }`}
-                        onClick={() => approve(s)}
-                        title={decision === 'approved' ? 'Убрать из графа' : 'Добавить в граф'}
+                        onClick={() => decide(s, 'approved')}
+                        disabled={saving}
+                        title="Добавить в граф"
                       >
                         <Check size={14} />
                       </button>
@@ -261,7 +257,8 @@ export default function SuggestionsPanel({
                             ? 'suggestions-panel__btn--reject-active'
                             : 'suggestions-panel__btn--reject'
                         }`}
-                        onClick={() => reject(s)}
+                        onClick={() => decide(s, 'rejected')}
+                        disabled={saving}
                         title="Отклонить"
                       >
                         <X size={14} />
