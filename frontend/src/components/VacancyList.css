@@ -201,10 +201,9 @@
 /* ===== ТАБЫ ===== */
 .vacancy-list__tabs {
   display: flex;
-  gap: 0.25rem;
+  gap: 0;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid #334155;
-  padding-bottom: 0;
 }
 
 .vacancy-list__tab {
@@ -214,10 +213,13 @@
   color: #64748b;
   cursor: pointer;
   font-size: 0.95rem;
+  font-weight: 400;
   padding: 0.6rem 1.25rem;
   margin-bottom: -1px;
-  transition: all 0.2s;
+  transition: color 0.2s, border-color 0.2s;
   border-radius: 6px 6px 0 0;
+  flex: 1;
+  text-align: center;
 }
 
 .vacancy-list__tab:hover {
@@ -228,5 +230,5 @@
 .vacancy-list__tab--active {
   color: #f1f5f9;
   border-bottom-color: #3b82f6;
-  font-weight: 600;
+  font-weight: 500;
 }
