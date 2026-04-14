@@ -198,3 +198,35 @@
   background: #2d1515;
   color: #ef4444;
 }
+/* ===== ТАБЫ ===== */
+.vacancy-list__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 0;
+}
+
+.vacancy-list__tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0.6rem 1.25rem;
+  margin-bottom: -1px;
+  transition: all 0.2s;
+  border-radius: 6px 6px 0 0;
+}
+
+.vacancy-list__tab:hover {
+  color: #f1f5f9;
+  background: #1e293b;
+}
+
+.vacancy-list__tab--active {
+  color: #f1f5f9;
+  border-bottom-color: #3b82f6;
+  font-weight: 600;
+}

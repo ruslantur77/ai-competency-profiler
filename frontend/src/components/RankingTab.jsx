@@ -1,0 +1,244 @@
+// frontend/src/components/RankingTab.jsx
+import React, { useState, useCallback } from 'react'
+import { Loader2, ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
+import { getVacancyRankings } from '../api/client'
+import './RankingTab.css'
+
+// Медали для топ-3
+const MEDALS = ['🥇', '🥈', '🥉']
+
+function ScoreBar({ value, max = 1, color = '#3b82f6' }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
+  return (
+    <div className="ranking__bar-bg">
+      <div
+        className="ranking__bar-fill"
+        style={{ width: `${pct}%`, backgroundColor: color }}
+      />
+    </div>
+  )
+}
+
+function BreakdownModal({ candidate, onClose }) {
+  const score = Math.round(candidate.total_score * 100)
+  const required = Math.round(candidate.required_match * 100)
+  const desired = Math.round(candidate.desired_match * 100)
+
+  return (
+    <div className="ranking__modal-overlay" onClick={onClose}>
+      <div className="ranking__modal" onClick={e => e.stopPropagation()}>
+        <div className="ranking__modal-header">
+          <div className="ranking__modal-title">
+            <User size={20} />
+            <span>{candidate.candidate_external_id}</span>
+          </div>
+          <button className="ranking__modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Общие метрики */}
+        <div className="ranking__modal-summary">
+          <div className="ranking__modal-metric">
+            <span className="ranking__modal-metric-label">Общий балл</span>
+            <span className="ranking__modal-metric-value ranking__modal-metric-value--main">
+              {score}%
+            </span>
+          </div>
+          <div className="ranking__modal-metric">
+            <span className="ranking__modal-metric-label">Обязательные</span>
+            <span className="ranking__modal-metric-value ranking__modal-metric-value--required">
+              {required}%
+            </span>
+          </div>
+          <div className="ranking__modal-metric">
+            <span className="ranking__modal-metric-label">Желательные</span>
+            <span className="ranking__modal-metric-value ranking__modal-metric-value--desired">
+              {desired}%
+            </span>
+          </div>
+        </div>
+
+        {/* Breakdown по компетенциям */}
+        <div className="ranking__modal-breakdown">
+          <h4>Детализация по компетенциям</h4>
+          {candidate.breakdown.length === 0 ? (
+            <p className="ranking__modal-empty">Нет данных по компетенциям</p>
+          ) : (
+            candidate.breakdown.map(item => {
+              const coverage = Math.round(item.coverage * 100)
+              return (
+                <div key={item.competency_id} className="ranking__breakdown-item">
+                  <div className="ranking__breakdown-header">
+                    <span className="ranking__breakdown-name">
+                      {item.competency_name}
+                    </span>
+                    <div className="ranking__breakdown-badges">
+                      {item.required && (
+                        <span className="ranking__badge ranking__badge--required">
+                          обязательная
+                        </span>
+                      )}
+                      <span className="ranking__badge ranking__badge--coverage">
+                        {coverage}%
+                      </span>
+                    </div>
+                  </div>
+                  <ScoreBar
+                    value={item.matched_weight}
+                    max={item.total_weight}
+                    color={item.required ? '#f59e0b' : '#3b82f6'}
+                  />
+                  <div className="ranking__breakdown-meta">
+                    <span>
+                      Подкомпетенции: {item.matched_subcompetency_ids.length} / {item.total_subcompetency_ids.length}
+                    </span>
+                    <span>
+                      Вклад в балл: {item.score_contribution.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function RankingTab({ vacancies, notify }) {
+  const [selectedVacancyId, setSelectedVacancyId] = useState('')
+  const [rankings, setRankings] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [selectedCandidate, setSelectedCandidate] = useState(null)
+
+  const loadRankings = useCallback(async (vacancyId) => {
+    if (!vacancyId) return
+    setLoading(true)
+    setRankings([])
+    try {
+      const { data } = await getVacancyRankings(vacancyId)
+      setRankings(data.rankings || [])
+    } catch {
+      notify('Ошибка загрузки ранжирования', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [notify])
+
+  const handleVacancyChange = (e) => {
+    const id = e.target.value
+    setSelectedVacancyId(id)
+    loadRankings(id)
+  }
+
+  return (
+    <div className="ranking">
+      {/* ===== ВЫБОР ВАКАНСИИ ===== */}
+      <div className="ranking__select-row">
+        <Trophy size={20} className="ranking__trophy" />
+        <select
+          className="ranking__select"
+          value={selectedVacancyId}
+          onChange={handleVacancyChange}
+        >
+          <option value="">— Выберите вакансию —</option>
+          {vacancies.map(v => (
+            <option key={v.id} value={v.id}>{v.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* ===== СОСТОЯНИЯ ===== */}
+      {!selectedVacancyId && (
+        <div className="ranking__empty">
+          <Trophy size={48} />
+          <p>Выберите вакансию чтобы увидеть ранжирование кандидатов</p>
+          {vacancies.length === 0 && (
+            <p className="ranking__empty-hint">
+              Нет вакансий со статусом "Готово". Сначала завершите редактирование вакансии.
+            </p>
+          )}
+        </div>
+      )}
+
+      {selectedVacancyId && loading && (
+        <div className="ranking__loading">
+          <Loader2 size={24} className="spin" />
+          <p>Загрузка ранжирования...</p>
+        </div>
+      )}
+
+      {selectedVacancyId && !loading && rankings.length === 0 && (
+        <div className="ranking__empty">
+          <User size={48} />
+          <p>Кандидатов пока нет</p>
+          <p className="ranking__empty-hint">
+            Ранжирование появится после того как кандидаты пройдут тестирование
+          </p>
+        </div>
+      )}
+
+      {/* ===== ТАБЛИЦА ===== */}
+      {!loading && rankings.length > 0 && (
+        <div className="ranking__table-wrap">
+          <div className="ranking__table-header">
+            <span className="ranking__col-rank">#</span>
+            <span className="ranking__col-name">Кандидат</span>
+            <span className="ranking__col-score">Общий балл</span>
+            <span className="ranking__col-required">Обязательные</span>
+            <span className="ranking__col-desired">Желательные</span>
+          </div>
+
+          {rankings.map((candidate, idx) => {
+            const score = Math.round(candidate.total_score * 100)
+            const required = Math.round(candidate.required_match * 100)
+            const desired = Math.round(candidate.desired_match * 100)
+            const medal = MEDALS[idx]
+
+            return (
+              <div
+                key={candidate.candidate_id}
+                className={`ranking__row ${idx < 3 ? `ranking__row--top${idx + 1}` : ''}`}
+                onClick={() => setSelectedCandidate(candidate)}
+                title="Нажмите для детализации"
+              >
+                <span className="ranking__col-rank">
+                  {medal || idx + 1}
+                </span>
+
+                <span className="ranking__col-name">
+                  {candidate.candidate_external_id}
+                </span>
+
+                <div className="ranking__col-score">
+                  <span className="ranking__score-value">{score}%</span>
+                  <ScoreBar value={score} max={100} color="#3b82f6" />
+                </div>
+
+                <div className="ranking__col-required">
+                  <span className="ranking__score-value">{required}%</span>
+                  <ScoreBar value={required} max={100} color="#f59e0b" />
+                </div>
+
+                <div className="ranking__col-desired">
+                  <span className="ranking__score-value">{desired}%</span>
+                  <ScoreBar value={desired} max={100} color="#8b5cf6" />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ===== МОДАЛКА BREAKDOWN ===== */}
+      {selectedCandidate && (
+        <BreakdownModal
+          candidate={selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+        />
+      )}
+    </div>
+  )
+}

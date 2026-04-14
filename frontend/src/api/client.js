@@ -12,7 +12,7 @@ const getAccessToken = () => localStorage.getItem('access_token')
 const setAccessToken = (token) => localStorage.setItem('access_token', token)
 const clearAccessToken = () => localStorage.removeItem('access_token')
 
-// ===== REQUEST INTERCEPTOR — подставляем токен =====
+// ===== REQUEST INTERCEPTOR =====
 api.interceptors.request.use((config) => {
   const token = getAccessToken()
   if (token) {
@@ -21,7 +21,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// ===== RESPONSE INTERCEPTOR — обновляем токен при 401 =====
+// ===== RESPONSE INTERCEPTOR =====
 let isRefreshing = false
 let failedQueue = []
 
@@ -65,7 +65,6 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         clearAccessToken()
-        // Генерируем событие вместо прямого редиректа
         window.dispatchEvent(new CustomEvent('auth:logout'))
         return Promise.reject(refreshError)
       } finally {
@@ -105,7 +104,7 @@ export const updateGraph = (id, data) =>
 export const updateVacancyStatus = (id, status) =>
   api.patch(`/vacancies/${id}/status`, { status })
 
-// ===== SUGGESTIONS (AI правки) =====
+// ===== SUGGESTIONS =====
 export const getSuggestions = (vacancyId) =>
   api.get(`/vacancies/${vacancyId}/suggestions`)
 
@@ -115,20 +114,34 @@ export const decideSuggestion = (vacancyId, suggestionId, status) =>
     status,
   })
 
+// ===== РАНЖИРОВАНИЕ =====
+export const getVacancyRankings = (vacancyId) =>
+  api.get(`/vacancies/${vacancyId}/rankings`)
+
 // ===== КАНДИДАТЫ =====
 export const getCandidateProfile = (candidateId) =>
   api.get(`/candidates/${candidateId}/profile`)
 
-export const getVacancyRankings = (vacancyId) =>
-  api.get(`/vacancies/${vacancyId}/rankings`)
+// ===== ЗАДАНИЯ =====
+export const listTasks = () =>
+  api.get('/admin/tasks')
+
+export const getTask = (taskId) =>
+  api.get(`/admin/tasks/${taskId}`)
+
+export const rebuildTaskMapping = (taskId) =>
+  api.post(`/admin/tasks/${taskId}/mapping/rebuild`)
+
+export const validateTaskMapping = (taskId) =>
+  api.post(`/admin/tasks/${taskId}/mapping/validate`)
 
 // ===== HEALTH =====
 export const healthCheck = () =>
   api.get('/health')
 
-// ===== ЗАГЛУШКИ — старые эндпоинты которых нет в новом беке =====
-export const importFromHH = () => Promise.reject(new Error('Импорт с hh.ru недоступен'))
-export const deleteVacancy = () => Promise.reject(new Error('Удаление вакансий недоступно'))
+// ===== ЗАГЛУШКИ =====
+export const importFromHH = () => Promise.reject(new Error('Недоступно'))
+export const deleteVacancy = () => Promise.reject(new Error('Недоступно'))
 export const updateVacancy = () => Promise.reject(new Error('Недоступно'))
 export const getVacancyStatus = () => Promise.reject(new Error('Недоступно'))
 export const updateCategory = () => Promise.reject(new Error('Недоступно'))
