@@ -107,6 +107,189 @@ function BreakdownModal({ candidate, onClose }) {
   )
 }
 
+// MOCK DATA
+// const MOCK_RANKINGS = {
+//   vacancy_id: 'mock',
+//   rankings: [
+//     {
+//       candidate_id: '1',
+//       candidate_external_id: 'ivanov_ivan',
+//       total_score: 0.87,
+//       required_match: 0.95,
+//       desired_match: 0.72,
+//       required_score: 0.91,
+//       desired_score: 0.68,
+//       breakdown: [
+//         {
+//           competency_id: 'c1',
+//           competency_name: 'Python Backend',
+//           required: true,
+//           matched_weight: 0.9,
+//           total_weight: 1.0,
+//           coverage: 0.9,
+//           score_contribution: 0.32,
+//           matched_subcompetency_ids: ['s1', 's2', 's3'],
+//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
+//         },
+//         {
+//           competency_id: 'c2',
+//           competency_name: 'SQL Modeling',
+//           required: true,
+//           matched_weight: 0.8,
+//           total_weight: 1.0,
+//           coverage: 0.8,
+//           score_contribution: 0.28,
+//           matched_subcompetency_ids: ['s5', 's6'],
+//           total_subcompetency_ids: ['s5', 's6', 's7'],
+//         },
+//         {
+//           competency_id: 'c3',
+//           competency_name: 'Containers and Delivery',
+//           required: false,
+//           matched_weight: 0.6,
+//           total_weight: 1.0,
+//           coverage: 0.6,
+//           score_contribution: 0.15,
+//           matched_subcompetency_ids: ['s8'],
+//           total_subcompetency_ids: ['s8', 's9'],
+//         },
+//       ],
+//     },
+//     {
+//       candidate_id: '2',
+//       candidate_external_id: 'petrova_maria',
+//       total_score: 0.74,
+//       required_match: 0.82,
+//       desired_match: 0.61,
+//       required_score: 0.79,
+//       desired_score: 0.55,
+//       breakdown: [
+//         {
+//           competency_id: 'c1',
+//           competency_name: 'Python Backend',
+//           required: true,
+//           matched_weight: 0.75,
+//           total_weight: 1.0,
+//           coverage: 0.75,
+//           score_contribution: 0.27,
+//           matched_subcompetency_ids: ['s1', 's2'],
+//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
+//         },
+//         {
+//           competency_id: 'c2',
+//           competency_name: 'SQL Modeling',
+//           required: true,
+//           matched_weight: 0.9,
+//           total_weight: 1.0,
+//           coverage: 0.9,
+//           score_contribution: 0.31,
+//           matched_subcompetency_ids: ['s5', 's6', 's7'],
+//           total_subcompetency_ids: ['s5', 's6', 's7'],
+//         },
+//         {
+//           competency_id: 'c3',
+//           competency_name: 'Containers and Delivery',
+//           required: false,
+//           matched_weight: 0.3,
+//           total_weight: 1.0,
+//           coverage: 0.3,
+//           score_contribution: 0.08,
+//           matched_subcompetency_ids: [],
+//           total_subcompetency_ids: ['s8', 's9'],
+//         },
+//       ],
+//     },
+//     {
+//       candidate_id: '3',
+//       candidate_external_id: 'sidorov_alex',
+//       total_score: 0.61,
+//       required_match: 0.65,
+//       desired_match: 0.55,
+//       required_score: 0.62,
+//       desired_score: 0.48,
+//       breakdown: [
+//         {
+//           competency_id: 'c1',
+//           competency_name: 'Python Backend',
+//           required: true,
+//           matched_weight: 0.5,
+//           total_weight: 1.0,
+//           coverage: 0.5,
+//           score_contribution: 0.18,
+//           matched_subcompetency_ids: ['s1'],
+//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
+//         },
+//         {
+//           competency_id: 'c2',
+//           competency_name: 'SQL Modeling',
+//           required: true,
+//           matched_weight: 0.7,
+//           total_weight: 1.0,
+//           coverage: 0.7,
+//           score_contribution: 0.24,
+//           matched_subcompetency_ids: ['s5', 's6'],
+//           total_subcompetency_ids: ['s5', 's6', 's7'],
+//         },
+//         {
+//           competency_id: 'c3',
+//           competency_name: 'Containers and Delivery',
+//           required: false,
+//           matched_weight: 0.5,
+//           total_weight: 1.0,
+//           coverage: 0.5,
+//           score_contribution: 0.12,
+//           matched_subcompetency_ids: ['s8'],
+//           total_subcompetency_ids: ['s8', 's9'],
+//         },
+//       ],
+//     },
+//     {
+//       candidate_id: '4',
+//       candidate_external_id: 'kozlov_dmitry',
+//       total_score: 0.45,
+//       required_match: 0.48,
+//       desired_match: 0.40,
+//       required_score: 0.44,
+//       desired_score: 0.35,
+//       breakdown: [
+//         {
+//           competency_id: 'c1',
+//           competency_name: 'Python Backend',
+//           required: true,
+//           matched_weight: 0.4,
+//           total_weight: 1.0,
+//           coverage: 0.4,
+//           score_contribution: 0.14,
+//           matched_subcompetency_ids: ['s1'],
+//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
+//         },
+//         {
+//           competency_id: 'c2',
+//           competency_name: 'SQL Modeling',
+//           required: true,
+//           matched_weight: 0.5,
+//           total_weight: 1.0,
+//           coverage: 0.5,
+//           score_contribution: 0.17,
+//           matched_subcompetency_ids: ['s5'],
+//           total_subcompetency_ids: ['s5', 's6', 's7'],
+//         },
+//         {
+//           competency_id: 'c3',
+//           competency_name: 'Containers and Delivery',
+//           required: false,
+//           matched_weight: 0.2,
+//           total_weight: 1.0,
+//           coverage: 0.2,
+//           score_contribution: 0.05,
+//           matched_subcompetency_ids: [],
+//           total_subcompetency_ids: ['s8', 's9'],
+//         },
+//       ],
+//     },
+//   ],
+// }
+
 export default function RankingTab({ vacancies, notify }) {
   const [selectedVacancyId, setSelectedVacancyId] = useState('')
   const [rankings, setRankings] = useState([])
@@ -120,6 +303,10 @@ export default function RankingTab({ vacancies, notify }) {
     try {
       const { data } = await getVacancyRankings(vacancyId)
       setRankings(data.rankings || [])
+      
+      // Для использования mock данных раскомментируйте 2 строки ниже и закомментируйте 2 строки выше
+      // await new Promise(r => setTimeout(r, 600))
+      // setRankings(MOCK_RANKINGS.rankings)
     } catch {
       notify('Ошибка загрузки ранжирования', 'error')
     } finally {
