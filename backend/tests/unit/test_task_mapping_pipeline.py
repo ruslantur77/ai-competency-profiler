@@ -103,5 +103,5 @@ async def test_task_pipeline_uses_task_prompt_catalog() -> None:
     if result:
         assert result[0].sub_competency_id == sub.id
     assert len(llm.calls) >= 1
-    assert "assessment task" in llm.calls[0][0].content.lower()
+    assert "оценочного задания" in llm.calls[0][0].content.lower()
     assert "vacancy" not in llm.calls[0][0].content.lower()

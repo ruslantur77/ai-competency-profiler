@@ -21,77 +21,89 @@ class PromptCatalog:
     _VACANCY_PROMPTS: dict[str, ThreeStagePrompts] = {
         "v1": ThreeStagePrompts(
             step1_categories=(
-                "You select relevant competency categories for an IT vacancy.\n"
-                "Output MUST be a single JSON object and nothing else — no markdown, no explanation.\n"
-                "Allowed top-level key: categories (list of integer IDs from available_categories).\n"
-                "Only include IDs that are relevant to the vacancy. Do not add extra keys.\n\n"
-                "Example input:\n"
+                "Ты выбираешь релевантные категории компетенций для IT-вакансии.\n"
+                "Вывод ДОЛЖЕН быть одним JSON-объектом и ничем больше: без markdown и без пояснений.\n"
+                "Разрешенный top-level ключ: categories (список integer ID из available_categories).\n"
+                "Включай только ID, релевантные вакансии. Не добавляй лишние ключи.\n\n"
+                "Язык: если в ответе есть свободный текст, пиши преимущественно на русском.\n"
+                "Общепринятые техтермины и названия технологий оставляй на английском "
+                "(например: Python, FastAPI, REST API, PostgreSQL, JWT, SQL, async/await).\n"
+                "JSON-ключи и служебные поля не переводи.\n\n"
+                "Пример входа:\n"
                 "{\n"
-                '  "task": "Senior Python Backend Engineer. Requirements: Python, PostgreSQL, REST API design.",\n'
+                '  "task": "Senior Python Backend Engineer. Требования: Python, PostgreSQL, проектирование REST API.",\n'
                 '  "available_categories": [\n'
-                '    {"id": 1, "name": "Programming Languages"},\n'
-                '    {"id": 2, "name": "Databases"},\n'
+                '    {"id": 1, "name": "Языки программирования"},\n'
+                '    {"id": 2, "name": "Базы данных"},\n'
                 '    {"id": 3, "name": "Soft Skills"},\n'
-                '    {"id": 4, "name": "Mobile Development"}\n'
+                '    {"id": 4, "name": "Мобильная разработка"}\n'
                 "  ]\n"
                 "}\n\n"
-                "Example output:\n"
+                "Пример выхода:\n"
                 '{"categories": [1, 2, 3]}'
             ),
             step2_competencies=(
-                "You select relevant competencies within a given category for an IT vacancy.\n"
-                "You may also propose new competencies that are important but missing from the list.\n"
-                "Output MUST be a single JSON object and nothing else — no markdown, no explanation.\n"
-                "Allowed top-level keys:\n"
+                "Ты выбираешь релевантные компетенции внутри заданной категории для IT-вакансии.\n"
+                "Также можешь предложить новые компетенции, если они важны, но отсутствуют в списке.\n"
+                "Вывод ДОЛЖЕН быть одним JSON-объектом и ничем больше: без markdown и без пояснений.\n"
+                "Разрешенные top-level ключи:\n"
                 "  - competencies: list of integer IDs from available_competencies\n"
                 "  - suggested_new: list of new competency objects with fields: "
                 "name, description, is_required (bool), weight (0..1), reason\n"
-                "Do not add extra keys.\n\n"
-                "Example input:\n"
+                "Не добавляй лишние ключи.\n\n"
+                "Язык полей suggested_new.name, suggested_new.description и suggested_new.reason:\n"
+                "преимущественно русский; общепринятые техтермины и названия технологий оставляй "
+                "на английском (Python, FastAPI, REST API, PostgreSQL, JWT, SQL, async/await).\n"
+                "JSON-ключи и служебные поля не переводи.\n\n"
+                "Пример входа:\n"
                 "{\n"
-                '  "task": "Senior Python Backend Engineer. Requirements: Python, PostgreSQL, REST API design.",\n'
-                '  "category": {"id": 1, "name": "Programming Languages"},\n'
+                '  "task": "Senior Python Backend Engineer. Требования: Python, PostgreSQL, проектирование REST API.",\n'
+                '  "category": {"id": 1, "name": "Языки программирования"},\n'
                 '  "available_competencies": [\n'
-                '    {"id": 1, "name": "Python", "description": "Core Python knowledge"},\n'
-                '    {"id": 2, "name": "Java", "description": "Java development"},\n'
-                '    {"id": 3, "name": "Go", "description": "Go language"}\n'
+                '    {"id": 1, "name": "Python", "description": "Уверенное знание Core Python"},\n'
+                '    {"id": 2, "name": "Java", "description": "Промышленная разработка на Java"},\n'
+                '    {"id": 3, "name": "Go", "description": "Разработка сервисов на Go"}\n'
                 "  ]\n"
                 "}\n\n"
-                "Example output:\n"
+                "Пример выхода:\n"
                 "{\n"
                 '  "competencies": [1],\n'
                 '  "suggested_new": [\n'
                 "    {\n"
                 '      "name": "Async Python",\n'
-                '      "description": "Knowledge of asyncio and async frameworks",\n'
+                '      "description": "Практическое владение asyncio и async-фреймворками",\n'
                 '      "is_required": false,\n'
                 '      "weight": 0.6,\n'
-                '      "reason": "Async Python is common in modern backend services but not listed"\n'
+                '      "reason": "Async Python часто нужен в современных backend-сервисах, но отсутствует в списке"\n'
                 "    }\n"
                 "  ]\n"
                 "}"
             ),
             step3_subcompetencies=(
-                "You select relevant subcompetencies within a given competency for an IT vacancy.\n"
-                "You may also propose new subcompetencies that are important but missing from the list.\n"
-                "Output MUST be a single JSON object and nothing else — no markdown, no explanation.\n"
-                "Allowed top-level keys:\n"
+                "Ты выбираешь релевантные подкомпетенции внутри заданной компетенции для IT-вакансии.\n"
+                "Также можешь предложить новые подкомпетенции, если они важны, но отсутствуют в списке.\n"
+                "Вывод ДОЛЖЕН быть одним JSON-объектом и ничем больше: без markdown и без пояснений.\n"
+                "Разрешенные top-level ключи:\n"
                 "  - sub_competencies: list of objects with fields: llm_id (int), "
                 "target_level (0..5), weight (0..1)\n"
                 "  - suggested_new: list of new subcompetency objects with fields: "
                 "name, description, target_level (0..5), weight (0..1), reason\n"
-                "Do not add extra keys.\n\n"
-                "Example input:\n"
+                "Не добавляй лишние ключи.\n\n"
+                "Язык полей suggested_new.name, suggested_new.description и suggested_new.reason:\n"
+                "преимущественно русский; общепринятые техтермины и названия технологий оставляй "
+                "на английском (Python, FastAPI, REST API, PostgreSQL, JWT, SQL, async/await).\n"
+                "JSON-ключи и служебные поля не переводи.\n\n"
+                "Пример входа:\n"
                 "{\n"
-                '  "task": "Senior Python Backend Engineer. Requirements: Python, PostgreSQL, REST API design.",\n'
+                '  "task": "Senior Python Backend Engineer. Требования: Python, PostgreSQL, проектирование REST API.",\n'
                 '  "competency": {"id": 1, "name": "Python"},\n'
                 '  "available_sub_competencies": [\n'
-                '    {"id": 1, "name": "OOP", "description": "Object-oriented design in Python"},\n'
-                '    {"id": 2, "name": "Testing", "description": "pytest, unit and integration tests"},\n'
-                '    {"id": 3, "name": "Type hints", "description": "Usage of typing module"}\n'
+                '    {"id": 1, "name": "OOP", "description": "Объектно-ориентированное проектирование на Python"},\n'
+                '    {"id": 2, "name": "Testing", "description": "pytest, unit и integration тесты"},\n'
+                '    {"id": 3, "name": "Type hints", "description": "Использование модуля typing"}\n'
                 "  ]\n"
                 "}\n\n"
-                "Example output:\n"
+                "Пример выхода:\n"
                 "{\n"
                 '  "sub_competencies": [\n'
                 '    {"llm_id": 1, "target_level": 4, "weight": 0.5},\n'
@@ -100,10 +112,10 @@ class PromptCatalog:
                 '  "suggested_new": [\n'
                 "    {\n"
                 '      "name": "Async/Await",\n'
-                '      "description": "Writing async code with asyncio",\n'
+                '      "description": "Умение писать асинхронный код с asyncio",\n'
                 '      "target_level": 3,\n'
                 '      "weight": 0.2,\n'
-                '      "reason": "Async patterns are expected at senior level but not listed"\n'
+                '      "reason": "Асинхронные паттерны ожидаются на senior-уровне, но не представлены в списке"\n'
                 "    }\n"
                 "  ]\n"
                 "}"
@@ -114,58 +126,68 @@ class PromptCatalog:
     _TASK_PROMPTS: dict[str, ThreeStagePrompts] = {
         "v1": ThreeStagePrompts(
             step1_categories=(
-                "You select relevant competency categories for an assessment task.\n"
-                "Output MUST be a single JSON object and nothing else — no markdown, no explanation.\n"
-                "Allowed top-level key: categories (list of integer IDs from available_categories).\n"
-                "Only include IDs that are relevant to the task. Do not add extra keys.\n\n"
-                "Example input:\n"
+                "Ты выбираешь релевантные категории компетенций для оценочного задания.\n"
+                "Вывод ДОЛЖЕН быть одним JSON-объектом и ничем больше: без markdown и без пояснений.\n"
+                "Разрешенный top-level ключ: categories (список integer IDs из available_categories).\n"
+                "Включай только ID, релевантные заданию. Не добавляй лишние ключи.\n\n"
+                "Язык: если в ответе есть свободный текст, пиши преимущественно на русском.\n"
+                "Общепринятые техтермины и названия технологий оставляй на английском "
+                "(например: Python, FastAPI, REST API, PostgreSQL, JWT, SQL, async/await).\n"
+                "JSON-ключи и служебные поля не переводи.\n\n"
+                "Пример входа:\n"
                 "{\n"
-                '  "task": "Implement a REST endpoint in Python that accepts a list of integers and returns their sorted order.",\n'
+                '  "task": "Реализовать REST API endpoint на Python, который принимает список чисел и возвращает их в отсортированном порядке.",\n'
                 '  "available_categories": [\n'
-                '    {"id": 1, "name": "Programming Languages"},\n'
-                '    {"id": 2, "name": "Algorithms & Data Structures"},\n'
-                '    {"id": 3, "name": "Databases"},\n'
-                '    {"id": 4, "name": "Mobile Development"}\n'
+                '    {"id": 1, "name": "Языки программирования"},\n'
+                '    {"id": 2, "name": "Алгоритмы и структуры данных"},\n'
+                '    {"id": 3, "name": "Базы данных"},\n'
+                '    {"id": 4, "name": "Мобильная разработка"}\n'
                 "  ]\n"
                 "}\n\n"
-                "Example output:\n"
+                "Пример выхода:\n"
                 '{"categories": [1, 2]}'
             ),
             step2_competencies=(
-                "You select relevant competencies within a given category for an assessment task.\n"
-                "Output MUST be a single JSON object and nothing else — no markdown, no explanation.\n"
-                "Allowed top-level key: competencies (list of integer IDs from available_competencies).\n"
-                "Do not propose new competencies. Do not add extra keys.\n\n"
-                "Example input:\n"
+                "Ты выбираешь релевантные компетенции внутри заданной категории для оценочного задания.\n"
+                "Вывод ДОЛЖЕН быть одним JSON-объектом и ничем больше: без markdown и без пояснений.\n"
+                "Разрешенный top-level ключ: competencies (список integer IDs из available_competencies).\n"
+                "Не предлагай новые компетенции. Не добавляй лишние ключи.\n\n"
+                "Язык: если в ответе есть свободный текст, пиши преимущественно на русском.\n"
+                "Общепринятые техтермины и названия технологий оставляй на английском.\n"
+                "JSON-ключи и служебные поля не переводи.\n\n"
+                "Пример входа:\n"
                 "{\n"
-                '  "task": "Implement a REST endpoint in Python that accepts a list of integers and returns their sorted order.",\n'
-                '  "category": {"id": 1, "name": "Programming Languages"},\n'
+                '  "task": "Реализовать REST API endpoint на Python, который принимает список чисел и возвращает их в отсортированном порядке.",\n'
+                '  "category": {"id": 1, "name": "Языки программирования"},\n'
                 '  "available_competencies": [\n'
-                '    {"id": 1, "name": "Python", "description": "Core Python knowledge"},\n'
-                '    {"id": 2, "name": "Java", "description": "Java development"},\n'
-                '    {"id": 3, "name": "Go", "description": "Go language"}\n'
+                '    {"id": 1, "name": "Python", "description": "Уверенное знание Core Python"},\n'
+                '    {"id": 2, "name": "Java", "description": "Промышленная разработка на Java"},\n'
+                '    {"id": 3, "name": "Go", "description": "Разработка сервисов на Go"}\n'
                 "  ]\n"
                 "}\n\n"
-                "Example output:\n"
+                "Пример выхода:\n"
                 '{"competencies": [1]}'
             ),
             step3_subcompetencies=(
-                "You select relevant subcompetencies within a given competency for an assessment task.\n"
-                "Output MUST be a single JSON object and nothing else — no markdown, no explanation.\n"
-                "Allowed top-level key: sub_competencies (list of objects with fields: "
+                "Ты выбираешь релевантные подкомпетенции внутри заданной компетенции для оценочного задания.\n"
+                "Вывод ДОЛЖЕН быть одним JSON-объектом и ничем больше: без markdown и без пояснений.\n"
+                "Разрешенный top-level ключ: sub_competencies (list of objects with fields: "
                 "llm_id (int), weight (0..1)).\n"
-                "Do not propose new subcompetencies. Do not add extra keys.\n\n"
-                "Example input:\n"
+                "Не предлагай новые подкомпетенции. Не добавляй лишние ключи.\n\n"
+                "Язык: если в ответе есть свободный текст, пиши преимущественно на русском.\n"
+                "Общепринятые техтермины и названия технологий оставляй на английском.\n"
+                "JSON-ключи и служебные поля не переводи.\n\n"
+                "Пример входа:\n"
                 "{\n"
-                '  "task": "Implement a REST endpoint in Python that accepts a list of integers and returns their sorted order.",\n'
+                '  "task": "Реализовать REST API endpoint на Python, который принимает список чисел и возвращает их в отсортированном порядке.",\n'
                 '  "competency": {"id": 1, "name": "Python"},\n'
                 '  "available_sub_competencies": [\n'
-                '    {"id": 1, "name": "OOP", "description": "Object-oriented design in Python"},\n'
-                '    {"id": 2, "name": "Testing", "description": "pytest, unit and integration tests"},\n'
-                '    {"id": 3, "name": "Type hints", "description": "Usage of typing module"}\n'
+                '    {"id": 1, "name": "OOP", "description": "Объектно-ориентированное проектирование на Python"},\n'
+                '    {"id": 2, "name": "Testing", "description": "pytest, unit и integration тесты"},\n'
+                '    {"id": 3, "name": "Type hints", "description": "Использование модуля typing"}\n'
                 "  ]\n"
                 "}\n\n"
-                "Example output:\n"
+                "Пример выхода:\n"
                 "{\n"
                 '  "sub_competencies": [\n'
                 '    {"llm_id": 1, "weight": 0.4},\n'
@@ -179,16 +201,20 @@ class PromptCatalog:
     _CODE_ASSESSMENT_PROMPTS: dict[str, LLMCodeAssessmentPrompts] = {
         "v1": LLMCodeAssessmentPrompts(
             prompt=(
-                "Assess the submitted code against the task requirements. "
-                "Return JSON with fields: passed, score, feedback, feedback_items.\n"
-                "feedback_items must be an array of objects: "
+                "Оцени присланный код относительно требований задания. "
+                "Верни JSON с полями: passed, score, feedback, feedback_items.\n"
+                "feedback_items должен быть массивом объектов: "
                 "{type: 'positive'|'negative', value: string, position: integer}.\n"
-                "Use these fixed criteria:\n"
-                "- Correctness against task intent and provided tests\n"
-                "- Code quality and readability\n"
-                "- Algorithmic and structural efficiency\n"
-                "- Reliability and edge-case handling\n"
-                "- Score range must be 0..100."
+                "Поля feedback и feedback_items[].value пиши преимущественно на русском.\n"
+                "Общепринятые техтермины и названия технологий оставляй на английском "
+                "(например: Python, FastAPI, REST API, PostgreSQL, JWT, SQL, async/await).\n"
+                "JSON-ключи, типы и служебные поля не переводи.\n"
+                "Используй фиксированные критерии:\n"
+                "- Корректность относительно задачи и переданных тестов\n"
+                "- Качество и читаемость кода\n"
+                "- Алгоритмическая и структурная эффективность\n"
+                "- Надежность и обработка edge cases\n"
+                "- Диапазон score: 0..100."
             )
         )
     }
