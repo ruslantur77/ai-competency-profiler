@@ -1,8 +1,12 @@
 // frontend/src/api/client.js
 import axios from 'axios'
 
+const DEFAULT_API_BASE_URL = '/api/v1'
+const runtimeApiBaseUrl = window.__APP_CONFIG__?.API_BASE_URL || DEFAULT_API_BASE_URL
+const apiBaseUrl = runtimeApiBaseUrl.replace(/\/+$/, '') || DEFAULT_API_BASE_URL
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: apiBaseUrl,
   timeout: 3000000,
   withCredentials: true,
 })
