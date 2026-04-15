@@ -1,0 +1,245 @@
+x-app-base: &app-base
+  env_file:
+    - ./backend/.env
+  restart: unless-stopped
+  networks:
+    - app_net
+
+x-airflow-base: &airflow-base
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+    target: airflow
+  image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+  env_file:
+    - ./backend/.env
+  restart: unless-stopped
+  volumes:
+    - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    - airflow_logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+    airflow-init:
+      condition: service_completed_successfully
+  group_add:
+    - "${DOCKER_GID:-0}"
+  networks:
+    - app_net
+  environment:
+    AIRFLOW_DOCKER_NETWORK: ${AIRFLOW_DOCKER_NETWORK:-competency_system_net}
+
+services:
+  postgres:
+    image: postgres:18.3-alpine
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-airflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS:-password}
+      DB_NAME: ${DB_NAME:-competency_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-airflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  redis:
+    image: redis:8.6.2-alpine
+    env_file:
+      - ./backend/.env
+    command: >
+      sh -c "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  migrate:
+    <<: *app-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: api
+    image: competency-system/api:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      API_ROOT_PATH: /api
+      API_PREFIX: /v1
+    command: alembic upgrade head
+    restart: "no"
+
+  api:
+    <<: *app-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: api
+    image: competency-system/api:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      API_ROOT_PATH: /api
+      API_PREFIX: /v1
+
+  celery-worker:
+    <<: *app-base
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: worker
+    image: competency-system/worker:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: >
+      bash -lc "/app/.venv/bin/celery -A competency_system.presentation.worker.celery_worker:celery_app worker --loglevel info --queues $${CELERY_QUEUE_NAME:-llm_jobs} --concurrency $${CELERY_WORKER_CONCURRENCY:-2} --max-tasks-per-child $${CELERY_MAX_TASKS_PER_CHILD:-100} $${CELERY_WORKER_EXTRA_FLAGS:---without-gossip --without-mingle --without-heartbeat}"
+    healthcheck:
+      test: >
+        bash -c "
+          celery -A competency_system.presentation.worker.celery_worker:celery_app inspect ping || exit 1
+        "
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  airflow-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: airflow
+    image: ${AIRFLOW_IMAGE_NAME:-competency-system/airflow:latest}
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    group_add:
+      - "${DOCKER_GID:-0}"
+    command: >
+      bash -c "airflow db migrate"
+    restart: "no"
+    networks:
+      - app_net
+    environment:
+      AIRFLOW_DOCKER_NETWORK: ${AIRFLOW_DOCKER_NETWORK:-competency_system_net}
+
+  airflow-webserver:
+    <<: *airflow-base
+    hostname: airflow-webserver
+    command: airflow api-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+
+  airflow-scheduler:
+    <<: *airflow-base
+    hostname: airflow-scheduler
+    command: bash -c "airflow dags reserialize && airflow scheduler"
+    environment:
+      AIRFLOW__API__BASE_URL: http://airflow-webserver:8080
+      AIRFLOW_DOCKER_NETWORK: ${AIRFLOW_DOCKER_NETWORK:-competency_system_net}
+    healthcheck:
+      test: >
+        bash -c "
+          airflow jobs check --job-type SchedulerJob --hostname $(hostname) || exit 1
+        "
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  airflow-triggerer:
+    <<: *airflow-base
+    command: bash -c "airflow triggerer"
+    healthcheck:
+      test: >
+        bash -c "
+          airflow jobs check --job-type TriggererJob --hostname $(hostname) || exit 1
+        "
+      interval: 30s
+      timeout: 30s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    image: competency-system/frontend:latest
+    restart: unless-stopped
+    environment:
+      FRONTEND_API_BASE_URL: /api/v1
+    networks:
+      - app_net
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - frontend
+      - api
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    name: competency_system_net
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  airflow_logs:
+    driver: local

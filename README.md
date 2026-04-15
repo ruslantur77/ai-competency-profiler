@@ -37,6 +37,21 @@ Backend реализован на FastAPI и покрывает основной
 
 Полные инструкции по запуску, переменным окружения, сервисам и портам смотрите в [backend/README.md](backend/README.md).
 
+## Unified Docker Compose (root)
+
+Для запуска полного стека `frontend + backend + nginx` без blue/green:
+
+```bash
+cp backend/.env.example backend/.env
+export DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+docker compose up -d --build
+```
+
+Точки входа:
+- App (через nginx): `http://localhost/`
+- API (через nginx): `http://localhost/api/v1`
+- Swagger (через nginx): `http://localhost/api/docs`
+
 ## Документация
 
 - Backend: [backend/README.md](backend/README.md)

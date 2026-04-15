@@ -38,7 +38,7 @@ export DOCKER_GID=$(stat -c '%g' /var/run/docker.sock) docker compose up -d
 
 4. Проверка доступности:
 - API docs: `http://localhost:1000/docs`
-- Health: `http://localhost:1000/health`
+- Health: `http://localhost:1000/api/v1/health`
 - Airflow API/UI: `http://localhost:8080`
 
 ## Сервисы и порты
@@ -64,6 +64,8 @@ export DOCKER_GID=$(stat -c '%g' /var/run/docker.sock) docker compose up -d
 | `DEBUG`                            | optional                               | `false`                                       | app          |
 | `ENVIRONMENT`                      | optional                               | `local`                                       | app          |
 | `ALLOWED_ORIGINS`                  | optional                               | `http://localhost:3000,http://127.0.0.1:3000` | app          |
+| `API_ROOT_PATH`                    | optional                               | `/api`                                        | app          |
+| `API_PREFIX`                       | optional                               | `/api/v1`                                     | app          |
 | `DB_HOST`                          | required                               | `postgres`                                    | app          |
 | `DB_PORT`                          | required                               | `5432`                                        | app          |
 | `DB_NAME`                          | required                               | `competency_db`                               | app          |

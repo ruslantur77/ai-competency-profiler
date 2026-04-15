@@ -9,6 +9,7 @@ class AuthCookieConfig:
     secure: bool
     samesite: Literal["lax", "strict", "none"] | None
     refresh_token_expire_days: int
+    path: str
 
 
 @dataclass(frozen=True, slots=True)

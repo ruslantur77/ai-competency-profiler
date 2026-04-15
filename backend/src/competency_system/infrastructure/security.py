@@ -15,7 +15,9 @@ from competency_system.application.dtos.auth import (
 from competency_system.infrastructure.settings import get_settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{get_settings().public_api_prefix}/auth/login"
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

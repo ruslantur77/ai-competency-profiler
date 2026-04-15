@@ -48,7 +48,6 @@ from competency_system.presentation.api.runtime_config import (
     RebuildTaskMappingConfig,
 )
 
-API_PREFIX = "/api/v1"
 logger = get_logger(__name__)
 
 
@@ -110,6 +109,7 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
         refresh_token_expire_days=settings.refresh_token_expire_days,
+        path=settings.auth_cookie_path,
     )
     app.state.testing_system_webhook_secret = settings.testing_system_webhook_secret
 
@@ -135,7 +135,12 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(log_level=settings.log_level, environment=settings.environment)
-    app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=app_lifespan)
+    app = FastAPI(
+        title=settings.app_name,
+        debug=settings.debug,
+        lifespan=app_lifespan,
+        root_path=settings.api_root_path,
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -146,15 +151,15 @@ def create_app() -> FastAPI:
     )
     app.middleware("http")(request_observability_middleware)
 
-    app.include_router(health_router, prefix=API_PREFIX)
-    app.include_router(auth_router, prefix=API_PREFIX)
-    app.include_router(vacancies_router, prefix=API_PREFIX)
-    app.include_router(tasks_router, prefix=API_PREFIX)
-    app.include_router(admin_tasks_router, prefix=API_PREFIX)
-    app.include_router(admin_users_router, prefix=API_PREFIX)
-    app.include_router(webhook_router, prefix=API_PREFIX)
-    app.include_router(candidates_router, prefix=API_PREFIX)
-    app.include_router(ranking_router, prefix=API_PREFIX)
+    app.include_router(health_router, prefix=settings.api_prefix)
+    app.include_router(auth_router, prefix=settings.api_prefix)
+    app.include_router(vacancies_router, prefix=settings.api_prefix)
+    app.include_router(tasks_router, prefix=settings.api_prefix)
+    app.include_router(admin_tasks_router, prefix=settings.api_prefix)
+    app.include_router(admin_users_router, prefix=settings.api_prefix)
+    app.include_router(webhook_router, prefix=settings.api_prefix)
+    app.include_router(candidates_router, prefix=settings.api_prefix)
+    app.include_router(ranking_router, prefix=settings.api_prefix)
 
     app.add_exception_handler(
         ApplicationError,

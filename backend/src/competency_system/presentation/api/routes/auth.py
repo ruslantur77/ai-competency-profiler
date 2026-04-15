@@ -40,7 +40,7 @@ def _set_refresh_cookie(
         secure=auth_cookie_config.secure,
         samesite=auth_cookie_config.samesite,
         max_age=auth_cookie_config.refresh_token_expire_days * 24 * 3600,
-        path="/api/v1/auth",
+        path=auth_cookie_config.path,
     )
 
 
@@ -107,6 +107,7 @@ async def logout(
     response: Response,
     refresh_token_data: Annotated[RefreshTokenDataDTO, Depends(get_refresh_token_data)],
     logout_use_case: Annotated[LogoutUseCase, Depends(get_logout_use_case)],
+    auth_cookie_config: Annotated[AuthCookieConfig, Depends(get_auth_cookie_config)],
 ) -> None:
     await logout_use_case.execute(refresh_token_data)
-    response.delete_cookie(key="refresh_token", path="/api/v1/auth")
+    response.delete_cookie(key="refresh_token", path=auth_cookie_config.path)

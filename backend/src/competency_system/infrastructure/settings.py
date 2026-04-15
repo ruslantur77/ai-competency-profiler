@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     environment: str = Field(default="local", alias="ENVIRONMENT")
     log_level: LogLevels = LogLevels.INFO
     allowed_origins_raw: str = Field(default="", alias="ALLOWED_ORIGINS")
+    api_root_path_raw: str = Field(default="", alias="API_ROOT_PATH")
+    api_prefix_raw: str = Field(default="/api/v1", alias="API_PREFIX")
 
     llm_api_key: str = Field(default="", alias="API_KEY")
     llm_base_url: str = Field(
@@ -142,6 +144,44 @@ class Settings(BaseSettings):
             for origin in self.allowed_origins_raw.split(",")
             if origin.strip()
         ]
+
+    @staticmethod
+    def _normalize_path_prefix(value: str, *, allow_empty: bool) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            return "" if allow_empty else "/"
+
+        if not cleaned.startswith("/"):
+            cleaned = f"/{cleaned}"
+
+        if cleaned != "/":
+            cleaned = cleaned.rstrip("/")
+
+        if not cleaned:
+            return "" if allow_empty else "/"
+        return cleaned
+
+    @property
+    def api_root_path(self) -> str:
+        return self._normalize_path_prefix(self.api_root_path_raw, allow_empty=True)
+
+    @property
+    def api_prefix(self) -> str:
+        return self._normalize_path_prefix(self.api_prefix_raw, allow_empty=False)
+
+    @property
+    def public_api_prefix(self) -> str:
+        root_path = self.api_root_path
+        api_prefix = self.api_prefix
+        if not root_path:
+            return api_prefix
+        if api_prefix == "/":
+            return root_path
+        return f"{root_path}{api_prefix}"
+
+    @property
+    def auth_cookie_path(self) -> str:
+        return f"{self.public_api_prefix}/auth"
 
 
 @lru_cache(maxsize=1)
