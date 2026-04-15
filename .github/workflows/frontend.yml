@@ -24,7 +24,6 @@ env:
   IMAGE_NAME: frontend
 
 jobs:
-  # ===== BUILD IMAGE =====
   build:
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -51,17 +50,17 @@ jobs:
           tags: |
             type=sha,format=short
             type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
 
       - name: Set image tag
         id: tag
         run: |
-          SHA_TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
-          echo "value=${SHA_TAG}" >> $GITHUB_OUTPUT
+          echo "value=sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v6.19.2
         with:
           context: frontend
@@ -71,7 +70,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ===== DEPLOY =====
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -81,22 +79,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6.0.2
 
-      - name: Backup current deployment
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            BACKUP_DIR=~/backups/frontend_$(date +%Y%m%d_%H%M%S)
-            mkdir -p ~/backups
-            if [ -d ~/app/frontend ]; then
-              cp -r ~/app/frontend "$BACKUP_DIR"
-              echo "Backup created: $BACKUP_DIR"
-              ls -dt ~/backups/frontend_*/ 2>/dev/null | tail -n +4 | xargs rm -rf
-            fi
-
-      - name: Copy nginx config
+      - name: Copy nginx config to server
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -105,7 +88,7 @@ jobs:
           source: backend/deploy/nginx/nginx.conf
           target: "~/app"
 
-      - name: Deploy frontend
+      - name: Deploy frontend on server
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -115,30 +98,34 @@ jobs:
             IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
             FRONTEND_IMAGE="ghcr.io/ruslantur77/frontend:${IMAGE_TAG}"
 
-            echo "Deploying frontend: $FRONTEND_IMAGE"
+            echo "Deploying: $FRONTEND_IMAGE"
 
-            # Логинимся в ghcr.io
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
-              -u ${{ github.actor }} --password-stdin
+            # Логин в ghcr.io
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Тянем новый образ
             docker pull $FRONTEND_IMAGE
 
-            # Останавливаем и удаляем старый контейнер
-            docker stop green_frontend 2>/dev/null || true
-            docker rm green_frontend 2>/dev/null || true
+            # Обновляем FRONTEND_IMAGE_TAG в .env бека
+            # чтобы docker-compose знал какой тег использовать
+            cd ~/app
+            if [ -f .env ]; then
+              sed -i "s|^FRONTEND_IMAGE_TAG=.*|FRONTEND_IMAGE_TAG=${IMAGE_TAG}|" .env
+              grep -q "FRONTEND_IMAGE_TAG" .env || echo "FRONTEND_IMAGE_TAG=${IMAGE_TAG}" >> .env
+            fi
 
-            # Запускаем новый
-            docker run -d \
-              --name green_frontend \
-              --network green \
-              --restart unless-stopped \
-              $FRONTEND_IMAGE
+            # Перезапускаем только frontend через docker-compose
+            docker compose -f deploy/green/docker-compose.yml \
+              --env-file .env \
+              up -d --no-deps --pull always frontend
 
             # Перезапускаем nginx чтобы подхватил новый upstream
-            docker restart green_nginx 2>/dev/null || true
+            docker compose -f deploy/green/docker-compose.yml \
+              --env-file .env \
+              restart nginx 2>/dev/null || true
 
-            echo "Frontend deployed successfully!"
+            echo "Done!"
 
       - name: Health check
         uses: appleboy/ssh-action@v1.2.5
@@ -147,10 +134,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sleep 5
-            if curl -sf http://neuroslop.imbalet.ru > /dev/null; then
-              echo "✅ Health check passed"
+            sleep 8
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://neuroslop.imbalet.ru)
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Health check passed (HTTP $STATUS)"
             else
-              echo "❌ Health check failed"
+              echo "❌ Health check failed (HTTP $STATUS)"
               exit 1
             fi
