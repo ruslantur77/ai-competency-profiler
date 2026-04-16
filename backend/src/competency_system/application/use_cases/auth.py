@@ -12,6 +12,7 @@ from competency_system.application.dtos.auth import (
     UserRoleUpdateDTO,
     UserStatusUpdateDTO,
 )
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.domain.entities import User
@@ -144,10 +145,18 @@ class ListUsersUseCase:
     def __init__(self, *, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self) -> list[UserAdminDTO]:
+    async def execute(
+        self, *, limit: int, offset: int
+    ) -> PaginatedItemsDTO[UserAdminDTO]:
         async with self._uow as uow:
-            users = await uow.users.get_list()
-            return [_user_to_admin_dto(user) for user in users]
+            users = await uow.users.get_list(limit=limit, offset=offset)
+            total = await uow.users.count()
+            return PaginatedItemsDTO[UserAdminDTO](
+                items=[_user_to_admin_dto(user) for user in users],
+                total=total,
+                limit=limit,
+                offset=offset,
+            )
 
 
 class CreateUserUseCase:

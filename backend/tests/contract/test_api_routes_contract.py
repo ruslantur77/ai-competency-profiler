@@ -159,7 +159,7 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
         vacancy
     )
     app.dependency_overrides[get_list_vacancies_use_case] = lambda: _StaticUseCase(
-        [vacancy]
+        SimpleNamespace(items=[vacancy], total=1, limit=50, offset=0)
     )
     app.dependency_overrides[get_save_vacancy_graph_use_case] = lambda: _StaticUseCase(
         vacancy
@@ -187,7 +187,9 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
 
         listed = client.get("/api/v1/vacancies")
         assert listed.status_code == 200
-        assert len(listed.json()) == 1
+        listed_payload = listed.json()
+        assert listed_payload["total"] == 1
+        assert len(listed_payload["items"]) == 1
 
         listed_filtered = client.get(
             "/api/v1/vacancies",
@@ -264,7 +266,9 @@ def test_tasks_admin_and_webhook_routes_contract(
         SyncTasksResultDTO(synced_tasks=[task])
     )
     app.dependency_overrides[get_get_task_use_case] = lambda: _StaticUseCase(task)
-    app.dependency_overrides[get_list_tasks_use_case] = lambda: _StaticUseCase([task])
+    app.dependency_overrides[get_list_tasks_use_case] = lambda: _StaticUseCase(
+        SimpleNamespace(items=[task], total=1, limit=50, offset=0)
+    )
     app.dependency_overrides[get_rebuild_task_mapping_use_case] = lambda: (
         _StaticUseCase(task)
     )
@@ -303,7 +307,9 @@ def test_tasks_admin_and_webhook_routes_contract(
 
         list_tasks = client.get("/api/v1/admin/tasks")
         assert list_tasks.status_code == 200
-        assert len(list_tasks.json()) == 1
+        list_tasks_payload = list_tasks.json()
+        assert list_tasks_payload["total"] == 1
+        assert len(list_tasks_payload["items"]) == 1
 
         detail = client.get(f"/api/v1/admin/tasks/{task.id}")
         assert detail.status_code == 200

@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from competency_system.application.ports.repositories import Repository
@@ -44,11 +44,25 @@ class SQLAlchemyRepository[DomainT, OrmT, IncludeT: StrEnum | None](
         return self.to_domain(model)
 
     async def get_list(
-        self, *, include: Collection[IncludeT] | None = None
+        self,
+        *,
+        include: Collection[IncludeT] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[DomainT]:
         statement = select(self.model).options(*self.load_options(include))
+        if offset > 0:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
         result = await self._session.scalars(statement)
         return [self.to_domain(model) for model in result.all()]
+
+    async def count(self, *, include: Collection[IncludeT] | None = None) -> int:
+        del include
+        statement = select(func.count()).select_from(self.model)
+        result = await self._session.scalar(statement)
+        return int(result or 0)
 
     async def add(self, entity: DomainT) -> None:
         model = self.to_model(entity)

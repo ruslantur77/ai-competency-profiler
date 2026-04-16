@@ -75,7 +75,15 @@ class Repository(Protocol[EntityT]):
         self,
         *,
         include: Any | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[EntityT]: ...
+
+    async def count(
+        self,
+        *,
+        include: Any | None = None,
+    ) -> int: ...
 
     async def add(self, entity: EntityT) -> None: ...
 
@@ -94,6 +102,8 @@ class CategoryRepository(Repository[Category], Protocol):
         self,
         *,
         include: Collection[CategoryInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Category]: ...
 
 
@@ -109,6 +119,8 @@ class CompetencyRepository(Repository[Competency], Protocol):
         self,
         *,
         include: Collection[CompetencyInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Competency]: ...
 
 
@@ -128,6 +140,8 @@ class VacancyRepository(Repository[Vacancy], Protocol):
         self,
         *,
         include: Collection[VacancyInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Vacancy]: ...
 
     async def list_by_statuses(
@@ -135,7 +149,14 @@ class VacancyRepository(Repository[Vacancy], Protocol):
         statuses: set[VacancyStatus] | None = None,
         *,
         include: Collection[VacancyInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Vacancy]: ...
+
+    async def count_by_statuses(
+        self,
+        statuses: set[VacancyStatus] | None = None,
+    ) -> int: ...
 
 
 class CandidateRepository(Repository[Candidate], Protocol):
@@ -150,6 +171,8 @@ class CandidateRepository(Repository[Candidate], Protocol):
         self,
         *,
         include: Collection[CandidateInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Candidate]: ...
 
     async def get_by_external_id(
@@ -179,6 +202,8 @@ class TaskRepository(Repository[Task], Protocol):
         self,
         *,
         include: Collection[TaskInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Task]: ...
 
     async def get_by_external_id(
@@ -201,6 +226,8 @@ class TestResultRepository(Repository[TestResult], Protocol):
         self,
         *,
         include: Collection[TestResultInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[TestResult]: ...
 
 
@@ -225,6 +252,8 @@ class UserRepository(Repository[User], Protocol):
         self,
         *,
         include: None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[User]: ...
 
     async def get_by_email(

@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
 
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
@@ -46,25 +47,41 @@ from competency_system.presentation.api.dependencies import (
 router = APIRouter(prefix="/vacancies", tags=["vacancies"])
 
 
-@router.get("", response_model=list[VacancyListItemDTO])
+@router.get("", response_model=LimitOffsetPage[VacancyListItemDTO])
 async def list_vacancies(
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[ListVacanciesUseCase, Depends(get_list_vacancies_use_case)],
+    params: Annotated[LimitOffsetParams, Depends()],
     status_filter: Annotated[list[VacancyStatus] | None, Query()] = None,
-) -> list[VacancyListItemDTO]:
+) -> LimitOffsetPage[VacancyListItemDTO]:
     statuses = set(status_filter) if status_filter else None
-    return await use_case.execute(statuses=statuses)
+    result = await use_case.execute(
+        statuses=statuses,
+        limit=params.limit,
+        offset=params.offset,
+    )
+    return LimitOffsetPage.create(
+        items=result.items,
+        total=result.total,
+        params=params,
+    )
 
 
-@router.get("/review-queue", response_model=list[VacancyListItemDTO])
+@router.get("/review-queue", response_model=LimitOffsetPage[VacancyListItemDTO])
 async def list_vacancies_for_review(
     _: Annotated[None, Depends(require_admin_or_expert)],
     use_case: Annotated[
         ListVacanciesForReviewUseCase,
         Depends(get_list_vacancies_for_review_use_case),
     ],
-) -> list[VacancyListItemDTO]:
-    return await use_case.execute()
+    params: Annotated[LimitOffsetParams, Depends()],
+) -> LimitOffsetPage[VacancyListItemDTO]:
+    result = await use_case.execute(limit=params.limit, offset=params.offset)
+    return LimitOffsetPage.create(
+        items=result.items,
+        total=result.total,
+        params=params,
+    )
 
 
 @router.post("", response_model=VacancyDTO, status_code=status.HTTP_201_CREATED)

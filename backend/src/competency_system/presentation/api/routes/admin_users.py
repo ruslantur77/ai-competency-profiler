@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
 
 from competency_system.application.dtos.auth import (
     UserAdminDTO,
@@ -28,12 +29,18 @@ from competency_system.presentation.api.dependencies import (
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
 
 
-@router.get("", response_model=list[UserAdminDTO])
+@router.get("", response_model=LimitOffsetPage[UserAdminDTO])
 async def list_users(
     _: Annotated[None, Depends(require_admin_or_system)],
     use_case: Annotated[ListUsersUseCase, Depends(get_list_users_use_case)],
-) -> list[UserAdminDTO]:
-    return await use_case.execute()
+    params: Annotated[LimitOffsetParams, Depends()],
+) -> LimitOffsetPage[UserAdminDTO]:
+    result = await use_case.execute(limit=params.limit, offset=params.offset)
+    return LimitOffsetPage.create(
+        items=result.items,
+        total=result.total,
+        params=params,
+    )
 
 
 @router.post("", response_model=UserAdminDTO, status_code=status.HTTP_201_CREATED)

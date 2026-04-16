@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from competency_system.application.dtos.mappers import task_dto_from_domain
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
@@ -368,12 +369,20 @@ class ListTasksUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self) -> list[TaskDTO]:
+    async def execute(self, *, limit: int, offset: int) -> PaginatedItemsDTO[TaskDTO]:
         async with self._uow as uow:
             tasks = await uow.tasks.get_list(
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+                limit=limit,
+                offset=offset,
             )
-            return [task_dto_from_domain(task) for task in tasks]
+            total = await uow.tasks.count()
+            return PaginatedItemsDTO[TaskDTO](
+                items=[task_dto_from_domain(task) for task in tasks],
+                total=total,
+                limit=limit,
+                offset=offset,
+            )
 
 
 class GetTaskUseCase:

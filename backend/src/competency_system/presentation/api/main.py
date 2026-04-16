@@ -7,6 +7,7 @@ from typing import Any, cast
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 
 from competency_system.application.errors import ApplicationError
 from competency_system.infrastructure.bootstrap import ensure_bootstrap_admin
@@ -179,6 +180,7 @@ def create_app() -> FastAPI:
     )
     app.add_exception_handler(ValueError, value_error_exception_handler)
     app.add_exception_handler(Exception, unexpected_exception_handler)
+    add_pagination(app)
     return app
 
 

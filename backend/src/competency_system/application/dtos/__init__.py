@@ -19,6 +19,7 @@ from competency_system.application.dtos.competency import (
     SubCompetencyDTO,
     SubCompetencyUpdateDTO,
 )
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.ranking import (
     RankingBreakdownItemDTO,
     RankingItemDTO,
@@ -100,6 +101,7 @@ __all__ = [
     "VacancyGraphSuggestionDTO",
     "VacancySuggestionBulkDecisionDTO",
     "VacancySuggestionDecisionDTO",
+    "PaginatedItemsDTO",
     "ExternalTaskAssessmentPayload",
     "ExternalTaskRecord",
 ]

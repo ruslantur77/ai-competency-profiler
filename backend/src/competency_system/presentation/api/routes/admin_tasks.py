@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
 
 from competency_system.application.dtos.task import TaskDTO
 from competency_system.application.use_cases.task import (
@@ -27,11 +28,17 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[TaskDTO])
+@router.get("", response_model=LimitOffsetPage[TaskDTO])
 async def list_tasks(
     use_case: Annotated[ListTasksUseCase, Depends(get_list_tasks_use_case)],
-) -> list[TaskDTO]:
-    return await use_case.execute()
+    params: Annotated[LimitOffsetParams, Depends()],
+) -> LimitOffsetPage[TaskDTO]:
+    result = await use_case.execute(limit=params.limit, offset=params.offset)
+    return LimitOffsetPage.create(
+        items=result.items,
+        total=result.total,
+        params=params,
+    )
 
 
 @router.get("/{task_id}", response_model=TaskDTO)

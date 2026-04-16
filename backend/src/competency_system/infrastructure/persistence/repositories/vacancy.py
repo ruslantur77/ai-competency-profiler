@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Collection, Sequence
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from competency_system.application.ports.repositories import VacancyInclude
 from competency_system.domain.entities import (
@@ -64,8 +64,14 @@ class VacancyRepository(
         self,
         *,
         include: Collection[VacancyInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Vacancy]:
         statement = select(self.model).order_by(VacancyOrm.created_at.desc())
+        if offset > 0:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
         result = await self._session.scalars(statement)
         vacancies = [self.to_domain(model) for model in result.all()]
         includes = normalize_include(include)
@@ -83,10 +89,16 @@ class VacancyRepository(
         statuses: set[VacancyStatus] | None = None,
         *,
         include: Collection[VacancyInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
     ) -> Sequence[Vacancy]:
         statement = select(self.model).order_by(VacancyOrm.created_at.desc())
         if statuses:
             statement = statement.where(VacancyOrm.status.in_(statuses))
+        if offset > 0:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
         result = await self._session.scalars(statement)
         vacancies = [self.to_domain(model) for model in result.all()]
         includes = normalize_include(include)
@@ -98,6 +110,16 @@ class VacancyRepository(
                     vacancy.sub_competency_nodes,
                 ) = await self._load_normalized_graph(vacancy.id)
         return vacancies
+
+    async def count_by_statuses(
+        self,
+        statuses: set[VacancyStatus] | None = None,
+    ) -> int:
+        statement = select(func.count()).select_from(VacancyOrm)
+        if statuses:
+            statement = statement.where(VacancyOrm.status.in_(statuses))
+        result = await self._session.scalar(statement)
+        return int(result or 0)
 
     async def add(self, entity: Vacancy) -> None:
         model = self.to_model(entity)

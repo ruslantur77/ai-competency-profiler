@@ -11,6 +11,7 @@ from competency_system.application.dtos.mappers import (
     vacancy_dto_from_domain,
     vacancy_list_item_dto_from_domain,
 )
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
     VacancyDTO,
@@ -776,10 +777,22 @@ class ListVacanciesUseCase:
         self,
         *,
         statuses: set[VacancyStatus] | None = None,
-    ) -> list[VacancyListItemDTO]:
+        limit: int,
+        offset: int,
+    ) -> PaginatedItemsDTO[VacancyListItemDTO]:
         async with self._uow as uow:
-            rows = await uow.vacancies.list_by_statuses(statuses)
-            return [vacancy_list_item_dto_from_domain(vacancy) for vacancy in rows]
+            rows = await uow.vacancies.list_by_statuses(
+                statuses,
+                limit=limit,
+                offset=offset,
+            )
+            total = await uow.vacancies.count_by_statuses(statuses)
+            return PaginatedItemsDTO[VacancyListItemDTO](
+                items=[vacancy_list_item_dto_from_domain(vacancy) for vacancy in rows],
+                total=total,
+                limit=limit,
+                offset=offset,
+            )
 
 
 class UpdateVacancyStatusUseCase:
@@ -820,11 +833,15 @@ class ListVacanciesForReviewUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self) -> list[VacancyListItemDTO]:
+    async def execute(
+        self, *, limit: int, offset: int
+    ) -> PaginatedItemsDTO[VacancyListItemDTO]:
         return await ListVacanciesUseCase(self._uow).execute(
             statuses={
                 VacancyStatus.DRAFT,
                 VacancyStatus.PENDING,
                 VacancyStatus.FAILED,
-            }
+            },
+            limit=limit,
+            offset=offset,
         )
