@@ -13,6 +13,20 @@ from competency_system.application.use_cases.candidate import (
     GetCandidateProfileUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
+from competency_system.application.use_cases.ontology import (
+    CreateCategoryUseCase,
+    CreateCompetencyUseCase,
+    CreateSubCompetencyUseCase,
+    GetCategoryUseCase,
+    GetCompetencyUseCase,
+    GetSubCompetencyUseCase,
+    ListCategoriesUseCase,
+    ListCompetenciesUseCase,
+    ListSubCompetenciesUseCase,
+    UpdateCategoryUseCase,
+    UpdateCompetencyUseCase,
+    UpdateSubCompetencyUseCase,
+)
 from competency_system.application.use_cases.ranking import (
     GetVacancyRankingUseCase,
     RecalculateRankingUseCase,
@@ -62,6 +76,18 @@ __all__ = [
     "RefreshTokenPairUseCase",
     "LogoutUseCase",
     "HealthCheckUseCase",
+    "ListCategoriesUseCase",
+    "GetCategoryUseCase",
+    "CreateCategoryUseCase",
+    "UpdateCategoryUseCase",
+    "ListCompetenciesUseCase",
+    "GetCompetencyUseCase",
+    "CreateCompetencyUseCase",
+    "UpdateCompetencyUseCase",
+    "ListSubCompetenciesUseCase",
+    "GetSubCompetencyUseCase",
+    "CreateSubCompetencyUseCase",
+    "UpdateSubCompetencyUseCase",
     "RecalculateRankingUseCase",
     "GetVacancyRankingUseCase",
 ]

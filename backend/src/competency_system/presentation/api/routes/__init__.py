@@ -9,6 +9,9 @@ from competency_system.presentation.api.routes.candidates import (
     router as candidates_router,
 )
 from competency_system.presentation.api.routes.health import router as health_router
+from competency_system.presentation.api.routes.ontology import (
+    router as ontology_router,
+)
 from competency_system.presentation.api.routes.ranking import router as ranking_router
 from competency_system.presentation.api.routes.tasks import router as tasks_router
 from competency_system.presentation.api.routes.tasks import webhook_router
@@ -20,6 +23,7 @@ __all__ = [
     "health_router",
     "auth_router",
     "vacancies_router",
+    "ontology_router",
     "tasks_router",
     "admin_tasks_router",
     "admin_users_router",

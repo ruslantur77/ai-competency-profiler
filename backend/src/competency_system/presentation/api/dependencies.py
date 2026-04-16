@@ -36,6 +36,20 @@ from competency_system.application.use_cases.candidate import (
     GetCandidateProfileUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
+from competency_system.application.use_cases.ontology import (
+    CreateCategoryUseCase,
+    CreateCompetencyUseCase,
+    CreateSubCompetencyUseCase,
+    GetCategoryUseCase,
+    GetCompetencyUseCase,
+    GetSubCompetencyUseCase,
+    ListCategoriesUseCase,
+    ListCompetenciesUseCase,
+    ListSubCompetenciesUseCase,
+    UpdateCategoryUseCase,
+    UpdateCompetencyUseCase,
+    UpdateSubCompetencyUseCase,
+)
 from competency_system.application.use_cases.ranking import (
     GetVacancyRankingUseCase,
     RecalculateRankingUseCase,
@@ -173,6 +187,81 @@ def get_decide_vacancy_suggestion_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> DecideVacancySuggestionUseCase:
     return DecideVacancySuggestionUseCase(uow)
+
+
+# ontology use cases
+
+
+def get_list_categories_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListCategoriesUseCase:
+    return ListCategoriesUseCase(uow=uow)
+
+
+def get_get_category_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> GetCategoryUseCase:
+    return GetCategoryUseCase(uow=uow)
+
+
+def get_create_category_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> CreateCategoryUseCase:
+    return CreateCategoryUseCase(uow=uow)
+
+
+def get_update_category_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> UpdateCategoryUseCase:
+    return UpdateCategoryUseCase(uow=uow)
+
+
+def get_list_competencies_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListCompetenciesUseCase:
+    return ListCompetenciesUseCase(uow=uow)
+
+
+def get_get_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> GetCompetencyUseCase:
+    return GetCompetencyUseCase(uow=uow)
+
+
+def get_create_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> CreateCompetencyUseCase:
+    return CreateCompetencyUseCase(uow=uow)
+
+
+def get_update_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> UpdateCompetencyUseCase:
+    return UpdateCompetencyUseCase(uow=uow)
+
+
+def get_list_sub_competencies_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListSubCompetenciesUseCase:
+    return ListSubCompetenciesUseCase(uow=uow)
+
+
+def get_get_sub_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> GetSubCompetencyUseCase:
+    return GetSubCompetencyUseCase(uow=uow)
+
+
+def get_create_sub_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> CreateSubCompetencyUseCase:
+    return CreateSubCompetencyUseCase(uow=uow)
+
+
+def get_update_sub_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> UpdateSubCompetencyUseCase:
+    return UpdateSubCompetencyUseCase(uow=uow)
 
 
 # tasks use cases

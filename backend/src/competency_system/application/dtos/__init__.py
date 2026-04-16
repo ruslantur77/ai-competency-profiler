@@ -9,9 +9,15 @@ from competency_system.application.dtos.auth import (
 )
 from competency_system.application.dtos.candidate import CandidateAssessmentResultDTO
 from competency_system.application.dtos.competency import (
+    CategoryCreateDTO,
     CategoryDTO,
+    CategoryUpdateDTO,
+    CompetencyCreateDTO,
     CompetencyDTO,
+    CompetencyUpdateDTO,
+    SubCompetencyCreateDTO,
     SubCompetencyDTO,
+    SubCompetencyUpdateDTO,
 )
 from competency_system.application.dtos.ranking import (
     RankingBreakdownItemDTO,
@@ -54,9 +60,15 @@ __all__ = [
     "CurrentUserDTO",
     "GeneratedTokenDTO",
     "LoginDTO",
+    "CategoryCreateDTO",
     "CategoryDTO",
+    "CategoryUpdateDTO",
+    "CompetencyCreateDTO",
     "CompetencyDTO",
+    "CompetencyUpdateDTO",
+    "SubCompetencyCreateDTO",
     "SubCompetencyDTO",
+    "SubCompetencyUpdateDTO",
     "RankingBreakdownItemDTO",
     "RankingItemDTO",
     "VacancyRankingDTO",

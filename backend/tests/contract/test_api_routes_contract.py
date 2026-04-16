@@ -12,6 +12,11 @@ from competency_system.application.dtos.auth import (
     RefreshTokenDataDTO,
     TokenPairDTO,
 )
+from competency_system.application.dtos.competency import (
+    CategoryDTO,
+    CompetencyDTO,
+    SubCompetencyDTO,
+)
 from competency_system.application.dtos.task import SyncTasksResultDTO
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
@@ -27,15 +32,24 @@ from competency_system.domain.value_objects.enums import (
 from competency_system.presentation.api.dependencies import (
     get_assess_candidate_use_case,
     get_authenticate_user_use_case,
+    get_create_category_use_case,
+    get_create_competency_use_case,
+    get_create_sub_competency_use_case,
     get_current_user,
     get_decide_vacancy_suggestion_use_case,
     get_extract_vacancy_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_candidate_profile_use_case,
+    get_get_category_use_case,
+    get_get_competency_use_case,
+    get_get_sub_competency_use_case,
     get_get_task_use_case,
     get_get_vacancy_graph_use_case,
     get_get_vacancy_ranking_use_case,
     get_issue_token_pair_use_case,
+    get_list_categories_use_case,
+    get_list_competencies_use_case,
+    get_list_sub_competencies_use_case,
     get_list_tasks_use_case,
     get_list_vacancies_use_case,
     get_list_vacancy_suggestions_use_case,
@@ -46,6 +60,9 @@ from competency_system.presentation.api.dependencies import (
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
     get_sync_tasks_use_case,
+    get_update_category_use_case,
+    get_update_competency_use_case,
+    get_update_sub_competency_use_case,
     get_validate_task_mapping_use_case,
     verify_testing_system_webhook_secret,
 )
@@ -276,6 +293,151 @@ def test_tasks_admin_and_webhook_routes_contract(
             },
         )
         assert webhook.status_code == 200
+
+
+def test_ontology_routes_contract() -> None:
+    category_id = uuid4()
+    competency_id = uuid4()
+    sub_competency_id = uuid4()
+
+    sub = SubCompetencyDTO(
+        id=sub_competency_id,
+        competency_id=competency_id,
+        name="REST",
+        description="HTTP APIs",
+        weight=1.0,
+        target_level=2,
+    )
+    competency = CompetencyDTO(
+        id=competency_id,
+        category_id=category_id,
+        name="Backend",
+        description="Backend systems",
+        sub_competencies=[sub],
+    )
+    category = CategoryDTO(
+        id=category_id,
+        name="Engineering",
+        description="Engineering skills",
+        emoji="🛠",
+        competencies=[competency],
+    )
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
+        user_id=uuid4(), role=UserRole.ADMIN
+    )
+    app.dependency_overrides[get_list_categories_use_case] = lambda: _StaticUseCase(
+        [category]
+    )
+    app.dependency_overrides[get_get_category_use_case] = lambda: _StaticUseCase(
+        category
+    )
+    app.dependency_overrides[get_create_category_use_case] = lambda: _StaticUseCase(
+        category
+    )
+    app.dependency_overrides[get_update_category_use_case] = lambda: _StaticUseCase(
+        category
+    )
+
+    app.dependency_overrides[get_list_competencies_use_case] = lambda: _StaticUseCase(
+        [competency]
+    )
+    app.dependency_overrides[get_get_competency_use_case] = lambda: _StaticUseCase(
+        competency
+    )
+    app.dependency_overrides[get_create_competency_use_case] = lambda: _StaticUseCase(
+        competency
+    )
+    app.dependency_overrides[get_update_competency_use_case] = lambda: _StaticUseCase(
+        competency
+    )
+
+    app.dependency_overrides[get_list_sub_competencies_use_case] = lambda: (
+        _StaticUseCase([sub])
+    )
+    app.dependency_overrides[get_get_sub_competency_use_case] = lambda: _StaticUseCase(
+        sub
+    )
+    app.dependency_overrides[get_create_sub_competency_use_case] = lambda: (
+        _StaticUseCase(sub)
+    )
+    app.dependency_overrides[get_update_sub_competency_use_case] = lambda: (
+        _StaticUseCase(sub)
+    )
+
+    with TestClient(app) as client:
+        categories = client.get("/api/v1/ontology/categories")
+        assert categories.status_code == 200
+        assert len(categories.json()) == 1
+
+        category_detail = client.get(f"/api/v1/ontology/categories/{category_id}")
+        assert category_detail.status_code == 200
+
+        category_create = client.post(
+            "/api/v1/ontology/categories",
+            json={
+                "name": "Engineering",
+                "description": "Engineering skills",
+                "emoji": "🛠",
+            },
+        )
+        assert category_create.status_code == 201
+
+        category_patch = client.patch(
+            f"/api/v1/ontology/categories/{category_id}",
+            json={"description": "Updated"},
+        )
+        assert category_patch.status_code == 200
+
+        competencies = client.get("/api/v1/ontology/competencies")
+        assert competencies.status_code == 200
+        assert len(competencies.json()) == 1
+
+        competency_detail = client.get(f"/api/v1/ontology/competencies/{competency_id}")
+        assert competency_detail.status_code == 200
+
+        competency_create = client.post(
+            "/api/v1/ontology/competencies",
+            json={
+                "category_id": str(category_id),
+                "name": "Backend",
+                "description": "Backend systems",
+            },
+        )
+        assert competency_create.status_code == 201
+
+        competency_patch = client.patch(
+            f"/api/v1/ontology/competencies/{competency_id}",
+            json={"name": "Backend Core"},
+        )
+        assert competency_patch.status_code == 200
+
+        sub_competencies = client.get("/api/v1/ontology/sub-competencies")
+        assert sub_competencies.status_code == 200
+        assert len(sub_competencies.json()) == 1
+
+        sub_detail = client.get(
+            f"/api/v1/ontology/sub-competencies/{sub_competency_id}"
+        )
+        assert sub_detail.status_code == 200
+
+        sub_create = client.post(
+            "/api/v1/ontology/sub-competencies",
+            json={
+                "competency_id": str(competency_id),
+                "name": "REST",
+                "description": "HTTP APIs",
+                "weight": 1.0,
+                "target_level": 2,
+            },
+        )
+        assert sub_create.status_code == 201
+
+        sub_patch = client.patch(
+            f"/api/v1/ontology/sub-competencies/{sub_competency_id}",
+            json={"weight": 0.8},
+        )
+        assert sub_patch.status_code == 200
 
 
 def test_candidates_and_ranking_routes_contract(
