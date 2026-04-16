@@ -9,8 +9,9 @@ from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
+    TaskMappingReplaceDTO,
 )
-from competency_system.application.errors import NotFoundError
+from competency_system.application.errors import NotFoundError, ValidationError
 from competency_system.application.llm.llm_dispatch_payload import (
     TaskExtractionPayload,
 )
@@ -359,6 +360,55 @@ class ValidateTaskMappingUseCase:
             )
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
+            task.mapping_validated = True
+            await uow.tasks.add(task)
+            await uow.commit()
+            return task_dto_from_domain(task)
+
+
+class ReplaceTaskMappingUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, task_id: UUID, command: TaskMappingReplaceDTO) -> TaskDTO:
+        async with self._uow as uow:
+            task = await uow.tasks.get(
+                task_id,
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+            )
+            if task is None:
+                raise NotFoundError(f"Task {task_id} not found")
+
+            mappings: list[TaskSubCompetencyMapping] = []
+            for index, item in enumerate(command.mappings):
+                sub_competency = await uow.sub_competencies.get(item.sub_competency_id)
+                if sub_competency is None:
+                    raise NotFoundError(
+                        f"Sub-competency {item.sub_competency_id} not found"
+                    )
+                if sub_competency.competency_id != item.competency_id:
+                    raise ValidationError(
+                        "Sub-competency does not belong to selected competency"
+                    )
+                competency = await uow.competencies.get(item.competency_id)
+                if competency is None:
+                    raise NotFoundError(f"Competency {item.competency_id} not found")
+                if competency.category_id != item.category_id:
+                    raise ValidationError(
+                        "Competency does not belong to selected category"
+                    )
+                mappings.append(
+                    TaskSubCompetencyMapping(
+                        task_id=task.id,
+                        sub_competency_id=sub_competency.id,
+                        weight=item.weight,
+                        position=index,
+                    )
+                )
+
+            task.sub_competency_mappings = mappings
+            task.mapping_status = TaskMappingStatus.COMPLETED
+            task.mapping_error_message = None
             task.mapping_validated = True
             await uow.tasks.add(task)
             await uow.commit()

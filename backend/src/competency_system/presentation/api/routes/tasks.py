@@ -10,16 +10,19 @@ from competency_system.application.dtos.task import (
     CandidateTaskAssessmentDTO,
     SyncTasksResultDTO,
     TaskDTO,
+    TaskMappingReplaceDTO,
     TaskSyncRequestDTO,
 )
 from competency_system.application.use_cases.candidate import AssessCandidateUseCase
 from competency_system.application.use_cases.task import (
     GetTaskUseCase,
+    ReplaceTaskMappingUseCase,
     SyncTasksUseCase,
 )
 from competency_system.presentation.api.dependencies import (
     get_assess_candidate_use_case,
     get_get_task_use_case,
+    get_replace_task_mapping_use_case,
     get_sync_tasks_use_case,
     require_admin_or_system,
     require_hr_expert_admin,
@@ -50,6 +53,19 @@ async def get_task_mapping(
     use_case: Annotated[GetTaskUseCase, Depends(get_get_task_use_case)],
 ) -> TaskDTO:
     return await use_case.execute(task_id)
+
+
+@router.put("/{task_id}/mapping", response_model=TaskDTO)
+async def replace_task_mapping(
+    task_id: UUID,
+    payload: TaskMappingReplaceDTO,
+    _: Annotated[None, Depends(require_admin_or_system)],
+    use_case: Annotated[
+        ReplaceTaskMappingUseCase,
+        Depends(get_replace_task_mapping_use_case),
+    ],
+) -> TaskDTO:
+    return await use_case.execute(task_id, payload)
 
 
 @webhook_router.post(

@@ -63,6 +63,7 @@ from competency_system.application.use_cases.task import (
     GetTaskUseCase,
     ListTasksUseCase,
     RebuildTaskMappingUseCase,
+    ReplaceTaskMappingUseCase,
     SyncTasksUseCase,
     ValidateTaskMappingUseCase,
 )
@@ -384,6 +385,12 @@ def get_validate_task_mapping_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ValidateTaskMappingUseCase:
     return ValidateTaskMappingUseCase(uow)
+
+
+def get_replace_task_mapping_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ReplaceTaskMappingUseCase:
+    return ReplaceTaskMappingUseCase(uow)
 
 
 # candidates use cases

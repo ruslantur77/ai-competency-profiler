@@ -41,6 +41,7 @@ from competency_system.application.use_cases.task import (
     ListTasksUseCase,
     MapTaskToCompetenciesOperation,
     RebuildTaskMappingUseCase,
+    ReplaceTaskMappingUseCase,
     SyncTasksUseCase,
     ValidateTaskMappingUseCase,
 )
@@ -77,6 +78,7 @@ __all__ = [
     "DecideVacancySuggestionUseCase",
     "DecideVacancySuggestionsUseCase",
     "MapTaskToCompetenciesOperation",
+    "ReplaceTaskMappingUseCase",
     "SyncTasksUseCase",
     "RebuildTaskMappingUseCase",
     "ValidateTaskMappingUseCase",

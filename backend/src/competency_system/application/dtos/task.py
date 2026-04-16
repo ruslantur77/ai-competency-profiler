@@ -20,6 +20,24 @@ class TaskCompetencyMappingDTO(BaseDTO):
     weight: float
 
 
+class TaskMappingReplaceItemDTO(BaseDTO):
+    category_id: UUID
+    competency_id: UUID
+    sub_competency_id: UUID
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
+class TaskMappingReplaceDTO(BaseDTO):
+    mappings: list[TaskMappingReplaceItemDTO]
+
+    @model_validator(mode="after")
+    def _validate_unique_sub_competencies(self) -> TaskMappingReplaceDTO:
+        ids = [item.sub_competency_id for item in self.mappings]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Duplicate sub_competency_id in mappings")
+        return self
+
+
 class _StrictExtractionDTO(BaseDTO):
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 

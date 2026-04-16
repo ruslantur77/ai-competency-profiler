@@ -74,6 +74,7 @@ from competency_system.presentation.api.dependencies import (
     get_refresh_token_data,
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
+    get_replace_task_mapping_use_case,
     get_restore_vacancy_use_case,
     get_save_vacancy_graph_use_case,
     get_sync_tasks_use_case,
@@ -334,6 +335,9 @@ def test_tasks_admin_and_webhook_routes_contract(
         SyncTasksResultDTO(synced_tasks=[task])
     )
     app.dependency_overrides[get_get_task_use_case] = lambda: _StaticUseCase(task)
+    app.dependency_overrides[get_replace_task_mapping_use_case] = lambda: (
+        _StaticUseCase(task)
+    )
     app.dependency_overrides[get_list_tasks_use_case] = lambda: _StaticUseCase(
         SimpleNamespace(items=[task], total=1, limit=50, offset=0)
     )
@@ -372,6 +376,21 @@ def test_tasks_admin_and_webhook_routes_contract(
 
         mapping = client.get(f"/api/v1/tasks/{task.id}/mapping")
         assert mapping.status_code == 200
+
+        replace_mapping = client.put(
+            f"/api/v1/tasks/{task.id}/mapping",
+            json={
+                "mappings": [
+                    {
+                        "category_id": str(uuid4()),
+                        "competency_id": str(uuid4()),
+                        "sub_competency_id": str(uuid4()),
+                        "weight": 0.6,
+                    }
+                ]
+            },
+        )
+        assert replace_mapping.status_code == 200
 
         list_tasks = client.get("/api/v1/admin/tasks")
         assert list_tasks.status_code == 200
