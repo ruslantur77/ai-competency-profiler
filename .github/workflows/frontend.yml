@@ -6,8 +6,6 @@ on:
       - "frontend/**"
     branches:
       - main
-    tags:
-      - "v*.*.*"
   pull_request:
     paths:
       - "frontend/**"
@@ -25,11 +23,8 @@ env:
 
 jobs:
   build:
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      image_tag: ${{ steps.tag.outputs.value }}
 
     steps:
       - name: Checkout code
@@ -49,13 +44,7 @@ jobs:
           images: ${{ env.REGISTRY }}/ruslantur77/${{ env.IMAGE_NAME }}
           tags: |
             type=sha,format=short
-            type=ref,event=tag
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/') }}
-
-      - name: Set image tag
-        id: tag
-        run: |
-          echo "value=sha-$(echo '${{ github.sha }}' | cut -c1-7)" >> $GITHUB_OUTPUT
+            type=ref,event=branch
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -69,76 +58,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6.0.2
-
-      - name: Copy nginx config to server
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: backend/deploy/nginx/nginx.conf
-          target: "~/app"
-
-      - name: Deploy frontend on server
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
-            FRONTEND_IMAGE="ghcr.io/ruslantur77/frontend:${IMAGE_TAG}"
-
-            echo "Deploying: $FRONTEND_IMAGE"
-
-            # Логин в ghcr.io
-            echo "${{ secrets.GITHUB_TOKEN }}" | \
-              docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Тянем новый образ
-            docker pull $FRONTEND_IMAGE
-
-            # Обновляем FRONTEND_IMAGE_TAG в .env бека
-            # чтобы docker-compose знал какой тег использовать
-            cd ~/app
-            if [ -f .env ]; then
-              sed -i "s|^FRONTEND_IMAGE_TAG=.*|FRONTEND_IMAGE_TAG=${IMAGE_TAG}|" .env
-              grep -q "FRONTEND_IMAGE_TAG" .env || echo "FRONTEND_IMAGE_TAG=${IMAGE_TAG}" >> .env
-            fi
-
-            # Перезапускаем только frontend через docker-compose
-            docker compose -f deploy/green/docker-compose.yml \
-              --env-file .env \
-              up -d --no-deps --pull always frontend
-
-            # Перезапускаем nginx чтобы подхватил новый upstream
-            docker compose -f deploy/green/docker-compose.yml \
-              --env-file .env \
-              restart nginx 2>/dev/null || true
-
-            echo "Done!"
-
-      - name: Health check
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            sleep 8
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://neuroslop.imbalet.ru)
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ Health check passed (HTTP $STATUS)"
-            else
-              echo "❌ Health check failed (HTTP $STATUS)"
-              exit 1
-            fi
