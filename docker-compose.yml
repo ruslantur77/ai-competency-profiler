@@ -1,6 +1,8 @@
 x-app-base: &app-base
   env_file:
     - ./backend/.env
+  environment:
+    AIRFLOW_DOCKER_NETWORK: ${AIRFLOW_DOCKER_NETWORK:-competency_system_net}
   restart: unless-stopped
   networks:
     - app_net

@@ -44,7 +44,7 @@ Backend реализован на FastAPI и покрывает основной
 ```bash
 cp backend/.env.example backend/.env
 export DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
-docker compose up -d --build
+docker compose --env-file backend/.env up -d --build
 ```
 
 Точки входа:
