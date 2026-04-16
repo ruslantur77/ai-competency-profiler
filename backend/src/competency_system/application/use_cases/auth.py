@@ -4,6 +4,8 @@ from uuid import UUID, uuid4
 
 from competency_system.application.dtos.auth import (
     AccessTokenDataDTO,
+    CurrentUserDetailsDTO,
+    CurrentUserDTO,
     LoginDTO,
     RefreshTokenDataDTO,
     TokenPairDTO,
@@ -128,6 +130,23 @@ class LogoutUseCase:
         async with self._uow as uow:
             await uow.refresh_tokens.revoke(token_data.jti)
             await uow.commit()
+
+
+class GetCurrentUserUseCase:
+    def __init__(self, *, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, current_user: CurrentUserDTO) -> CurrentUserDetailsDTO:
+        async with self._uow as uow:
+            user = await uow.users.get(current_user.user_id)
+            if user is None:
+                raise NotFoundError(f"User {current_user.user_id} not found")
+            return CurrentUserDetailsDTO(
+                id=user.id,
+                email=user.email,
+                role=user.role,
+                is_active=user.is_active,
+            )
 
 
 def _user_to_admin_dto(user: User) -> UserAdminDTO:

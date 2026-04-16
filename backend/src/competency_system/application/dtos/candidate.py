@@ -13,6 +13,7 @@ class CandidateListItemDto(BaseDTO):
     """Candidate list item DTO."""
 
     id: UUID
+    external_id: str
     vacancy_id: UUID
     status: AssessmentStatus = AssessmentStatus.PENDING
     last_assessment_at: datetime | None = None

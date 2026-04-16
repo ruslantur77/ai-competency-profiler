@@ -1,6 +1,7 @@
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
     CreateUserUseCase,
+    GetCurrentUserUseCase,
     IssueTokenPairUseCase,
     ListUsersUseCase,
     LogoutUseCase,
@@ -11,6 +12,7 @@ from competency_system.application.use_cases.auth import (
 from competency_system.application.use_cases.candidate import (
     AssessCandidateUseCase,
     GetCandidateProfileUseCase,
+    ListVacancyCandidatesUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
 from competency_system.application.use_cases.ontology import (
@@ -74,6 +76,8 @@ __all__ = [
     "GetTaskUseCase",
     "AssessCandidateUseCase",
     "GetCandidateProfileUseCase",
+    "ListVacancyCandidatesUseCase",
+    "GetCurrentUserUseCase",
     "AuthenticateUserUseCase",
     "ListUsersUseCase",
     "CreateUserUseCase",

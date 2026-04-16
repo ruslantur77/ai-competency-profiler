@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
 
+from competency_system.application.dtos.candidate import CandidateListItemDto
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
     VacancyDTO,
@@ -15,6 +16,9 @@ from competency_system.application.dtos.vacancy import (
     VacancyStatusUpdateDTO,
     VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
+)
+from competency_system.application.use_cases.candidate import (
+    ListVacancyCandidatesUseCase,
 )
 from competency_system.application.use_cases.vacancy import (
     CreateVacancyGraphUseCase,
@@ -37,6 +41,7 @@ from competency_system.presentation.api.dependencies import (
     get_get_vacancy_graph_use_case,
     get_list_vacancies_for_review_use_case,
     get_list_vacancies_use_case,
+    get_list_vacancy_candidates_use_case,
     get_list_vacancy_suggestions_use_case,
     get_save_vacancy_graph_use_case,
     get_update_vacancy_status_use_case,
@@ -199,3 +204,15 @@ async def decide_vacancy_suggestions(
     ],
 ) -> list[VacancyGraphSuggestionDTO]:
     return await use_case.execute(vacancy_id, payload)
+
+
+@router.get("/{vacancy_id}/candidates", response_model=list[CandidateListItemDto])
+async def list_vacancy_candidates(
+    vacancy_id: UUID,
+    _: Annotated[None, Depends(require_hr_expert_admin)],
+    use_case: Annotated[
+        ListVacancyCandidatesUseCase,
+        Depends(get_list_vacancy_candidates_use_case),
+    ],
+) -> list[CandidateListItemDto]:
+    return await use_case.execute(vacancy_id)

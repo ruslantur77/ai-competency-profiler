@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from competency_system.application.dtos.candidate import (
     CandidateAssessmentResultDTO,
+    CandidateListItemDto,
     CandidateProfileDTO,
 )
 from competency_system.application.dtos.mappers import (
@@ -22,6 +23,7 @@ from competency_system.application.dtos.webhooks import (
     WebhookEventPayload,
     WebhookEventStatus,
 )
+from competency_system.application.errors import NotFoundError
 from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
 )
@@ -543,3 +545,25 @@ class GetCandidateProfileUseCase:
                 candidate, vacancy.requirement_competencies
             )
             return candidate_profile_dto_from_scoring(candidate, scores)
+
+
+class ListVacancyCandidatesUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, vacancy_id: UUID) -> list[CandidateListItemDto]:
+        async with self._uow as uow:
+            vacancy = await uow.vacancies.get(vacancy_id)
+            if vacancy is None:
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
+            candidates = await uow.candidates.list_by_vacancy(vacancy_id)
+            return [
+                CandidateListItemDto(
+                    id=item.id,
+                    external_id=item.external_id,
+                    vacancy_id=item.vacancy_id,
+                    status=item.status,
+                    last_assessment_at=item.last_assessment_at,
+                )
+                for item in candidates
+            ]

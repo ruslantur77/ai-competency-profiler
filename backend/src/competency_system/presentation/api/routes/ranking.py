@@ -48,18 +48,3 @@ async def recalculate_ranking(
     ],
 ) -> VacancyRankingDTO:
     return await _recalculate_ranking(vacancy_id, use_case)
-
-
-@router.get(
-    "/{vacancy_id}/candidates",
-    response_model=VacancyRankingDTO,
-    include_in_schema=False,
-)
-async def get_vacancy_candidates(
-    vacancy_id: UUID,
-    _: Annotated[None, Depends(require_hr_expert_admin)],
-    use_case: Annotated[
-        RecalculateRankingUseCase, Depends(get_recalculate_ranking_use_case)
-    ],
-) -> VacancyRankingDTO:
-    return await _recalculate_ranking(vacancy_id, use_case)

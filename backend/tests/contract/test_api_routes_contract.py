@@ -8,10 +8,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from competency_system.application.dtos.auth import (
+    CurrentUserDetailsDTO,
     CurrentUserDTO,
     RefreshTokenDataDTO,
     TokenPairDTO,
 )
+from competency_system.application.dtos.candidate import CandidateListItemDto
 from competency_system.application.dtos.competency import (
     CategoryDTO,
     CompetencyDTO,
@@ -26,6 +28,7 @@ from competency_system.application.dtos.vacancy import (
 from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
+    AssessmentStatus,
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
@@ -49,6 +52,7 @@ from competency_system.presentation.api.dependencies import (
     get_get_candidate_profile_use_case,
     get_get_category_use_case,
     get_get_competency_use_case,
+    get_get_current_user_use_case,
     get_get_sub_competency_use_case,
     get_get_task_use_case,
     get_get_vacancy_graph_use_case,
@@ -59,6 +63,7 @@ from competency_system.presentation.api.dependencies import (
     get_list_sub_competencies_use_case,
     get_list_tasks_use_case,
     get_list_vacancies_use_case,
+    get_list_vacancy_candidates_use_case,
     get_list_vacancy_suggestions_use_case,
     get_logout_use_case,
     get_rebuild_task_mapping_use_case,
@@ -104,6 +109,7 @@ class _RaisingUseCase:
 
 def test_auth_routes_contract() -> None:
     user_id = uuid4()
+    current_user = CurrentUserDTO(user_id=user_id, role=UserRole.ADMIN)
     app.dependency_overrides[get_authenticate_user_use_case] = lambda: _StaticUseCase(
         SimpleNamespace(id=user_id)
     )
@@ -119,6 +125,15 @@ def test_auth_routes_contract() -> None:
         TokenPairDTO(access_token="access2", refresh_token="refresh2")
     )
     app.dependency_overrides[get_logout_use_case] = lambda: _LogoutUseCase()
+    app.dependency_overrides[get_current_user] = lambda: current_user
+    app.dependency_overrides[get_get_current_user_use_case] = lambda: _StaticUseCase(
+        CurrentUserDetailsDTO(
+            id=user_id,
+            email="admin@example.com",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+    )
 
     with TestClient(app) as client:
         login = client.post(
@@ -132,12 +147,26 @@ def test_auth_routes_contract() -> None:
         assert refresh.status_code == 200
         assert refresh.json()["access_token"] == "access2"
 
+        me = client.get("/api/v1/auth/me")
+        assert me.status_code == 200
+        assert me.json()["id"] == str(user_id)
+        assert me.json()["email"] == "admin@example.com"
+
         logout = client.post("/api/v1/auth/logout")
         assert logout.status_code == 204
 
 
 def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
     vacancy = api_dto_factory.make_vacancy()
+    vacancy_candidates = [
+        CandidateListItemDto(
+            id=uuid4(),
+            external_id="candidate-1",
+            vacancy_id=vacancy.id,
+            status=AssessmentStatus.PENDING,
+            last_assessment_at=None,
+        )
+    ]
     suggestion = VacancyGraphSuggestionDTO(
         id=uuid4(),
         vacancy_id=vacancy.id,
@@ -175,6 +204,9 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
     )
     app.dependency_overrides[get_decide_vacancy_suggestions_use_case] = lambda: (
         _StaticUseCase([suggestion])
+    )
+    app.dependency_overrides[get_list_vacancy_candidates_use_case] = lambda: (
+        _StaticUseCase(vacancy_candidates)
     )
 
     with TestClient(app) as client:
@@ -251,6 +283,11 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
         )
         assert bulk_decision.status_code == 200
         assert len(bulk_decision.json()) == 1
+
+        candidates = client.get(f"/api/v1/vacancies/{vacancy.id}/candidates")
+        assert candidates.status_code == 200
+        assert len(candidates.json()) == 1
+        assert candidates.json()[0]["external_id"] == "candidate-1"
 
 
 def test_tasks_admin_and_webhook_routes_contract(
@@ -579,6 +616,3 @@ def test_candidates_and_ranking_routes_contract(
 
         ranking_legacy = client.get(f"/api/v1/vacancies/{vacancy_id}/ranking")
         assert ranking_legacy.status_code == 200
-
-        candidates_legacy = client.get(f"/api/v1/vacancies/{vacancy_id}/candidates")
-        assert candidates_legacy.status_code == 200

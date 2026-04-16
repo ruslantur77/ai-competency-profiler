@@ -24,6 +24,7 @@ from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
     CreateUserUseCase,
+    GetCurrentUserUseCase,
     IssueTokenPairUseCase,
     ListUsersUseCase,
     LogoutUseCase,
@@ -34,6 +35,7 @@ from competency_system.application.use_cases.auth import (
 from competency_system.application.use_cases.candidate import (
     AssessCandidateUseCase,
     GetCandidateProfileUseCase,
+    ListVacancyCandidatesUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
 from competency_system.application.use_cases.ontology import (
@@ -365,6 +367,12 @@ def get_get_candidate_profile_use_case(
     return GetCandidateProfileUseCase(uow)
 
 
+def get_list_vacancy_candidates_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListVacancyCandidatesUseCase:
+    return ListVacancyCandidatesUseCase(uow)
+
+
 def get_recalculate_ranking_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> RecalculateRankingUseCase:
@@ -402,6 +410,12 @@ def get_logout_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> LogoutUseCase:
     return LogoutUseCase(uow=uow)
+
+
+def get_get_current_user_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> GetCurrentUserUseCase:
+    return GetCurrentUserUseCase(uow=uow)
 
 
 def get_list_users_use_case(

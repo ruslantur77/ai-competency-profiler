@@ -5,12 +5,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from competency_system.application.dtos.auth import (
+    CurrentUserDetailsDTO,
+    CurrentUserDTO,
     LoginDTO,
     RefreshTokenDataDTO,
     TokenResponseDTO,
 )
 from competency_system.application.use_cases.auth import (
     AuthenticateUserUseCase,
+    GetCurrentUserUseCase,
     IssueTokenPairUseCase,
     LogoutUseCase,
     RefreshTokenPairUseCase,
@@ -18,6 +21,8 @@ from competency_system.application.use_cases.auth import (
 from competency_system.presentation.api.dependencies import (
     get_auth_cookie_config,
     get_authenticate_user_use_case,
+    get_current_user,
+    get_get_current_user_use_case,
     get_issue_token_pair_use_case,
     get_login_data,
     get_logout_use_case,
@@ -111,3 +116,11 @@ async def logout(
 ) -> None:
     await logout_use_case.execute(refresh_token_data)
     response.delete_cookie(key="refresh_token", path=auth_cookie_config.path)
+
+
+@router.get("/me", response_model=CurrentUserDetailsDTO)
+async def get_me(
+    current_user: Annotated[CurrentUserDTO, Depends(get_current_user)],
+    use_case: Annotated[GetCurrentUserUseCase, Depends(get_get_current_user_use_case)],
+) -> CurrentUserDetailsDTO:
+    return await use_case.execute(current_user)

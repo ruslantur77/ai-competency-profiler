@@ -44,6 +44,13 @@ class CurrentUserDTO(BaseModel):
     role: UserRole
 
 
+class CurrentUserDetailsDTO(BaseModel):
+    id: UUID
+    email: EmailStr
+    role: UserRole
+    is_active: bool
+
+
 class UserAdminDTO(BaseModel):
     id: UUID
     email: EmailStr
