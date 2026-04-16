@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Plus, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit } from 'lucide-react'
-import { listVacancies, createVacancy } from '../api/client'
+import { listVacancies, createVacancy } from '../api/vacancies'
+import { extractItems } from '../api/adapters'
+import { getErrorMessage } from '../api/errors'
 import CreateVacancyDialog from './CreateVacancyDialog'
 import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
@@ -39,12 +41,6 @@ const TABS = [
   { id: 'ranking', label: '🏆 Ранжирование' },
 ]
 
-const getItemsFromPage = (payload) => {
-  if (Array.isArray(payload)) return payload
-  if (Array.isArray(payload?.items)) return payload.items
-  return []
-}
-
 export default function VacancyList({ notify, onLogout }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -61,7 +57,7 @@ export default function VacancyList({ notify, onLogout }) {
       )
       const fulfilled = responses.filter(result => result.status === 'fulfilled')
       const all = fulfilled
-        .flatMap(result => getItemsFromPage(result.value.data))
+        .flatMap(result => extractItems(result.value.data))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       setVacancies(all)
 
@@ -70,9 +66,9 @@ export default function VacancyList({ notify, onLogout }) {
       } else if (fulfilled.length < ALL_STATUSES.length) {
         notify('Часть вакансий не загрузилась, повторите позже', 'error')
       }
-    } catch {
+    } catch (error) {
       setVacancies([])
-      notify('Ошибка загрузки вакансий', 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансий' }), 'error')
     } finally {
       setLoading(false)
     }
@@ -100,8 +96,8 @@ export default function VacancyList({ notify, onLogout }) {
       setCreating(false)
       await fetchVacancies()
       notify(`✅ Вакансия "${data.name}" создана, запущено извлечение компетенций`)
-    } catch {
-      notify('Ошибка создания вакансии', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка создания вакансии' }), 'error')
     }
   }
 
@@ -114,7 +110,9 @@ export default function VacancyList({ notify, onLogout }) {
   const handleLogout = async () => {
     try {
       await onLogout()
-    } catch { }
+    } catch {
+      // logout имеет централизованный fallback в App; здесь не дублируем уведомление
+    }
   }
 
   const isClickable = (status) => status === 'ready' || status === 'draft'

@@ -1,7 +1,8 @@
 // frontend/src/components/RankingTab.jsx
 import React, { useState, useCallback } from 'react'
 import { Loader2, ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
-import { getVacancyRankings } from '../api/client'
+import { getVacancyRankings } from '../api/ranking'
+import { getErrorMessage } from '../api/errors'
 import './RankingTab.css'
 
 // Медали для топ-3
@@ -307,8 +308,8 @@ export default function RankingTab({ vacancies, notify }) {
       // Для использования mock данных раскомментируйте 2 строки ниже и закомментируйте 2 строки выше
       // await new Promise(r => setTimeout(r, 600))
       // setRankings(MOCK_RANKINGS.rankings)
-    } catch {
-      notify('Ошибка загрузки ранжирования', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки ранжирования' }), 'error')
     } finally {
       setLoading(false)
     }

@@ -5,6 +5,7 @@ import VacancyList from './components/VacancyList'
 import VacancyEditor from './components/VacancyEditor'
 import LoginPage from './components/LoginPage'
 import Notification from './components/Notification'
+import { logout } from './api/auth'
 import './App.css'
 
 function PrivateRoute({ isAuth, children }) {
@@ -25,7 +26,6 @@ export default function App() {
 
   const handleLogout = useCallback(async () => {
     try {
-      const { logout } = await import('./api/client')
       await logout()
     } catch {
       // игнорируем

@@ -1,7 +1,9 @@
 // frontend/src/components/TasksTab.jsx
 import React, { useState, useEffect, useCallback } from 'react'
 import { Loader2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
-import { listTasks, rebuildTaskMapping, validateTaskMapping } from '../api/client'
+import { listTasks, rebuildTaskMapping, validateTaskMapping } from '../api/tasks'
+import { extractItems } from '../api/adapters'
+import { getErrorMessage } from '../api/errors'
 import './TasksTab.css'
 
 const MAPPING_STATUS_CONFIG = {
@@ -25,12 +27,6 @@ const MAPPING_STATUS_CONFIG = {
 const TASK_TYPE_LABELS = {
   code: '💻 Код',
   test: '📝 Тест',
-}
-
-const getItemsFromPage = (payload) => {
-  if (Array.isArray(payload)) return payload
-  if (Array.isArray(payload?.items)) return payload.items
-  return []
 }
 
 function TaskCard({ task, onRebuild, onValidate, rebuilding, validating }) {
@@ -124,10 +120,10 @@ export default function TasksTab({ notify }) {
     setLoading(true)
     try {
       const { data } = await listTasks()
-      setTasks(getItemsFromPage(data))
-    } catch {
+      setTasks(extractItems(data))
+    } catch (error) {
       setTasks([])
-      notify('Ошибка загрузки заданий', 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки заданий' }), 'error')
     } finally {
       setLoading(false)
     }
@@ -143,8 +139,8 @@ export default function TasksTab({ notify }) {
       const { data } = await rebuildTaskMapping(taskId)
       setTasks(prev => prev.map(t => t.id === taskId ? data : t))
       notify('🔄 Маппинг перестроен')
-    } catch {
-      notify('Ошибка перестройки маппинга', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка перестройки маппинга' }), 'error')
     } finally {
       setRebuildingId(null)
     }
@@ -156,8 +152,8 @@ export default function TasksTab({ notify }) {
       const { data } = await validateTaskMapping(taskId)
       setTasks(prev => prev.map(t => t.id === taskId ? data : t))
       notify('✅ Маппинг валидирован')
-    } catch {
-      notify('Ошибка валидации маппинга', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка валидации маппинга' }), 'error')
     } finally {
       setValidatingId(null)
     }

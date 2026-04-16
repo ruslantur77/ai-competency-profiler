@@ -6,7 +6,8 @@ import VacancySidebar from './VacancySidebar'
 import MindMap from './MindMap'
 import EditCategoryDialog from './EditCategoryDialog'
 import SuggestionsPanel from './SuggestionsPanel'
-import { getVacancy, updateGraph } from '../api/client'
+import { getVacancy, updateGraph } from '../api/vacancies'
+import { getErrorMessage } from '../api/errors'
 import './VacancyEditor.css'
 
 // ===== HELPERS =====
@@ -68,8 +69,8 @@ export default function VacancyEditor({ notify }) {
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
       setIsDirty(false)
-    } catch {
-      notify('Ошибка загрузки вакансии', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансии' }), 'error')
       navigate('/')
     } finally {
       setLoading(false)
@@ -100,8 +101,8 @@ export default function VacancyEditor({ notify }) {
       setOriginalNodes({ cats, comps, subs })
       setIsDirty(false)
       notify('✅ Граф компетенций сохранён')
-    } catch {
-      notify('Ошибка сохранения', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка сохранения' }), 'error')
     } finally {
       setSaving(false)
     }
@@ -147,8 +148,8 @@ const handleSuggestionsApplied = useCallback(async () => {
     setOriginalNodes({ cats: freshCats, comps: freshComps, subs: freshSubs })
     setIsDirty(false)
 
-  } catch {
-    notify('Ошибка обновления графа', 'error')
+  } catch (error) {
+    notify(getErrorMessage(error, { fallback: 'Ошибка обновления графа' }), 'error')
   }
 }, [vacancyId, notify])
 

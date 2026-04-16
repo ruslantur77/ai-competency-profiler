@@ -1,7 +1,8 @@
 // frontend/src/components/SuggestionsPanel.jsx
 import React, { useState, useEffect, useCallback } from 'react'
 import { Check, X, CheckCheck, XCircle, Loader2, ChevronDown, ChevronRight, Save } from 'lucide-react'
-import { getSuggestions, decideSuggestion } from '../api/client'
+import { getSuggestions, decideSuggestion } from '../api/suggestions'
+import { getErrorMessage } from '../api/errors'
 import './SuggestionsPanel.css'
 
 const STAGE_LABELS = {
@@ -31,8 +32,8 @@ export default function SuggestionsPanel({
       const { data } = await getSuggestions(vacancyId)
       setSuggestions(data.filter(s => s.status === 'pending'))
       setDecisions({})
-    } catch {
-      notify('Ошибка загрузки предложений', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки предложений' }), 'error')
     } finally {
       setLoading(false)
     }
@@ -102,8 +103,8 @@ export default function SuggestionsPanel({
 
       // Перезагружаем suggestions — pending должны исчезнуть
       await loadSuggestions()
-    } catch {
-      notify('Ошибка при сохранении предложений', 'error')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка при сохранении предложений' }), 'error')
     } finally {
       setSaving(false)
     }

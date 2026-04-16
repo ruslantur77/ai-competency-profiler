@@ -2,7 +2,8 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, LogIn } from 'lucide-react'
-import { login } from '../api/client'
+import { login } from '../api/auth'
+import { getErrorMessage } from '../api/errors'
 import './LoginPage.css'
 
 export default function LoginPage({ onLogin }) {
@@ -25,11 +26,10 @@ export default function LoginPage({ onLogin }) {
       onLogin()
       navigate('/')
     } catch (err) {
-      setError(
-        err.response?.status === 401
-          ? 'Неверный email или пароль'
-          : 'Ошибка сервера, попробуйте позже'
-      )
+      setError(getErrorMessage(err, {
+        fallback: 'Ошибка сервера, попробуйте позже',
+        overrides: { 401: 'Неверный email или пароль' },
+      }))
     } finally {
       setLoading(false)
     }
