@@ -520,36 +520,7 @@ class ListVacancySuggestionsUseCase:
             ]
 
 
-class DecideVacancySuggestionUseCase:
-    def __init__(self, uow: UnitOfWork) -> None:
-        self._uow = uow
-
-    async def execute(
-        self, vacancy_id: UUID, decision: VacancySuggestionDecisionDTO
-    ) -> VacancyGraphSuggestionDTO:
-        if decision.status == SuggestionStatus.PENDING:
-            raise ValidationError("Decision status must be approved or rejected")
-        async with self._uow as uow:
-            suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
-            if suggestion is None or suggestion.vacancy_id != vacancy_id:
-                raise NotFoundError(f"Suggestion {decision.suggestion_id} not found")
-
-            if decision.status == SuggestionStatus.APPROVED:
-                vacancy = await uow.vacancies.get(
-                    vacancy_id,
-                    include={VacancyInclude.NORMALIZED_GRAPH},
-                )
-                if vacancy is None:
-                    raise NotFoundError(f"Vacancy {vacancy_id} not found")
-                if suggestion.status != SuggestionStatus.APPROVED:
-                    await self._apply_approved_suggestion(uow, vacancy, suggestion)
-                await uow.vacancies.add(vacancy)
-
-            suggestion.status = decision.status
-            await uow.vacancy_suggestions.add(suggestion)
-            await uow.commit()
-            return suggestion_dto_from_domain(suggestion)
-
+class _VacancySuggestionApprovalHelper:
     @staticmethod
     def _next_position(nodes: Sequence[object]) -> int:
         if not nodes:
@@ -721,7 +692,41 @@ class DecideVacancySuggestionUseCase:
         )
 
 
-class DecideVacancySuggestionsUseCase(DecideVacancySuggestionUseCase):
+class DecideVacancySuggestionUseCase(_VacancySuggestionApprovalHelper):
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self, vacancy_id: UUID, decision: VacancySuggestionDecisionDTO
+    ) -> VacancyGraphSuggestionDTO:
+        if decision.status == SuggestionStatus.PENDING:
+            raise ValidationError("Decision status must be approved or rejected")
+        async with self._uow as uow:
+            suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
+            if suggestion is None or suggestion.vacancy_id != vacancy_id:
+                raise NotFoundError(f"Suggestion {decision.suggestion_id} not found")
+
+            if decision.status == SuggestionStatus.APPROVED:
+                vacancy = await uow.vacancies.get(
+                    vacancy_id,
+                    include={VacancyInclude.NORMALIZED_GRAPH},
+                )
+                if vacancy is None:
+                    raise NotFoundError(f"Vacancy {vacancy_id} not found")
+                if suggestion.status != SuggestionStatus.APPROVED:
+                    await self._apply_approved_suggestion(uow, vacancy, suggestion)
+                await uow.vacancies.add(vacancy)
+
+            suggestion.status = decision.status
+            await uow.vacancy_suggestions.add(suggestion)
+            await uow.commit()
+            return suggestion_dto_from_domain(suggestion)
+
+
+class DecideVacancySuggestionsUseCase(_VacancySuggestionApprovalHelper):
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
     async def execute(
         self,
         vacancy_id: UUID,

@@ -78,7 +78,7 @@ def value_error_exception_handler(request: Request, exc: ValueError) -> JSONResp
 
 def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     details = exc.detail
-    message = details if isinstance(details, str) else "HTTP error"
+    message = details
     code_map = {
         status.HTTP_400_BAD_REQUEST: "bad_request",
         status.HTTP_401_UNAUTHORIZED: "unauthorized",

@@ -178,11 +178,11 @@ def create_app() -> FastAPI:
         ApplicationError,
         cast(Any, application_exception_handler),
     )
-    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(HTTPException, cast(Any, http_exception_handler))
     app.add_exception_handler(
-        RequestValidationError, request_validation_exception_handler
+        RequestValidationError, cast(Any, request_validation_exception_handler)
     )
-    app.add_exception_handler(ValueError, value_error_exception_handler)
+    app.add_exception_handler(ValueError, cast(Any, value_error_exception_handler))
     app.add_exception_handler(Exception, unexpected_exception_handler)
     add_pagination(app)
     return app
