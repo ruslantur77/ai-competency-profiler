@@ -4,6 +4,7 @@ import { Loader2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronRi
 import { listTasks, rebuildTaskMapping, validateTaskMapping } from '../api/tasks'
 import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
+import ForbiddenState from './ForbiddenState'
 import './TasksTab.css'
 
 const MAPPING_STATUS_CONFIG = {
@@ -115,14 +116,17 @@ export default function TasksTab({ notify }) {
   const [loading, setLoading] = useState(true)
   const [rebuildingId, setRebuildingId] = useState(null)
   const [validatingId, setValidatingId] = useState(null)
+  const [isForbidden, setIsForbidden] = useState(false)
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     try {
       const { data } = await listTasks()
       setTasks(extractItems(data))
+      setIsForbidden(false)
     } catch (error) {
       setTasks([])
+      setIsForbidden(error?.response?.status === 403)
       notify(getErrorMessage(error, { fallback: 'Ошибка загрузки заданий' }), 'error')
     } finally {
       setLoading(false)
@@ -165,6 +169,12 @@ export default function TasksTab({ notify }) {
         <Loader2 size={24} className="spin" />
         <p>Загрузка заданий...</p>
       </div>
+    )
+  }
+
+  if (isForbidden) {
+    return (
+      <ForbiddenState hint="Раздел заданий доступен только ролям EXPERT и ADMIN." />
     )
   }
 

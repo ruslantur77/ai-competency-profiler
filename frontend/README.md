@@ -20,3 +20,32 @@ If you are developing a production application, we recommend using TypeScript wi
 - Default API base URL: `'/api/v1'`.
 - Local dev uses Vite proxy (`/api` -> `http://localhost:1000`).
 - In Docker/Nginx runtime set `FRONTEND_API_BASE_URL` (for example `https://api.example.com/api/v1`).
+
+## API layer conventions
+
+- Base axios instance and auth refresh interceptor: `src/api/base.js`.
+- Domain modules:
+  - `src/api/auth.js`
+  - `src/api/vacancies.js`
+  - `src/api/tasks.js`
+  - `src/api/ranking.js`
+  - `src/api/suggestions.js`
+- Response normalization helpers: `src/api/adapters.js`.
+- Centralized user-facing error mapping: `src/api/errors.js`.
+- Compatibility barrel: `src/api/client.js` (re-export only, no business logic).
+- Legacy unavailable endpoints are isolated in `src/api/legacy-stubs.js` and are not part of production flow.
+
+## Role visibility matrix
+
+- Backend source of truth for current user: `GET /auth/me`.
+- Frontend keeps role in app-level state and updates it on login and token refresh events.
+
+| Feature | HR | EXPERT | ADMIN |
+|---------|----|--------|-------|
+| Vacancies list/read | ✅ | ✅ | ✅ |
+| Create vacancy | ❌ | ✅ | ✅ |
+| Open vacancy editor | ✅ (read-only) | ✅ | ✅ |
+| Graph mutations (add/edit/delete/save) | ❌ | ✅ | ✅ |
+| Suggestions decisions | ❌ | ✅ | ✅ |
+| Tasks tab | ❌ | ✅ | ✅ |
+| Ranking tab | ✅ | ✅ | ✅ |

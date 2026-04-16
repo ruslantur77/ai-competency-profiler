@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react'
 import { Loader2, ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
 import { getVacancyRankings } from '../api/ranking'
 import { getErrorMessage } from '../api/errors'
+import ForbiddenState from './ForbiddenState'
 import './RankingTab.css'
 
 // Медали для топ-3
@@ -296,6 +297,7 @@ export default function RankingTab({ vacancies, notify }) {
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState(null)
+  const [isForbidden, setIsForbidden] = useState(false)
 
   const loadRankings = useCallback(async (vacancyId) => {
     if (!vacancyId) return
@@ -304,11 +306,13 @@ export default function RankingTab({ vacancies, notify }) {
     try {
       const { data } = await getVacancyRankings(vacancyId)
       setRankings(data.rankings || [])
+      setIsForbidden(false)
       
       // Для использования mock данных раскомментируйте 2 строки ниже и закомментируйте 2 строки выше
       // await new Promise(r => setTimeout(r, 600))
       // setRankings(MOCK_RANKINGS.rankings)
     } catch (error) {
+      setIsForbidden(error?.response?.status === 403)
       notify(getErrorMessage(error, { fallback: 'Ошибка загрузки ранжирования' }), 'error')
     } finally {
       setLoading(false)
@@ -323,6 +327,10 @@ export default function RankingTab({ vacancies, notify }) {
 
   return (
     <div className="ranking">
+      {isForbidden && (
+        <ForbiddenState hint="Недостаточно прав для просмотра ранжирования." />
+      )}
+
       {/* ===== ВЫБОР ВАКАНСИИ ===== */}
       <div className="ranking__select-row">
         <Trophy size={20} className="ranking__trophy" />

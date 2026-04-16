@@ -5,24 +5,59 @@ import VacancyList from './components/VacancyList'
 import VacancyEditor from './components/VacancyEditor'
 import LoginPage from './components/LoginPage'
 import Notification from './components/Notification'
-import { logout } from './api/auth'
+import { getMe, logout } from './api/auth'
+import { ROLES, hasAllowedRole } from './api/roles'
 import './App.css'
 
-function PrivateRoute({ isAuth, children }) {
-  return isAuth ? children : <Navigate to="/login" replace />
+function PrivateRoute({ isAuth, isLoading, role, allowedRoles, children }) {
+  if (isLoading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <p>Проверка сессии...</p>
+      </div>
+    )
+  }
+
+  if (!isAuth) return <Navigate to="/login" replace />
+  if (!hasAllowedRole(role, allowedRoles)) return <Navigate to="/" replace />
+  return children
 }
 
 export default function App() {
   const [notification, setNotification] = useState(null)
   const [isAuth, setIsAuth] = useState(!!localStorage.getItem('access_token'))
+  const [authLoading, setAuthLoading] = useState(!!localStorage.getItem('access_token'))
+  const [currentUser, setCurrentUser] = useState(null)
 
   const notify = useCallback((message, type = 'success') => {
     setNotification({ message, type })
   }, [])
 
-  const handleLogin = useCallback(() => {
-    setIsAuth(true)
+  const loadCurrentUser = useCallback(async () => {
+    if (!localStorage.getItem('access_token')) {
+      setCurrentUser(null)
+      setIsAuth(false)
+      setAuthLoading(false)
+      return
+    }
+
+    setAuthLoading(true)
+    try {
+      const { data } = await getMe()
+      setCurrentUser(data)
+      setIsAuth(true)
+    } catch {
+      localStorage.removeItem('access_token')
+      setCurrentUser(null)
+      setIsAuth(false)
+    } finally {
+      setAuthLoading(false)
+    }
   }, [])
+
+  const handleLogin = useCallback(async () => {
+    await loadCurrentUser()
+  }, [loadCurrentUser])
 
   const handleLogout = useCallback(async () => {
     try {
@@ -31,19 +66,36 @@ export default function App() {
       // игнорируем
     } finally {
       localStorage.removeItem('access_token')
+      setCurrentUser(null)
       setIsAuth(false)
+      setAuthLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    loadCurrentUser()
+  }, [loadCurrentUser])
 
   // Слушаем событие от interceptor когда refresh упал
   useEffect(() => {
     const handleAuthLogout = () => {
       localStorage.removeItem('access_token')
+      setCurrentUser(null)
       setIsAuth(false)
+      setAuthLoading(false)
     }
+
+    const handleAuthRefreshed = () => {
+      loadCurrentUser()
+    }
+
     window.addEventListener('auth:logout', handleAuthLogout)
-    return () => window.removeEventListener('auth:logout', handleAuthLogout)
-  }, [])
+    window.addEventListener('auth:refreshed', handleAuthRefreshed)
+    return () => {
+      window.removeEventListener('auth:logout', handleAuthLogout)
+      window.removeEventListener('auth:refreshed', handleAuthRefreshed)
+    }
+  }, [loadCurrentUser])
 
   return (
     <div className="app">
@@ -59,7 +111,7 @@ export default function App() {
         <Route
           path="/login"
           element={
-            isAuth
+            isAuth && !authLoading
               ? <Navigate to="/" replace />
               : <LoginPage onLogin={handleLogin} />
           }
@@ -67,16 +119,33 @@ export default function App() {
         <Route
           path="/"
           element={
-            <PrivateRoute isAuth={isAuth}>
-              <VacancyList notify={notify} onLogout={handleLogout} />
+            <PrivateRoute
+              isAuth={isAuth}
+              isLoading={authLoading}
+              role={currentUser?.role}
+              allowedRoles={[ROLES.ADMIN, ROLES.EXPERT, ROLES.HR]}
+            >
+              <VacancyList
+                notify={notify}
+                onLogout={handleLogout}
+                role={currentUser?.role}
+              />
             </PrivateRoute>
           }
         />
         <Route
           path="/vacancy/:vacancyId"
           element={
-            <PrivateRoute isAuth={isAuth}>
-              <VacancyEditor notify={notify} />
+            <PrivateRoute
+              isAuth={isAuth}
+              isLoading={authLoading}
+              role={currentUser?.role}
+              allowedRoles={[ROLES.ADMIN, ROLES.EXPERT, ROLES.HR]}
+            >
+              <VacancyEditor
+                notify={notify}
+                role={currentUser?.role}
+              />
             </PrivateRoute>
           }
         />

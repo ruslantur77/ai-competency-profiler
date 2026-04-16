@@ -6,8 +6,10 @@ import VacancySidebar from './VacancySidebar'
 import MindMap from './MindMap'
 import EditCategoryDialog from './EditCategoryDialog'
 import SuggestionsPanel from './SuggestionsPanel'
+import ForbiddenState from './ForbiddenState'
 import { getVacancy, updateGraph } from '../api/vacancies'
 import { getErrorMessage } from '../api/errors'
+import { canEditGraph, canUseSuggestions } from '../api/roles'
 import './VacancyEditor.css'
 
 // ===== HELPERS =====
@@ -40,7 +42,7 @@ const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes) => ({
   })),
 })
 
-export default function VacancyEditor({ notify }) {
+export default function VacancyEditor({ notify, role }) {
   const { vacancyId } = useParams()
   const navigate = useNavigate()
 
@@ -55,6 +57,9 @@ export default function VacancyEditor({ notify }) {
   const [originalNodes, setOriginalNodes] = useState(null)
   const [isDirty, setIsDirty] = useState(false)
   const [addingCategory, setAddingCategory] = useState(false)
+  const [isForbidden, setIsForbidden] = useState(false)
+  const canEdit = canEditGraph(role)
+  const canReviewSuggestions = canUseSuggestions(role)
 
   // ===== ЗАГРУЗКА =====
   const loadVacancy = useCallback(async () => {
@@ -69,9 +74,14 @@ export default function VacancyEditor({ notify }) {
       setSubCompetencyNodes(subs)
       setOriginalNodes({ cats, comps, subs })
       setIsDirty(false)
+      setIsForbidden(false)
     } catch (error) {
+      const forbidden = error?.response?.status === 403
+      setIsForbidden(forbidden)
       notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансии' }), 'error')
-      navigate('/')
+      if (!forbidden) {
+        navigate('/')
+      }
     } finally {
       setLoading(false)
     }
@@ -83,6 +93,10 @@ export default function VacancyEditor({ notify }) {
 
   // ===== СОХРАНЕНИЕ ГРАФА =====
   const handleSave = async () => {
+    if (!canEdit) {
+      notify('Недостаточно прав для редактирования графа', 'error')
+      return
+    }
     setSaving(true)
     try {
       const dto = buildGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
@@ -155,6 +169,7 @@ const handleSuggestionsApplied = useCallback(async () => {
 
   // ===== КАТЕГОРИИ =====
   const handleUpdateCategory = (updated) => {
+    if (!canEdit) return
     setCategoryNodes(prev => prev.map(c =>
       c.category_id === updated.category_id ? { ...c, ...updated } : c
     ))
@@ -162,6 +177,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleDeleteCategory = (categoryId) => {
+    if (!canEdit) return
     const removedCompIds = competencyNodes
       .filter(c => c.category_id === categoryId)
       .map(c => c.competency_id)
@@ -174,6 +190,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleAddCategorySubmit = (newCat) => {
+    if (!canEdit) return
     const id = tempId()
     setCategoryNodes(prev => [...prev, {
       id,
@@ -190,6 +207,7 @@ const handleSuggestionsApplied = useCallback(async () => {
 
   // ===== КОМПЕТЕНЦИИ =====
   const handleUpdateCompetency = (updated) => {
+    if (!canEdit) return
     setCompetencyNodes(prev => prev.map(c =>
       c.competency_id === updated.competency_id ? { ...c, ...updated } : c
     ))
@@ -197,12 +215,14 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleDeleteCompetency = (competencyId) => {
+    if (!canEdit) return
     setCompetencyNodes(prev => prev.filter(c => c.competency_id !== competencyId))
     setSubCompetencyNodes(prev => prev.filter(s => s.competency_id !== competencyId))
     markDirty()
   }
 
   const handleAddCompetency = (categoryId, newComp) => {
+    if (!canEdit) return
     const id = tempId()
     setCompetencyNodes(prev => [...prev, {
       id,
@@ -219,6 +239,7 @@ const handleSuggestionsApplied = useCallback(async () => {
 
   // ===== ПОДКОМПЕТЕНЦИИ =====
   const handleUpdateSub = (updatedSub) => {
+    if (!canEdit) return
     setSubCompetencyNodes(prev => prev.map(s =>
       s.sub_competency_id === updatedSub.sub_competency_id ? { ...s, ...updatedSub } : s
     ))
@@ -226,6 +247,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleDeleteSub = (subCompetencyId) => {
+    if (!canEdit) return
     setSubCompetencyNodes(prev =>
       prev.filter(s => s.sub_competency_id !== subCompetencyId)
     )
@@ -233,6 +255,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleAddSub = (competencyId, newSub) => {
+    if (!canEdit) return
     const id = tempId()
     setSubCompetencyNodes(prev => [...prev, {
       id,
@@ -274,7 +297,7 @@ const handleSuggestionsApplied = useCallback(async () => {
           <h2 className="editor-topbar__title">{vacancy?.name}</h2>
 
           <div className="editor-topbar__actions">
-            {isDirty && (
+            {isDirty && canEdit && (
               <button
                 className="btn-secondary"
                 onClick={handleDiscard}
@@ -286,7 +309,7 @@ const handleSuggestionsApplied = useCallback(async () => {
             <button
               className="btn-primary"
               onClick={handleSave}
-              disabled={saving || !isDirty}
+              disabled={saving || !isDirty || !canEdit}
             >
               {saving
                 ? <><Loader2 size={16} className="spin" /> Сохранение...</>
@@ -296,32 +319,39 @@ const handleSuggestionsApplied = useCallback(async () => {
           </div>
         </div>
 
-        {vacancy?.status === 'draft' && (
-          <SuggestionsPanel
-            vacancyId={vacancyId}
-            categoryNodes={categoryNodes}
-            competencyNodes={competencyNodes}
-            onApprove={handleSuggestionsApplied}
-            notify={notify}
-          />
+        {isForbidden ? (
+          <ForbiddenState hint="Недостаточно прав для работы с этой вакансией." />
+        ) : (
+          <>
+            {vacancy?.status === 'draft' && canReviewSuggestions && (
+              <SuggestionsPanel
+                vacancyId={vacancyId}
+                categoryNodes={categoryNodes}
+                competencyNodes={competencyNodes}
+                onApprove={handleSuggestionsApplied}
+                notify={notify}
+              />
+            )}
+
+            <MindMap
+              readOnly={!canEdit}
+              categoryNodes={categoryNodes}
+              competencyNodes={competencyNodes}
+              subCompetencyNodes={subCompetencyNodes}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onAddCategory={() => setAddingCategory(true)}
+              onUpdateCompetency={handleUpdateCompetency}
+              onDeleteCompetency={handleDeleteCompetency}
+              onAddCompetency={handleAddCompetency}
+              onUpdateSub={handleUpdateSub}
+              onDeleteSub={handleDeleteSub}
+              onAddSub={handleAddSub}
+            />
+          </>
         )}
 
-        <MindMap
-          categoryNodes={categoryNodes}
-          competencyNodes={competencyNodes}
-          subCompetencyNodes={subCompetencyNodes}
-          onUpdateCategory={handleUpdateCategory}
-          onDeleteCategory={handleDeleteCategory}
-          onAddCategory={() => setAddingCategory(true)}
-          onUpdateCompetency={handleUpdateCompetency}
-          onDeleteCompetency={handleDeleteCompetency}
-          onAddCompetency={handleAddCompetency}
-          onUpdateSub={handleUpdateSub}
-          onDeleteSub={handleDeleteSub}
-          onAddSub={handleAddSub}
-        />
-
-        {addingCategory && (
+        {addingCategory && canEdit && !isForbidden && (
           <EditCategoryDialog
             category={{ id: '', name: '', emoji: '📌', description: '' }}
             onSave={handleAddCategorySubmit}

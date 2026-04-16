@@ -59,6 +59,7 @@ api.interceptors.response.use(
       try {
         const { data } = await api.post('/auth/refresh')
         setAccessToken(data.access_token)
+        window.dispatchEvent(new CustomEvent('auth:refreshed'))
         processQueue(null, data.access_token)
         original.headers.Authorization = `Bearer ${data.access_token}`
         return api(original)

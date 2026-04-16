@@ -23,7 +23,7 @@ export default function LoginPage({ onLogin }) {
     try {
       const { data } = await login(email.trim(), password)
       localStorage.setItem('access_token', data.access_token)
-      onLogin()
+      await onLogin()
       navigate('/')
     } catch (err) {
       setError(getErrorMessage(err, {

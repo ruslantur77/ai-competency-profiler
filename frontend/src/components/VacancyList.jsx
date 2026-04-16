@@ -1,10 +1,11 @@
 // frontend/src/components/VacancyList.jsx
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Plus, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit } from 'lucide-react'
 import { listVacancies, createVacancy } from '../api/vacancies'
 import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
+import { canAccessTasks, canEditGraph } from '../api/roles'
 import CreateVacancyDialog from './CreateVacancyDialog'
 import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
@@ -35,19 +36,25 @@ const STATUS_CONFIG = {
   },
 }
 
-const TABS = [
-  { id: 'vacancies', label: '📋 Вакансии' },
-  { id: 'tasks', label: '📝 Задания' },
-  { id: 'ranking', label: '🏆 Ранжирование' },
-]
-
-export default function VacancyList({ notify, onLogout }) {
+export default function VacancyList({ notify, onLogout, role }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState('vacancies')
   const [vacancies, setVacancies] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const canEdit = canEditGraph(role)
+  const tabs = useMemo(() => ([
+    { id: 'vacancies', label: '📋 Вакансии' },
+    ...(canAccessTasks(role) ? [{ id: 'tasks', label: '📝 Задания' }] : []),
+    { id: 'ranking', label: '🏆 Ранжирование' },
+  ]), [role])
+
+  useEffect(() => {
+    if (!tabs.some(tab => tab.id === activeTab)) {
+      setActiveTab('vacancies')
+    }
+  }, [tabs, activeTab])
 
   const fetchVacancies = useCallback(async () => {
     setLoading(true)
@@ -92,6 +99,10 @@ export default function VacancyList({ notify, onLogout }) {
 
   const handleCreate = async (data) => {
     try {
+      if (!canEdit) {
+        notify('Недостаточно прав для создания вакансии', 'error')
+        return
+      }
       await createVacancy(data)
       setCreating(false)
       await fetchVacancies()
@@ -129,7 +140,7 @@ export default function VacancyList({ notify, onLogout }) {
           <p>Формирование компетентностного профиля специалиста</p>
         </div>
         <div className="vacancy-list__header-actions">
-          {activeTab === 'vacancies' && (
+          {activeTab === 'vacancies' && canEdit && (
             <button className="btn-primary" onClick={() => setCreating(true)}>
               <Plus size={18} /> Создать вакансию
             </button>
@@ -142,7 +153,7 @@ export default function VacancyList({ notify, onLogout }) {
 
       {/* ===== ТАБЫ ===== */}
       <div className="vacancy-list__tabs">
-        {TABS.map(tab => (
+        {tabs.map(tab => (
           <button
             key={tab.id}
             className={`vacancy-list__tab ${activeTab === tab.id ? 'vacancy-list__tab--active' : ''}`}
@@ -166,10 +177,16 @@ export default function VacancyList({ notify, onLogout }) {
           ) : vacancies.length === 0 ? (
             <div className="vacancy-list__empty">
               <p>📋 Вакансий пока нет</p>
-              <p>Создайте первую вакансию для формирования профиля компетенций</p>
-              <button className="btn-primary" onClick={() => setCreating(true)}>
-                <Plus size={18} /> Создать вакансию
-              </button>
+              <p>
+                {canEdit
+                  ? 'Создайте первую вакансию для формирования профиля компетенций'
+                  : 'Вакансий пока нет'}
+              </p>
+              {canEdit && (
+                <button className="btn-primary" onClick={() => setCreating(true)}>
+                  <Plus size={18} /> Создать вакансию
+                </button>
+              )}
             </div>
           ) : (
             <div className="vacancy-list__grid">
@@ -219,7 +236,7 @@ export default function VacancyList({ notify, onLogout }) {
         )}
       </div>
 
-      {creating && (
+      {creating && canEdit && (
         <CreateVacancyDialog
           onClose={() => setCreating(false)}
           onCreate={handleCreate}

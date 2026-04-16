@@ -1,7 +1,7 @@
 // frontend/src/components/MindMap.jsx
 import React, { useState } from 'react'
 import {
-  ChevronRight, ChevronDown, Edit3, Trash2, Sparkles, Plus
+  ChevronRight, ChevronDown, Edit3, Trash2, Plus
 } from 'lucide-react'
 import NodeEditor from './NodeEditor'
 import ConfirmDialog from './ConfirmDialog'
@@ -55,14 +55,20 @@ function SubCompetencyNode({ sub, onEdit, onDelete }) {
           <span className="mindmap__weight-badge">×{sub.weight}</span>
         )}
 
-        <div className="mindmap__sub-actions">
-          <button title="Редактировать" onClick={() => onEdit(sub)}>
-            <Edit3 size={14} />
-          </button>
-          <button title="Удалить" onClick={() => onDelete(sub)}>
-            <Trash2 size={14} />
-          </button>
-        </div>
+        {(onEdit || onDelete) && (
+          <div className="mindmap__sub-actions">
+            {onEdit && (
+              <button title="Редактировать" onClick={() => onEdit(sub)}>
+                <Edit3 size={14} />
+              </button>
+            )}
+            {onDelete && (
+              <button title="Удалить" onClick={() => onDelete(sub)}>
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {expanded && sub.sub_competency_description && (
@@ -99,14 +105,20 @@ function CompetencyNode({
           <span className="mindmap__comp-count">{subNodes.length}</span>
         </div>
 
-        <div className="mindmap__comp-actions">
-          <button title="Редактировать" onClick={() => onEditComp(comp)}>
-            <Edit3 size={14} />
-          </button>
-          <button title="Удалить" onClick={() => onDeleteComp(comp)}>
-            <Trash2 size={14} />
-          </button>
-        </div>
+        {(onEditComp || onDeleteComp) && (
+          <div className="mindmap__comp-actions">
+            {onEditComp && (
+              <button title="Редактировать" onClick={() => onEditComp(comp)}>
+                <Edit3 size={14} />
+              </button>
+            )}
+            {onDeleteComp && (
+              <button title="Удалить" onClick={() => onDeleteComp(comp)}>
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {expanded && (
@@ -119,12 +131,14 @@ function CompetencyNode({
               onDelete={onDeleteSub}
             />
           ))}
-          <button
-            className="mindmap__add-btn"
-            onClick={() => onAddSub(comp)}
-          >
-            <Plus size={14} /> Добавить подкомпетенцию
-          </button>
+          {onAddSub && (
+            <button
+              className="mindmap__add-btn"
+              onClick={() => onAddSub(comp)}
+            >
+              <Plus size={14} /> Добавить подкомпетенцию
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -133,6 +147,7 @@ function CompetencyNode({
 
 // ===== MAIN MINDMAP =====
 export default function MindMap({
+  readOnly = false,
   categoryNodes,
   competencyNodes,
   subCompetencyNodes,
@@ -219,9 +234,11 @@ export default function MindMap({
               <span key={lvl}>{cfg.label}</span>
             ))}
           </div>
-          <button className="mindmap__add-cat-btn" onClick={onAddCategory}>
-            <Plus size={14} /> Категория
-          </button>
+          {!readOnly && (
+            <button className="mindmap__add-cat-btn" onClick={onAddCategory}>
+              <Plus size={14} /> Категория
+            </button>
+          )}
         </div>
       </div>
 
@@ -247,20 +264,22 @@ export default function MindMap({
                   {catComps.length}
                 </span>
 
-                <div className="mindmap__category-actions">
-                  <button
-                    title="Редактировать"
-                    onClick={() => setEditingCat(cat)}
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                  <button
-                    title="Удалить категорию"
-                    onClick={() => setDeletingCat(cat)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {!readOnly && (
+                  <div className="mindmap__category-actions">
+                    <button
+                      title="Редактировать"
+                      onClick={() => setEditingCat(cat)}
+                    >
+                      <Edit3 size={14} />
+                    </button>
+                    <button
+                      title="Удалить категорию"
+                      onClick={() => setDeletingCat(cat)}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="mindmap__category-children">
@@ -273,20 +292,22 @@ export default function MindMap({
                       key={comp.competency_id}
                       comp={comp}
                       subNodes={compSubs}
-                      onEditComp={setEditingComp}
-                      onDeleteComp={setDeletingComp}
-                      onEditSub={setEditingSub}
-                      onDeleteSub={setDeletingSub}
-                      onAddSub={setAddingSubComp}
+                      onEditComp={readOnly ? null : setEditingComp}
+                      onDeleteComp={readOnly ? null : setDeletingComp}
+                      onEditSub={readOnly ? null : setEditingSub}
+                      onDeleteSub={readOnly ? null : setDeletingSub}
+                      onAddSub={readOnly ? null : setAddingSubComp}
                     />
                   )
                 })}
-                <button
-                  className="mindmap__add-btn"
-                  onClick={() => setAddingComp(cat)}
-                >
-                  <Plus size={14} /> Добавить компетенцию
-                </button>
+                {!readOnly && (
+                  <button
+                    className="mindmap__add-btn"
+                    onClick={() => setAddingComp(cat)}
+                  >
+                    <Plus size={14} /> Добавить компетенцию
+                  </button>
+                )}
               </div>
             </div>
           )
