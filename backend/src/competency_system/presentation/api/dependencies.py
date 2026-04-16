@@ -72,6 +72,7 @@ from competency_system.application.use_cases.vacancy import (
     ListVacanciesForReviewUseCase,
     ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    SaveVacancyGraphUseCase,
     UpdateVacancyStatusUseCase,
 )
 from competency_system.domain.value_objects.enums import UserRole
@@ -154,6 +155,12 @@ def get_get_vacancy_graph_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> GetVacancyGraphUseCase:
     return GetVacancyGraphUseCase(uow)
+
+
+def get_save_vacancy_graph_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> SaveVacancyGraphUseCase:
+    return SaveVacancyGraphUseCase(uow)
 
 
 def get_finalize_vacancy_graph_use_case(

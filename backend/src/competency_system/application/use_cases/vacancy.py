@@ -358,7 +358,7 @@ class ExtractVacancyGraphOperation:
         }
 
 
-class FinalizeVacancyGraphUseCase:
+class SaveVacancyGraphUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
@@ -382,7 +382,6 @@ class FinalizeVacancyGraphUseCase:
                 comp_node.vacancy_id = vacancy.id
             for sub_node in payload.sub_competency_nodes:
                 sub_node.vacancy_id = vacancy.id
-            vacancy.status = VacancyStatus.READY
             vacancy.category_nodes = payload.category_nodes
             vacancy.competency_nodes = payload.competency_nodes
             vacancy.sub_competency_nodes = payload.sub_competency_nodes
@@ -470,6 +469,25 @@ class FinalizeVacancyGraphUseCase:
             sub_competency_nodes=sub_nodes,
             suggestions=[],
         )
+
+
+class FinalizeVacancyGraphUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, vacancy_id: UUID) -> VacancyDTO:
+        async with self._uow as uow:
+            vacancy = await uow.vacancies.get(
+                vacancy_id,
+                include={VacancyInclude.NORMALIZED_GRAPH},
+            )
+            if vacancy is None:
+                raise ValueError(f"Vacancy {vacancy_id} not found")
+
+            vacancy.status = VacancyStatus.READY
+            await uow.vacancies.add(vacancy)
+            await uow.commit()
+            return vacancy_dto_from_domain(vacancy)
 
 
 class GetVacancyGraphUseCase:

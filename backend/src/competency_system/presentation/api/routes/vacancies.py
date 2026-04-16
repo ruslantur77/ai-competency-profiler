@@ -22,6 +22,7 @@ from competency_system.application.use_cases.vacancy import (
     ListVacanciesForReviewUseCase,
     ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    SaveVacancyGraphUseCase,
     UpdateVacancyStatusUseCase,
 )
 from competency_system.domain.value_objects.enums import VacancyStatus
@@ -33,6 +34,7 @@ from competency_system.presentation.api.dependencies import (
     get_list_vacancies_for_review_use_case,
     get_list_vacancies_use_case,
     get_list_vacancy_suggestions_use_case,
+    get_save_vacancy_graph_use_case,
     get_update_vacancy_status_use_case,
     require_admin_or_expert,
     require_hr_expert_admin,
@@ -114,9 +116,26 @@ async def get_vacancy_graph(
 
 
 @router.patch("/{vacancy_id}/graph", response_model=VacancyDTO)
-async def finalize_vacancy_graph(
+async def save_vacancy_graph(
     vacancy_id: UUID,
     payload: VacancyGraphUpdateDTO,
+    _: Annotated[None, Depends(require_admin_or_expert)],
+    use_case: Annotated[
+        SaveVacancyGraphUseCase,
+        Depends(get_save_vacancy_graph_use_case),
+    ],
+) -> VacancyDTO:
+    try:
+        return await use_case.execute(vacancy_id, payload)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+
+@router.post("/{vacancy_id}/graph/finalize", response_model=VacancyDTO)
+async def finalize_vacancy_graph(
+    vacancy_id: UUID,
     _: Annotated[None, Depends(require_admin_or_expert)],
     use_case: Annotated[
         FinalizeVacancyGraphUseCase,
@@ -124,7 +143,7 @@ async def finalize_vacancy_graph(
     ],
 ) -> VacancyDTO:
     try:
-        return await use_case.execute(vacancy_id, payload)
+        return await use_case.execute(vacancy_id)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)

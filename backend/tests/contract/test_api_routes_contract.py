@@ -30,6 +30,7 @@ from competency_system.domain.value_objects.enums import (
     SuggestionStage,
     SuggestionStatus,
     UserRole,
+    VacancyStatus,
 )
 from competency_system.presentation.api.dependencies import (
     get_assess_candidate_use_case,
@@ -64,6 +65,7 @@ from competency_system.presentation.api.dependencies import (
     get_refresh_token_data,
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
+    get_save_vacancy_graph_use_case,
     get_sync_tasks_use_case,
     get_update_category_use_case,
     get_update_competency_use_case,
@@ -158,8 +160,11 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
     app.dependency_overrides[get_list_vacancies_use_case] = lambda: _StaticUseCase(
         [vacancy]
     )
+    app.dependency_overrides[get_save_vacancy_graph_use_case] = lambda: _StaticUseCase(
+        vacancy
+    )
     app.dependency_overrides[get_finalize_vacancy_graph_use_case] = lambda: (
-        _StaticUseCase(vacancy)
+        _StaticUseCase(vacancy.model_copy(update={"status": VacancyStatus.READY}))
     )
     app.dependency_overrides[get_list_vacancy_suggestions_use_case] = lambda: (
         _StaticUseCase([suggestion])
@@ -210,6 +215,9 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
             f"/api/v1/vacancies/{vacancy.id}/graph", json=legacy_payload
         )
         assert finalized_legacy.status_code == 422
+
+        finalized_status = client.post(f"/api/v1/vacancies/{vacancy.id}/graph/finalize")
+        assert finalized_status.status_code == 200
 
         suggestions = client.get(f"/api/v1/vacancies/{vacancy.id}/suggestions")
         assert suggestions.status_code == 200

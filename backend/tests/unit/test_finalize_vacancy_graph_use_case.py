@@ -10,7 +10,10 @@ from competency_system.application.dtos.vacancy import (
     VacancyGraphSubCompetencyInputDTO,
     VacancyGraphUpdateDTO,
 )
-from competency_system.application.use_cases.vacancy import FinalizeVacancyGraphUseCase
+from competency_system.application.use_cases.vacancy import (
+    FinalizeVacancyGraphUseCase,
+    SaveVacancyGraphUseCase,
+)
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import VacancyStatus
 from tests.factories import VacancyFactory
@@ -20,6 +23,11 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture
 def use_case(mock_uow):
+    return SaveVacancyGraphUseCase(mock_uow)
+
+
+@pytest.fixture
+def finalize_use_case(mock_uow):
     return FinalizeVacancyGraphUseCase(mock_uow)
 
 
@@ -59,21 +67,21 @@ def graph_update() -> VacancyGraphUpdateDTO:
 
 
 async def test_finalize_vacancy_graph_use_case_updates_graph_only(
-    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+    use_case: SaveVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
 ) -> None:
     vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
     mock_uow.vacancies.get.return_value = vacancy
 
     result = await use_case.execute(vacancy.id, graph_update)
 
-    assert result.status == VacancyStatus.READY
+    assert result.status == VacancyStatus.DRAFT
     mock_uow.categories.add.assert_awaited()
     mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
     mock_uow.commit.assert_awaited_once()
 
 
 async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing(
-    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+    use_case: SaveVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
 ) -> None:
     mock_uow.vacancies.get.return_value = None
 
@@ -82,7 +90,7 @@ async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing(
 
 
 async def test_finalize_vacancy_graph_use_case_does_not_touch_suggestions(
-    use_case: FinalizeVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+    use_case: SaveVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
 ) -> None:
     vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
     mock_uow.vacancies.get.return_value = vacancy
@@ -92,3 +100,27 @@ async def test_finalize_vacancy_graph_use_case_does_not_touch_suggestions(
     mock_uow.vacancy_suggestions.get.assert_not_awaited()
     mock_uow.vacancy_suggestions.list_by_vacancy.assert_not_awaited()
     mock_uow.vacancy_suggestions.add.assert_not_awaited()
+
+
+async def test_finalize_vacancy_graph_use_case_sets_ready_status(
+    finalize_use_case: FinalizeVacancyGraphUseCase,
+    mock_uow,
+) -> None:
+    vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
+    mock_uow.vacancies.get.return_value = vacancy
+
+    result = await finalize_use_case.execute(vacancy.id)
+
+    assert result.status == VacancyStatus.READY
+    mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
+    mock_uow.commit.assert_awaited_once()
+
+
+async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing_on_finalize(
+    finalize_use_case: FinalizeVacancyGraphUseCase,
+    mock_uow,
+) -> None:
+    mock_uow.vacancies.get.return_value = None
+
+    with pytest.raises(ValueError, match="not found"):
+        await finalize_use_case.execute(uuid4())

@@ -50,11 +50,13 @@ from competency_system.application.use_cases.vacancy import (
     ListVacanciesForReviewUseCase,
     ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    SaveVacancyGraphUseCase,
     UpdateVacancyStatusUseCase,
 )
 
 __all__ = [
     "CreateVacancyGraphUseCase",
+    "SaveVacancyGraphUseCase",
     "FinalizeVacancyGraphUseCase",
     "GetVacancyGraphUseCase",
     "ListVacancySuggestionsUseCase",
