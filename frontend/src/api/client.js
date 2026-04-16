@@ -140,7 +140,6 @@ export const healthCheck = () =>
   api.get('/health')
 
 // ===== ЗАГЛУШКИ =====
-export const importFromHH = () => Promise.reject(new Error('Недоступно'))
 export const deleteVacancy = () => Promise.reject(new Error('Недоступно'))
 export const updateVacancy = () => Promise.reject(new Error('Недоступно'))
 export const getVacancyStatus = () => Promise.reject(new Error('Недоступно'))
