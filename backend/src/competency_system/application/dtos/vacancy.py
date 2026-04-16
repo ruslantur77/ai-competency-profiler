@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import ConfigDict, Field, model_validator
@@ -79,31 +80,109 @@ class VacancyCreateDTO(BaseDTO):
     description: str
 
 
+class VacancyGraphNodeMode(StrEnum):
+    EXISTING = "existing"
+    NEW = "new"
+
+
 class VacancyGraphSubCompetencyInputDTO(BaseDTO):
-    id: UUID
-    name: str
-    description: str = ""
+    model_config = ConfigDict(extra="forbid")
+    mode: VacancyGraphNodeMode
+    id: UUID | None = None
+    temp_id: UUID | None = None
+    name: str | None = None
+    description: str | None = None
     target_level: CompetencyLevel = CompetencyLevel.BEGINNER
     weight: float = 1.0
 
+    @model_validator(mode="after")
+    def _validate_mode_fields(self) -> VacancyGraphSubCompetencyInputDTO:
+        if self.mode == VacancyGraphNodeMode.EXISTING:
+            if self.id is None:
+                raise ValueError("Existing sub-competency requires 'id'")
+            if self.temp_id is not None:
+                raise ValueError("Existing sub-competency cannot include 'temp_id'")
+            if self.name is not None:
+                raise ValueError("Existing sub-competency cannot include 'name'")
+            if self.description is not None:
+                raise ValueError("Existing sub-competency cannot include 'description'")
+            return self
+
+        if self.id is not None:
+            raise ValueError("New sub-competency cannot include 'id'")
+        if self.temp_id is None:
+            raise ValueError("New sub-competency requires 'temp_id'")
+        if not self.name or not self.name.strip():
+            raise ValueError("New sub-competency requires non-empty 'name'")
+        return self
+
 
 class VacancyGraphCompetencyInputDTO(BaseDTO):
-    id: UUID
-    category_id: UUID
-    name: str
-    description: str = ""
+    model_config = ConfigDict(extra="forbid")
+    mode: VacancyGraphNodeMode
+    id: UUID | None = None
+    temp_id: UUID | None = None
+    name: str | None = None
+    description: str | None = None
     is_required: bool = True
     sub_competencies: list[VacancyGraphSubCompetencyInputDTO] = Field(
         default_factory=list
     )
 
+    @model_validator(mode="after")
+    def _validate_mode_fields(self) -> VacancyGraphCompetencyInputDTO:
+        if self.mode == VacancyGraphNodeMode.EXISTING:
+            if self.id is None:
+                raise ValueError("Existing competency requires 'id'")
+            if self.temp_id is not None:
+                raise ValueError("Existing competency cannot include 'temp_id'")
+            if self.name is not None:
+                raise ValueError("Existing competency cannot include 'name'")
+            if self.description is not None:
+                raise ValueError("Existing competency cannot include 'description'")
+            return self
+
+        if self.id is not None:
+            raise ValueError("New competency cannot include 'id'")
+        if self.temp_id is None:
+            raise ValueError("New competency requires 'temp_id'")
+        if not self.name or not self.name.strip():
+            raise ValueError("New competency requires non-empty 'name'")
+        return self
+
 
 class VacancyGraphCategoryInputDTO(BaseDTO):
-    id: UUID
-    name: str
-    description: str = ""
-    emoji: str = ""
+    model_config = ConfigDict(extra="forbid")
+    mode: VacancyGraphNodeMode
+    id: UUID | None = None
+    temp_id: UUID | None = None
+    name: str | None = None
+    description: str | None = None
+    emoji: str | None = None
     competencies: list[VacancyGraphCompetencyInputDTO] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_mode_fields(self) -> VacancyGraphCategoryInputDTO:
+        if self.mode == VacancyGraphNodeMode.EXISTING:
+            if self.id is None:
+                raise ValueError("Existing category requires 'id'")
+            if self.temp_id is not None:
+                raise ValueError("Existing category cannot include 'temp_id'")
+            if self.name is not None:
+                raise ValueError("Existing category cannot include 'name'")
+            if self.description is not None:
+                raise ValueError("Existing category cannot include 'description'")
+            if self.emoji is not None:
+                raise ValueError("Existing category cannot include 'emoji'")
+            return self
+
+        if self.id is not None:
+            raise ValueError("New category cannot include 'id'")
+        if self.temp_id is None:
+            raise ValueError("New category requires 'temp_id'")
+        if not self.name or not self.name.strip():
+            raise ValueError("New category requires non-empty 'name'")
+        return self
 
 
 class VacancyGraphUpdateDTO(BaseDTO):

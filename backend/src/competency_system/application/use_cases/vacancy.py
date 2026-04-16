@@ -15,6 +15,9 @@ from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
     VacancyDTO,
+    VacancyGraphCategoryInputDTO,
+    VacancyGraphCompetencyInputDTO,
+    VacancyGraphSubCompetencyInputDTO,
     VacancyGraphSuggestionDTO,
     VacancyGraphUpdateDTO,
     VacancyListItemDTO,
@@ -70,6 +73,7 @@ logger = logging.getLogger(__name__)
 class _VacancyGraphPayload:
     categories: list[Category]
     competencies: list[Competency]
+    sub_competencies: list[SubCompetency]
     category_nodes: list[VacancyCategoryNode]
     competency_nodes: list[VacancyCompetencyNode]
     sub_competency_nodes: list[VacancySubCompetencyNode]
@@ -327,6 +331,7 @@ class ExtractVacancyGraphOperation:
             return _VacancyGraphPayload(
                 categories=[],
                 competencies=[],
+                sub_competencies=[],
                 category_nodes=[],
                 competency_nodes=[],
                 sub_competency_nodes=[],
@@ -347,6 +352,11 @@ class ExtractVacancyGraphOperation:
         return _VacancyGraphPayload(
             categories=categories,
             competencies=competencies,
+            sub_competencies=[
+                sub
+                for competency in competencies
+                for sub in competency.sub_competencies
+            ],
             category_nodes=category_nodes,
             competency_nodes=competency_nodes,
             sub_competency_nodes=sub_nodes,
@@ -378,7 +388,7 @@ class SaveVacancyGraphUseCase:
             if vacancy is None:
                 raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
-            payload = self._build_payload(graph)
+            payload = await self._build_payload(uow, graph)
             for cat_node in payload.category_nodes:
                 cat_node.vacancy_id = vacancy.id
             for comp_node in payload.competency_nodes:
@@ -392,24 +402,35 @@ class SaveVacancyGraphUseCase:
 
             for category in payload.categories:
                 await uow.categories.add(category)
+            for competency in payload.competencies:
+                await uow.competencies.add(competency)
+            for sub_competency in payload.sub_competencies:
+                await uow.sub_competencies.add(sub_competency)
             await uow.vacancies.add(vacancy)
             await uow.commit()
             return vacancy_dto_from_domain(vacancy)
 
-    def _build_payload(self, graph: VacancyGraphUpdateDTO) -> _VacancyGraphPayload:
-        categories: list[Category] = []
-        competencies: list[Competency] = []
+    async def _build_payload(
+        self, uow: UnitOfWork, graph: VacancyGraphUpdateDTO
+    ) -> _VacancyGraphPayload:
+        categories_to_create: list[Category] = []
+        competencies_to_create: list[Competency] = []
+        sub_competencies_to_create: list[SubCompetency] = []
         category_nodes: list[VacancyCategoryNode] = []
         competency_nodes: list[VacancyCompetencyNode] = []
         sub_nodes: list[VacancySubCompetencyNode] = []
+        used_category_ids: set[UUID] = set()
+        used_competency_ids: set[UUID] = set()
+        used_sub_competency_ids: set[UUID] = set()
 
         for category_position, category_dto in enumerate(graph.categories):
-            category = Category(
-                id=category_dto.id,
-                name=category_dto.name,
-                description=category_dto.description,
-                emoji=category_dto.emoji,
-            )
+            category = await self._resolve_category(uow, category_dto)
+            if category.id in used_category_ids:
+                raise ValidationError(
+                    f"Duplicate category node for category_id={category.id}"
+                )
+            used_category_ids.add(category.id)
+
             category_nodes.append(
                 VacancyCategoryNode(
                     id=uuid4(),
@@ -418,24 +439,19 @@ class SaveVacancyGraphUseCase:
                     position=category_position,
                 )
             )
-            category_competencies: list[Competency] = []
+            if category_dto.mode == "new":
+                categories_to_create.append(category)
+
             for competency_dto in category_dto.competencies:
-                competency = Competency(
-                    id=competency_dto.id,
-                    category_id=category.id,
-                    name=competency_dto.name,
-                    description=competency_dto.description,
-                    sub_competencies=[
-                        SubCompetency(
-                            id=subcompetency_dto.id,
-                            competency_id=competency_dto.id,
-                            name=subcompetency_dto.name,
-                            description=subcompetency_dto.description,
-                            weight=subcompetency_dto.weight,
-                        )
-                        for subcompetency_dto in competency_dto.sub_competencies
-                    ],
+                competency = await self._resolve_competency(
+                    uow, competency_dto, category_id=category.id
                 )
+                if competency.id in used_competency_ids:
+                    raise ValidationError(
+                        f"Duplicate competency node for competency_id={competency.id}"
+                    )
+                used_competency_ids.add(competency.id)
+
                 competency_nodes.append(
                     VacancyCompetencyNode(
                         id=uuid4(),
@@ -446,31 +462,117 @@ class SaveVacancyGraphUseCase:
                         position=len(competency_nodes),
                     )
                 )
+
+                if competency_dto.mode == "new":
+                    competencies_to_create.append(competency)
+
                 for subcompetency_dto in competency_dto.sub_competencies:
+                    sub_competency = await self._resolve_sub_competency(
+                        uow,
+                        subcompetency_dto,
+                        competency_id=competency.id,
+                    )
+                    if sub_competency.id in used_sub_competency_ids:
+                        raise ValidationError(
+                            "Duplicate sub-competency node for "
+                            f"sub_competency_id={sub_competency.id}"
+                        )
+                    used_sub_competency_ids.add(sub_competency.id)
+
                     sub_nodes.append(
                         VacancySubCompetencyNode(
                             id=uuid4(),
                             vacancy_id=UUID(int=0),
-                            sub_competency_id=subcompetency_dto.id,
+                            sub_competency_id=sub_competency.id,
                             competency_id=competency.id,
                             target_level=subcompetency_dto.target_level,
                             weight=subcompetency_dto.weight,
                             position=len(sub_nodes),
                         )
                     )
-                category_competencies.append(competency)
-                competencies.append(competency)
-
-            category.competencies = category_competencies
-            categories.append(category)
+                    if subcompetency_dto.mode == "new":
+                        sub_competencies_to_create.append(sub_competency)
 
         return _VacancyGraphPayload(
-            categories=categories,
-            competencies=competencies,
+            categories=categories_to_create,
+            competencies=competencies_to_create,
+            sub_competencies=sub_competencies_to_create,
             category_nodes=category_nodes,
             competency_nodes=competency_nodes,
             sub_competency_nodes=sub_nodes,
             suggestions=[],
+        )
+
+    async def _resolve_category(
+        self,
+        uow: UnitOfWork,
+        category_dto: VacancyGraphCategoryInputDTO,
+    ) -> Category:
+        if category_dto.mode == "existing":
+            if category_dto.id is None:
+                raise ValidationError("Existing category requires id")
+            category = await uow.categories.get(category_dto.id)
+            if category is None:
+                raise NotFoundError(f"Category {category_dto.id} not found")
+            return category
+        return Category(
+            id=uuid4(),
+            name=(category_dto.name or "").strip(),
+            description=category_dto.description or "",
+            emoji=category_dto.emoji or "",
+        )
+
+    async def _resolve_competency(
+        self,
+        uow: UnitOfWork,
+        competency_dto: VacancyGraphCompetencyInputDTO,
+        *,
+        category_id: UUID,
+    ) -> Competency:
+        if competency_dto.mode == "existing":
+            if competency_dto.id is None:
+                raise ValidationError("Existing competency requires id")
+            competency = await uow.competencies.get(competency_dto.id)
+            if competency is None:
+                raise NotFoundError(f"Competency {competency_dto.id} not found")
+            if competency.category_id != category_id:
+                raise ValidationError(
+                    "Existing competency does not belong to the selected category"
+                )
+            return competency
+        return Competency(
+            id=uuid4(),
+            category_id=category_id,
+            name=(competency_dto.name or "").strip(),
+            description=competency_dto.description or "",
+            sub_competencies=[],
+        )
+
+    async def _resolve_sub_competency(
+        self,
+        uow: UnitOfWork,
+        subcompetency_dto: VacancyGraphSubCompetencyInputDTO,
+        *,
+        competency_id: UUID,
+    ) -> SubCompetency:
+        if subcompetency_dto.mode == "existing":
+            if subcompetency_dto.id is None:
+                raise ValidationError("Existing sub-competency requires id")
+            sub_competency = await uow.sub_competencies.get(subcompetency_dto.id)
+            if sub_competency is None:
+                raise NotFoundError(f"Sub-competency {subcompetency_dto.id} not found")
+            if sub_competency.competency_id != competency_id:
+                raise ValidationError(
+                    "Existing sub-competency does not belong to the selected competency"
+                )
+            return sub_competency
+        return SubCompetency(
+            id=uuid4(),
+            competency_id=competency_id,
+            name=(subcompetency_dto.name or "").strip(),
+            description=subcompetency_dto.description or "",
+            weight=subcompetency_dto.weight,
+            target_level=subcompetency_dto.target_level,
         )
 
 
