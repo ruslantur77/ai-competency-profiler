@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from competency_system.application.dtos.auth import UserCreateDTO
+from competency_system.application.errors import ConflictError
 from competency_system.application.use_cases.auth import CreateUserUseCase
 from competency_system.domain.value_objects.enums import UserRole
 from tests.factories import UserFactory
@@ -40,6 +41,6 @@ async def test_create_user_use_case_rejects_duplicate_email(
         {"email": command.email}
     )
 
-    with pytest.raises(ValueError, match="already exists"):
+    with pytest.raises(ConflictError, match="already exists"):
         await use_case.execute(command)
     mock_uow.commit.assert_not_awaited()

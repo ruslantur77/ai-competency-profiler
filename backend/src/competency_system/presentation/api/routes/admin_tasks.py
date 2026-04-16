@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from competency_system.application.dtos.task import TaskDTO
 from competency_system.application.use_cases.task import (
@@ -39,12 +39,7 @@ async def get_task(
     task_id: UUID,
     use_case: Annotated[GetTaskUseCase, Depends(get_get_task_use_case)],
 ) -> TaskDTO:
-    try:
-        return await use_case.execute(task_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(task_id)
 
 
 @router.post("/{task_id}/mapping/rebuild", response_model=TaskDTO)
@@ -55,12 +50,7 @@ async def rebuild_task_mapping(
         Depends(get_rebuild_task_mapping_use_case),
     ],
 ) -> TaskDTO:
-    try:
-        return await use_case.execute(task_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(task_id)
 
 
 @router.post("/{task_id}/mapping/validate", response_model=TaskDTO)
@@ -71,9 +61,4 @@ async def validate_task_mapping(
         Depends(get_validate_task_mapping_use_case),
     ],
 ) -> TaskDTO:
-    try:
-        return await use_case.execute(task_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(task_id)

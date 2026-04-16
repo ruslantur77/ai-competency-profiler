@@ -80,7 +80,7 @@ class GetCategoryUseCase:
                 category_id, include={CategoryInclude.SUB_COMPETENCIES}
             )
             if category is None:
-                raise ValueError(f"Category {category_id} not found")
+                raise NotFoundError(f"Category {category_id} not found")
             return _category_to_dto(category)
 
 
@@ -113,7 +113,7 @@ class UpdateCategoryUseCase:
                 category_id, include={CategoryInclude.SUB_COMPETENCIES}
             )
             if category is None:
-                raise ValueError(f"Category {category_id} not found")
+                raise NotFoundError(f"Category {category_id} not found")
 
             if command.name is not None:
                 category.name = command.name
@@ -149,7 +149,7 @@ class GetCompetencyUseCase:
                 competency_id, include={CompetencyInclude.SUB_COMPETENCIES}
             )
             if competency is None:
-                raise ValueError(f"Competency {competency_id} not found")
+                raise NotFoundError(f"Competency {competency_id} not found")
             return _competency_to_dto(competency)
 
 
@@ -161,7 +161,7 @@ class CreateCompetencyUseCase:
         async with self._uow as uow:
             category = await uow.categories.get(command.category_id)
             if category is None:
-                raise ValueError(f"Category {command.category_id} not found")
+                raise NotFoundError(f"Category {command.category_id} not found")
 
             competency = Competency(
                 id=uuid4(),
@@ -189,12 +189,12 @@ class UpdateCompetencyUseCase:
                 include={CompetencyInclude.SUB_COMPETENCIES},
             )
             if competency is None:
-                raise ValueError(f"Competency {competency_id} not found")
+                raise NotFoundError(f"Competency {competency_id} not found")
 
             if command.category_id is not None:
                 category = await uow.categories.get(command.category_id)
                 if category is None:
-                    raise ValueError(f"Category {command.category_id} not found")
+                    raise NotFoundError(f"Category {command.category_id} not found")
                 competency.category_id = command.category_id
             if command.name is not None:
                 competency.name = command.name
@@ -224,7 +224,7 @@ class GetSubCompetencyUseCase:
         async with self._uow as uow:
             sub_competency = await uow.sub_competencies.get(sub_competency_id)
             if sub_competency is None:
-                raise ValueError(f"Sub-competency {sub_competency_id} not found")
+                raise NotFoundError(f"Sub-competency {sub_competency_id} not found")
             return _sub_competency_to_dto(sub_competency)
 
 
@@ -236,7 +236,7 @@ class CreateSubCompetencyUseCase:
         async with self._uow as uow:
             competency = await uow.competencies.get(command.competency_id)
             if competency is None:
-                raise ValueError(f"Competency {command.competency_id} not found")
+                raise NotFoundError(f"Competency {command.competency_id} not found")
 
             sub_competency = SubCompetency(
                 id=uuid4(),
@@ -263,12 +263,12 @@ class UpdateSubCompetencyUseCase:
         async with self._uow as uow:
             sub_competency = await uow.sub_competencies.get(sub_competency_id)
             if sub_competency is None:
-                raise ValueError(f"Sub-competency {sub_competency_id} not found")
+                raise NotFoundError(f"Sub-competency {sub_competency_id} not found")
 
             if command.competency_id is not None:
                 competency = await uow.competencies.get(command.competency_id)
                 if competency is None:
-                    raise ValueError(f"Competency {command.competency_id} not found")
+                    raise NotFoundError(f"Competency {command.competency_id} not found")
                 sub_competency.competency_id = command.competency_id
             if command.name is not None:
                 sub_competency.name = command.name

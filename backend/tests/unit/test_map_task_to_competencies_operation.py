@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.task import MapTaskToCompetenciesOperation
 from competency_system.domain.entities import Category, SubCompetency
 from competency_system.domain.value_objects.enums import TaskMappingStatus
@@ -40,7 +41,7 @@ async def test_map_task_to_competencies_operation_raises_when_task_missing(
 ) -> None:
     mock_uow.tasks.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await operation.run(uuid4())
 
 

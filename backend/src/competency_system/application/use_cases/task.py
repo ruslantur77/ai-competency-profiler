@@ -9,6 +9,7 @@ from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
 )
+from competency_system.application.errors import NotFoundError
 from competency_system.application.llm.llm_dispatch_payload import (
     TaskExtractionPayload,
 )
@@ -133,7 +134,7 @@ class MapTaskToCompetenciesOperation:
                 )
                 if not task:
                     # TODO: Use NotFoundException
-                    raise ValueError(f"Task {task_id} not found")
+                    raise NotFoundError(f"Task {task_id} not found")
                 categories = await uow.categories.get_list()
 
             task.sub_competency_mappings = await self._map(task, list(categories))
@@ -324,7 +325,7 @@ class RebuildTaskMappingUseCase:
                 include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
             )
             if task is None:
-                raise ValueError(f"Task {task_id} not found")
+                raise NotFoundError(f"Task {task_id} not found")
             task.mapping_status = TaskMappingStatus.PENDING
             task.mapping_error_message = None
             task.mapping_validated = False
@@ -356,7 +357,7 @@ class ValidateTaskMappingUseCase:
                 include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
             )
             if task is None:
-                raise ValueError(f"Task {task_id} not found")
+                raise NotFoundError(f"Task {task_id} not found")
             task.mapping_validated = True
             await uow.tasks.add(task)
             await uow.commit()
@@ -386,5 +387,5 @@ class GetTaskUseCase:
                 include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
             )
             if task is None:
-                raise ValueError(f"Task {task_id} not found")
+                raise NotFoundError(f"Task {task_id} not found")
             return task_dto_from_domain(task)

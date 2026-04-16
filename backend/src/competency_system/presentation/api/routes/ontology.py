@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from competency_system.application.dtos.competency import (
     CategoryCreateDTO,
@@ -73,13 +73,7 @@ async def get_category(
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[GetCategoryUseCase, Depends(get_get_category_use_case)],
 ) -> CategoryDTO:
-    try:
-        return await use_case.execute(category_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(category_id)
 
 
 @router.post(
@@ -106,13 +100,7 @@ async def update_category(
         Depends(get_update_category_use_case),
     ],
 ) -> CategoryDTO:
-    try:
-        return await use_case.execute(category_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(category_id, payload)
 
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -147,13 +135,7 @@ async def get_competency(
         Depends(get_get_competency_use_case),
     ],
 ) -> CompetencyDTO:
-    try:
-        return await use_case.execute(competency_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(competency_id)
 
 
 @router.post(
@@ -169,13 +151,7 @@ async def create_competency(
         Depends(get_create_competency_use_case),
     ],
 ) -> CompetencyDTO:
-    try:
-        return await use_case.execute(payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(payload)
 
 
 @router.patch("/competencies/{competency_id}", response_model=CompetencyDTO)
@@ -188,16 +164,7 @@ async def update_competency(
         Depends(get_update_competency_use_case),
     ],
 ) -> CompetencyDTO:
-    try:
-        return await use_case.execute(competency_id, payload)
-    except ValueError as exc:
-        message = str(exc)
-        status_code = (
-            status.HTTP_404_NOT_FOUND
-            if "not found" in message and message.startswith("Competency")
-            else status.HTTP_400_BAD_REQUEST
-        )
-        raise HTTPException(status_code=status_code, detail=message) from exc
+    return await use_case.execute(competency_id, payload)
 
 
 @router.delete("/competencies/{competency_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -232,13 +199,7 @@ async def get_sub_competency(
         Depends(get_get_sub_competency_use_case),
     ],
 ) -> SubCompetencyDTO:
-    try:
-        return await use_case.execute(sub_competency_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(sub_competency_id)
 
 
 @router.post(
@@ -254,13 +215,7 @@ async def create_sub_competency(
         Depends(get_create_sub_competency_use_case),
     ],
 ) -> SubCompetencyDTO:
-    try:
-        return await use_case.execute(payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(payload)
 
 
 @router.patch(
@@ -276,16 +231,7 @@ async def update_sub_competency(
         Depends(get_update_sub_competency_use_case),
     ],
 ) -> SubCompetencyDTO:
-    try:
-        return await use_case.execute(sub_competency_id, payload)
-    except ValueError as exc:
-        message = str(exc)
-        status_code = (
-            status.HTTP_404_NOT_FOUND
-            if "not found" in message and message.startswith("Sub-competency")
-            else status.HTTP_400_BAD_REQUEST
-        )
-        raise HTTPException(status_code=status_code, detail=message) from exc
+    return await use_case.execute(sub_competency_id, payload)
 
 
 @router.delete(

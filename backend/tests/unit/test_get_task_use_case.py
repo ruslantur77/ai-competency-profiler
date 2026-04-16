@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.task import GetTaskUseCase
 from tests.factories import TaskFactory
 
@@ -33,5 +34,5 @@ async def test_get_task_use_case_raises_when_task_not_found(
 ) -> None:
     mock_uow.tasks.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(uuid4())

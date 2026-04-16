@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from competency_system.application.dtos.vacancy import VacancySuggestionDecisionDTO
+from competency_system.application.errors import NotFoundError, ValidationError
 from competency_system.application.use_cases.vacancy import (
     DecideVacancySuggestionUseCase,
 )
@@ -56,7 +57,7 @@ async def test_decide_vacancy_suggestion_use_case_rejects_pending_status(
         suggestion_id=uuid4(), status=SuggestionStatus.PENDING
     )
 
-    with pytest.raises(ValueError, match="approved or rejected"):
+    with pytest.raises(ValidationError, match="approved or rejected"):
         await use_case.execute(VacancyFactory().make().id, decision)
 
 
@@ -70,7 +71,7 @@ async def test_decide_vacancy_suggestion_use_case_raises_for_foreign_vacancy(
         suggestion_id=foreign_suggestion.id, status=SuggestionStatus.REJECTED
     )
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(current_vacancy.id, decision)
 
 

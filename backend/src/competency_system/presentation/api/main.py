@@ -4,7 +4,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from competency_system.application.errors import ApplicationError
@@ -21,7 +22,10 @@ from competency_system.infrastructure.logging import configure_logging, get_logg
 from competency_system.infrastructure.settings import LLMQueueBackend, get_settings
 from competency_system.presentation.api.exception_handlers import (
     application_exception_handler,
+    http_exception_handler,
+    request_validation_exception_handler,
     unexpected_exception_handler,
+    value_error_exception_handler,
 )
 from competency_system.presentation.api.middleware import (
     request_observability_middleware,
@@ -169,6 +173,11 @@ def create_app() -> FastAPI:
         ApplicationError,
         cast(Any, application_exception_handler),
     )
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(
+        RequestValidationError, request_validation_exception_handler
+    )
+    app.add_exception_handler(ValueError, value_error_exception_handler)
     app.add_exception_handler(Exception, unexpected_exception_handler)
     return app
 

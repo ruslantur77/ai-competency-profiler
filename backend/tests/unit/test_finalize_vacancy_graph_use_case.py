@@ -10,6 +10,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyGraphSubCompetencyInputDTO,
     VacancyGraphUpdateDTO,
 )
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.vacancy import (
     FinalizeVacancyGraphUseCase,
     SaveVacancyGraphUseCase,
@@ -85,7 +86,7 @@ async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing(
 ) -> None:
     mock_uow.vacancies.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(uuid4(), graph_update)
 
 
@@ -122,5 +123,5 @@ async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing_on_fi
 ) -> None:
     mock_uow.vacancies.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await finalize_use_case.execute(uuid4())

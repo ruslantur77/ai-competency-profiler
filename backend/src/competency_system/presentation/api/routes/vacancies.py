@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
@@ -76,12 +76,7 @@ async def create_vacancy(
         Depends(get_extract_vacancy_graph_use_case),
     ],
 ) -> VacancyDTO:
-    try:
-        return await use_case.execute(payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+    return await use_case.execute(payload)
 
 
 @router.get("/{vacancy_id}", response_model=VacancyDTO)
@@ -93,12 +88,7 @@ async def get_vacancy(
         Depends(get_get_vacancy_graph_use_case),
     ],
 ) -> VacancyDTO:
-    try:
-        return await use_case.execute(vacancy_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id)
 
 
 @router.get("/{vacancy_id}/graph", response_model=VacancyDTO)
@@ -110,12 +100,7 @@ async def get_vacancy_graph(
         Depends(get_get_vacancy_graph_use_case),
     ],
 ) -> VacancyDTO:
-    try:
-        return await use_case.execute(vacancy_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id)
 
 
 @router.patch("/{vacancy_id}/graph", response_model=VacancyDTO)
@@ -128,12 +113,7 @@ async def save_vacancy_graph(
         Depends(get_save_vacancy_graph_use_case),
     ],
 ) -> VacancyDTO:
-    try:
-        return await use_case.execute(vacancy_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id, payload)
 
 
 @router.post("/{vacancy_id}/graph/finalize", response_model=VacancyDTO)
@@ -145,12 +125,7 @@ async def finalize_vacancy_graph(
         Depends(get_finalize_vacancy_graph_use_case),
     ],
 ) -> VacancyDTO:
-    try:
-        return await use_case.execute(vacancy_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id)
 
 
 @router.patch("/{vacancy_id}/status", response_model=VacancyDTO)
@@ -163,13 +138,7 @@ async def update_vacancy_status(
         Depends(get_update_vacancy_status_use_case),
     ],
 ) -> VacancyDTO:
-    try:
-        return await use_case.execute(vacancy_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
-        ) from exc
+    return await use_case.execute(vacancy_id, payload)
 
 
 @router.get("/{vacancy_id}/suggestions", response_model=list[VacancyGraphSuggestionDTO])
@@ -196,12 +165,7 @@ async def decide_vacancy_suggestion(
         Depends(get_decide_vacancy_suggestion_use_case),
     ],
 ) -> VacancyGraphSuggestionDTO:
-    try:
-        return await use_case.execute(vacancy_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id, payload)
 
 
 @router.post(
@@ -217,9 +181,4 @@ async def decide_vacancy_suggestions(
         Depends(get_decide_vacancy_suggestions_use_case),
     ],
 ) -> list[VacancyGraphSuggestionDTO]:
-    try:
-        return await use_case.execute(vacancy_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id, payload)

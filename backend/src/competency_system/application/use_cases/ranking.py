@@ -13,6 +13,7 @@ from competency_system.application.dtos.webhooks import (
     RankingSnapshot,
     RankingSnapshotPayload,
 )
+from competency_system.application.errors import NotFoundError
 from competency_system.application.ports.repositories import (
     CandidateInclude,
     VacancyInclude,
@@ -33,7 +34,7 @@ class RecalculateRankingUseCase:
                 include={VacancyInclude.NORMALIZED_GRAPH},
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
             candidates = await uow.candidates.list_by_vacancy(
                 vacancy_id,
@@ -78,7 +79,7 @@ class GetVacancyRankingUseCase:
         async with self._uow as uow:
             vacancy = await uow.vacancies.get(vacancy_id)
             if vacancy is None:
-                raise ValueError(f"Vacancy {vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
             snapshot = await uow.ranking_snapshots.get_by_vacancy(vacancy_id)
             if snapshot is not None:
                 return VacancyRankingDTO.model_validate(snapshot.payload.data)

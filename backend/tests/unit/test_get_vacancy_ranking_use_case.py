@@ -9,6 +9,7 @@ from competency_system.application.dtos.webhooks import (
     RankingSnapshot,
     RankingSnapshotPayload,
 )
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.ranking import GetVacancyRankingUseCase
 from tests.factories import VacancyFactory
 
@@ -45,5 +46,5 @@ async def test_get_vacancy_ranking_use_case_raises_when_vacancy_not_found(
 ) -> None:
     mock_uow.vacancies.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(uuid4())

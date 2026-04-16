@@ -121,7 +121,7 @@ async def test_update_category_use_case_raises_when_not_found(
 ) -> None:
     mock_uow.categories.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await update_category_use_case.execute(
             uuid4(),
             CategoryUpdateDTO(name="Updated"),
@@ -134,7 +134,7 @@ async def test_create_competency_use_case_validates_parent_category(
 ) -> None:
     mock_uow.categories.get.return_value = None
 
-    with pytest.raises(ValueError, match="Category .* not found"):
+    with pytest.raises(NotFoundError, match="Category .* not found"):
         await create_competency_use_case.execute(
             CompetencyCreateDTO(
                 category_id=uuid4(),
@@ -176,7 +176,7 @@ async def test_create_sub_competency_use_case_validates_parent_competency(
 ) -> None:
     mock_uow.competencies.get.return_value = None
 
-    with pytest.raises(ValueError, match="Competency .* not found"):
+    with pytest.raises(NotFoundError, match="Competency .* not found"):
         await create_sub_competency_use_case.execute(
             SubCompetencyCreateDTO(
                 competency_id=uuid4(),

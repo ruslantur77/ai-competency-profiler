@@ -522,11 +522,19 @@ def test_ontology_delete_routes_error_mapping_contract() -> None:
     with TestClient(app) as client:
         category_delete = client.delete(f"/api/v1/ontology/categories/{category_id}")
         assert category_delete.status_code == 404
+        payload_404 = category_delete.json()
+        assert payload_404["code"] == "not_found"
+        assert payload_404["message"] == "Category not found"
+        assert "request_id" in payload_404
 
         competency_delete = client.delete(
             f"/api/v1/ontology/competencies/{competency_id}"
         )
         assert competency_delete.status_code == 409
+        payload_409 = competency_delete.json()
+        assert payload_409["code"] == "conflict"
+        assert payload_409["message"] == "Used in vacancy graph"
+        assert "request_id" in payload_409
 
         sub_delete = client.delete(
             f"/api/v1/ontology/sub-competencies/{sub_competency_id}"

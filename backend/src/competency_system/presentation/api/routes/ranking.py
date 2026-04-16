@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from competency_system.application.dtos.ranking import VacancyRankingDTO
 from competency_system.application.use_cases.ranking import (
@@ -23,12 +23,7 @@ async def _recalculate_ranking(
     vacancy_id: UUID,
     use_case: RecalculateRankingUseCase | GetVacancyRankingUseCase,
 ) -> VacancyRankingDTO:
-    try:
-        return await use_case.execute(vacancy_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(vacancy_id)
 
 
 @router.get("/{vacancy_id}/rankings", response_model=VacancyRankingDTO)

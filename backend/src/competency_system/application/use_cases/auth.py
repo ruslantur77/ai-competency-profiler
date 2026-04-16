@@ -12,6 +12,7 @@ from competency_system.application.dtos.auth import (
     UserRoleUpdateDTO,
     UserStatusUpdateDTO,
 )
+from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.domain.entities import User
 from competency_system.infrastructure.security import (
@@ -157,7 +158,7 @@ class CreateUserUseCase:
         async with self._uow as uow:
             existing = await uow.users.get_by_email(command.email)
             if existing is not None:
-                raise ValueError(f"User with email {command.email} already exists")
+                raise ConflictError(f"User with email {command.email} already exists")
             user = User(
                 id=uuid4(),
                 email=command.email,
@@ -178,7 +179,7 @@ class UpdateUserRoleUseCase:
         async with self._uow as uow:
             user = await uow.users.get(user_id)
             if user is None:
-                raise ValueError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found")
             user.role = command.role
             await uow.users.add(user)
             await uow.commit()
@@ -195,7 +196,7 @@ class UpdateUserStatusUseCase:
         async with self._uow as uow:
             user = await uow.users.get(user_id)
             if user is None:
-                raise ValueError(f"User {user_id} not found")
+                raise NotFoundError(f"User {user_id} not found")
             user.is_active = command.is_active
             await uow.users.add(user)
             await uow.commit()

@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from competency_system.application.dtos.auth import UserStatusUpdateDTO
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.auth import UpdateUserStatusUseCase
 from tests.factories import UserFactory
 
@@ -39,6 +40,6 @@ async def test_update_user_status_use_case_raises_when_user_not_found(
 ) -> None:
     mock_uow.users.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(uuid4(), status_update)
     mock_uow.commit.assert_not_awaited()

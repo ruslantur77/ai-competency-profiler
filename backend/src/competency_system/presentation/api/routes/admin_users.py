@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from competency_system.application.dtos.auth import (
     UserAdminDTO,
@@ -42,12 +42,7 @@ async def create_user(
     _: Annotated[None, Depends(require_admin_or_system)],
     use_case: Annotated[CreateUserUseCase, Depends(get_create_user_use_case)],
 ) -> UserAdminDTO:
-    try:
-        return await use_case.execute(payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+    return await use_case.execute(payload)
 
 
 @router.patch("/{user_id}/role", response_model=UserAdminDTO)
@@ -57,12 +52,7 @@ async def update_user_role(
     _: Annotated[None, Depends(require_admin_or_system)],
     use_case: Annotated[UpdateUserRoleUseCase, Depends(get_update_user_role_use_case)],
 ) -> UserAdminDTO:
-    try:
-        return await use_case.execute(user_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(user_id, payload)
 
 
 @router.patch("/{user_id}/status", response_model=UserAdminDTO)
@@ -74,9 +64,4 @@ async def update_user_status(
         UpdateUserStatusUseCase, Depends(get_update_user_status_use_case)
     ],
 ) -> UserAdminDTO:
-    try:
-        return await use_case.execute(user_id, payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(user_id, payload)

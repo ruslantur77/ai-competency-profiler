@@ -21,6 +21,7 @@ from competency_system.application.dtos.vacancy import (
     VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
 )
+from competency_system.application.errors import NotFoundError, ValidationError
 from competency_system.application.llm.llm_dispatch_payload import (
     VacancyExtractionPayload,
 )
@@ -374,7 +375,7 @@ class SaveVacancyGraphUseCase:
                 include={VacancyInclude.NORMALIZED_GRAPH},
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
             payload = self._build_payload(graph)
             for cat_node in payload.category_nodes:
@@ -483,7 +484,7 @@ class FinalizeVacancyGraphUseCase:
                 include={VacancyInclude.NORMALIZED_GRAPH},
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
             vacancy.status = VacancyStatus.READY
             await uow.vacancies.add(vacancy)
@@ -502,7 +503,7 @@ class GetVacancyGraphUseCase:
                 include={VacancyInclude.NORMALIZED_GRAPH},
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
             return vacancy_dto_from_domain(vacancy)
 
 
@@ -526,11 +527,11 @@ class DecideVacancySuggestionUseCase:
         self, vacancy_id: UUID, decision: VacancySuggestionDecisionDTO
     ) -> VacancyGraphSuggestionDTO:
         if decision.status == SuggestionStatus.PENDING:
-            raise ValueError("Decision status must be approved or rejected")
+            raise ValidationError("Decision status must be approved or rejected")
         async with self._uow as uow:
             suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
             if suggestion is None or suggestion.vacancy_id != vacancy_id:
-                raise ValueError(f"Suggestion {decision.suggestion_id} not found")
+                raise NotFoundError(f"Suggestion {decision.suggestion_id} not found")
 
             if decision.status == SuggestionStatus.APPROVED:
                 vacancy = await uow.vacancies.get(
@@ -538,7 +539,7 @@ class DecideVacancySuggestionUseCase:
                     include={VacancyInclude.NORMALIZED_GRAPH},
                 )
                 if vacancy is None:
-                    raise ValueError(f"Vacancy {vacancy_id} not found")
+                    raise NotFoundError(f"Vacancy {vacancy_id} not found")
                 if suggestion.status != SuggestionStatus.APPROVED:
                     await self._apply_approved_suggestion(uow, vacancy, suggestion)
                 await uow.vacancies.add(vacancy)
@@ -591,10 +592,10 @@ class DecideVacancySuggestionUseCase:
     ) -> None:
         parent_category_id = suggestion.parent_category_id
         if parent_category_id is None:
-            raise ValueError("Competency suggestion is missing parent_category_id")
+            raise ValidationError("Competency suggestion is missing parent_category_id")
         parent_category = await uow.categories.get(parent_category_id)
         if parent_category is None:
-            raise ValueError(f"Parent category {parent_category_id} not found")
+            raise NotFoundError(f"Parent category {parent_category_id} not found")
 
         competency = Competency(
             id=uuid4(),
@@ -623,12 +624,12 @@ class DecideVacancySuggestionUseCase:
     ) -> None:
         parent_competency_id = suggestion.parent_competency_id
         if parent_competency_id is None:
-            raise ValueError(
+            raise ValidationError(
                 "Sub-competency suggestion is missing parent_competency_id"
             )
         parent_competency = await uow.competencies.get(parent_competency_id)
         if parent_competency is None:
-            raise ValueError(f"Parent competency {parent_competency_id} not found")
+            raise NotFoundError(f"Parent competency {parent_competency_id} not found")
 
         target_level = suggestion.target_level or CompetencyLevel.BEGINNER
         weight = suggestion.weight if suggestion.weight is not None else 1.0
@@ -732,11 +733,15 @@ class DecideVacancySuggestionsUseCase(DecideVacancySuggestionUseCase):
 
             for decision in command.decisions:
                 if decision.status == SuggestionStatus.PENDING:
-                    raise ValueError("Decision status must be approved or rejected")
+                    raise ValidationError(
+                        "Decision status must be approved or rejected"
+                    )
 
                 suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
                 if suggestion is None or suggestion.vacancy_id != vacancy_id:
-                    raise ValueError(f"Suggestion {decision.suggestion_id} not found")
+                    raise NotFoundError(
+                        f"Suggestion {decision.suggestion_id} not found"
+                    )
 
                 if (
                     decision.status == SuggestionStatus.APPROVED
@@ -748,7 +753,7 @@ class DecideVacancySuggestionsUseCase(DecideVacancySuggestionUseCase):
                             include={VacancyInclude.NORMALIZED_GRAPH},
                         )
                         if vacancy is None:
-                            raise ValueError(f"Vacancy {vacancy_id} not found")
+                            raise NotFoundError(f"Vacancy {vacancy_id} not found")
                     await self._apply_approved_suggestion(uow, vacancy, suggestion)
                     vacancy_changed = True
 
@@ -796,10 +801,10 @@ class UpdateVacancyStatusUseCase:
         async with self._uow as uow:
             vacancy = await uow.vacancies.get(vacancy_id)
             if vacancy is None:
-                raise ValueError(f"Vacancy {vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
             allowed = self._ALLOWED_TRANSITIONS.get(vacancy.status, set())
             if command.status != vacancy.status and command.status not in allowed:
-                raise ValueError(
+                raise ValidationError(
                     "Invalid status transition: "
                     f"{vacancy.status.value} -> {command.status.value}"
                 )

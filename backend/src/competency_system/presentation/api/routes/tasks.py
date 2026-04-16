@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from competency_system.application.dtos.candidate import CandidateAssessmentResultDTO
 from competency_system.application.dtos.task import (
@@ -49,12 +49,7 @@ async def get_task_mapping(
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[GetTaskUseCase, Depends(get_get_task_use_case)],
 ) -> TaskDTO:
-    try:
-        return await use_case.execute(task_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(task_id)
 
 
 @webhook_router.post(
@@ -66,9 +61,4 @@ async def task_completed(
     payload: CandidateTaskAssessmentDTO,
     use_case: Annotated[AssessCandidateUseCase, Depends(get_assess_candidate_use_case)],
 ) -> CandidateAssessmentResultDTO:
-    try:
-        return await use_case.execute(payload)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+    return await use_case.execute(payload)

@@ -8,6 +8,7 @@ from competency_system.application.dtos.vacancy import (
     VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
 )
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.vacancy import (
     DecideVacancySuggestionsUseCase,
 )
@@ -119,7 +120,7 @@ async def test_bulk_decide_raises_when_foreign_suggestion(
         ]
     )
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(vacancy.id, command)
 
     mock_uow.commit.assert_not_awaited()
