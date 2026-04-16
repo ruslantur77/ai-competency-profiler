@@ -1,10 +1,11 @@
 // frontend/src/components/TasksTab.jsx
 import React, { useState, useEffect, useCallback } from 'react'
-import { Loader2, CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
 import { listTasks, rebuildTaskMapping, validateTaskMapping } from '../api/tasks'
 import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
 import ForbiddenState from './ForbiddenState'
+import AsyncState from './AsyncState'
 import './TasksTab.css'
 
 const MAPPING_STATUS_CONFIG = {
@@ -164,12 +165,7 @@ export default function TasksTab({ notify }) {
   }
 
   if (loading) {
-    return (
-      <div className="tasks-tab__loading">
-        <Loader2 size={24} className="spin" />
-        <p>Загрузка заданий...</p>
-      </div>
-    )
+    return <AsyncState kind="loading" title="Загрузка заданий..." />
   }
 
   if (isForbidden) {
@@ -180,12 +176,11 @@ export default function TasksTab({ notify }) {
 
   if (tasks.length === 0) {
     return (
-      <div className="tasks-tab__empty">
-        <p>📝 Заданий пока нет</p>
-        <p className="tasks-tab__empty-hint">
-          Задания появятся после синхронизации с тестирующей системой
-        </p>
-      </div>
+      <AsyncState
+        kind="empty"
+        title="📝 Заданий пока нет"
+        hint="Задания появятся после синхронизации с тестирующей системой"
+      />
     )
   }
 

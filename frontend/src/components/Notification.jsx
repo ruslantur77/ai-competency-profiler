@@ -3,8 +3,15 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { CheckCircle, AlertCircle, X } from 'lucide-react'
 import './Notification.css'
 
-export default function Notification({ message, type = 'success', onClose }) {
+const DEFAULT_DURATION_BY_TYPE = {
+  success: 4500,
+  info: 6000,
+  error: 9000,
+}
+
+export default function Notification({ message, type = 'success', onClose, duration }) {
   const [closing, setClosing] = useState(false)
+  const closeDelay = duration ?? DEFAULT_DURATION_BY_TYPE[type] ?? 6000
 
   const handleClose = useCallback(() => {
     setClosing(true)
@@ -12,9 +19,9 @@ export default function Notification({ message, type = 'success', onClose }) {
   }, [onClose])
 
   useEffect(() => {
-    const timer = setTimeout(handleClose, 8000)
+    const timer = setTimeout(handleClose, closeDelay)
     return () => clearTimeout(timer)
-  }, [handleClose])
+  }, [handleClose, closeDelay])
 
   if (!message) return null
 

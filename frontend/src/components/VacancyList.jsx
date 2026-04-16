@@ -1,5 +1,5 @@
 // frontend/src/components/VacancyList.jsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Plus, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit } from 'lucide-react'
 import { listVacancies, createVacancy } from '../api/vacancies'
@@ -9,6 +9,7 @@ import { canAccessTasks, canEditGraph } from '../api/roles'
 import CreateVacancyDialog from './CreateVacancyDialog'
 import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
+import AsyncState from './AsyncState'
 import './VacancyList.css'
 
 const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
@@ -43,6 +44,7 @@ export default function VacancyList({ notify, onLogout, role }) {
   const [vacancies, setVacancies] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const pollCycleRef = useRef(0)
   const canEdit = canEditGraph(role)
   const tabs = useMemo(() => ([
     { id: 'vacancies', label: '📋 Вакансии' },
@@ -56,8 +58,9 @@ export default function VacancyList({ notify, onLogout, role }) {
     }
   }, [tabs, activeTab])
 
-  const fetchVacancies = useCallback(async () => {
-    setLoading(true)
+  const fetchVacancies = useCallback(async (options = {}) => {
+    const { silent = false } = options
+    if (!silent) setLoading(true)
     try {
       const responses = await Promise.allSettled(
         ALL_STATUSES.map(status => listVacancies(status))
@@ -77,7 +80,7 @@ export default function VacancyList({ notify, onLogout, role }) {
       setVacancies([])
       notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансий' }), 'error')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [notify])
 
@@ -89,13 +92,26 @@ export default function VacancyList({ notify, onLogout, role }) {
     fetchVacancies()
   }, [location.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Поллинг пока есть pending
+  // Умный polling: только когда есть pending, вкладка видима и пользователь в табе вакансий.
   useEffect(() => {
     const hasPending = vacancies.some(v => v.status === 'pending')
-    if (!hasPending) return
-    const interval = setInterval(fetchVacancies, 3000)
-    return () => clearInterval(interval)
-  }, [vacancies, fetchVacancies])
+    if (!hasPending || activeTab !== 'vacancies') {
+      pollCycleRef.current = 0
+      return
+    }
+
+    if (document.hidden) return
+
+    const cycle = pollCycleRef.current + 1
+    pollCycleRef.current = cycle
+    const delayMs = Math.min(15000, 3000 + cycle * 1000)
+    if (cycle > 40) return
+
+    const timer = setTimeout(() => {
+      fetchVacancies({ silent: true })
+    }, delayMs)
+    return () => clearTimeout(timer)
+  }, [vacancies, fetchVacancies, activeTab])
 
   const handleCreate = async (data) => {
     try {
@@ -170,24 +186,17 @@ export default function VacancyList({ notify, onLogout, role }) {
         {/* ВАКАНСИИ */}
         {activeTab === 'vacancies' && (
           loading ? (
-            <div className="vacancy-list__loading">
-              <div className="spinner" />
-              <p>Загрузка...</p>
-            </div>
+            <AsyncState kind="loading" title="Загрузка вакансий..." />
           ) : vacancies.length === 0 ? (
-            <div className="vacancy-list__empty">
-              <p>📋 Вакансий пока нет</p>
-              <p>
-                {canEdit
-                  ? 'Создайте первую вакансию для формирования профиля компетенций'
-                  : 'Вакансий пока нет'}
-              </p>
-              {canEdit && (
-                <button className="btn-primary" onClick={() => setCreating(true)}>
-                  <Plus size={18} /> Создать вакансию
-                </button>
-              )}
-            </div>
+            <AsyncState
+              kind="empty"
+              title="📋 Вакансий пока нет"
+              hint={canEdit
+                ? 'Создайте первую вакансию для формирования профиля компетенций'
+                : 'Вакансий пока нет'}
+              actionLabel={canEdit ? 'Создать вакансию' : undefined}
+              onAction={canEdit ? () => setCreating(true) : undefined}
+            />
           ) : (
             <div className="vacancy-list__grid">
               {vacancies.map(vac => {

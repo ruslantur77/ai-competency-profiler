@@ -29,8 +29,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(!!localStorage.getItem('access_token'))
   const [currentUser, setCurrentUser] = useState(null)
 
-  const notify = useCallback((message, type = 'success') => {
-    setNotification({ message, type })
+  const notify = useCallback((message, type = 'success', options = {}) => {
+    setNotification({ message, type, duration: options.duration })
   }, [])
 
   const loadCurrentUser = useCallback(async () => {
@@ -103,6 +103,7 @@ export default function App() {
         <Notification
           message={notification.message}
           type={notification.type}
+          duration={notification.duration}
           onClose={() => setNotification(null)}
         />
       )}

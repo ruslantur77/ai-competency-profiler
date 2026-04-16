@@ -1,9 +1,10 @@
 // frontend/src/components/RankingTab.jsx
 import React, { useState, useCallback } from 'react'
-import { Loader2, ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
 import { getVacancyRankings } from '../api/ranking'
 import { getErrorMessage } from '../api/errors'
 import ForbiddenState from './ForbiddenState'
+import AsyncState from './AsyncState'
 import './RankingTab.css'
 
 // Медали для топ-3
@@ -360,20 +361,15 @@ export default function RankingTab({ vacancies, notify }) {
       )}
 
       {selectedVacancyId && loading && (
-        <div className="ranking__loading">
-          <Loader2 size={24} className="spin" />
-          <p>Загрузка ранжирования...</p>
-        </div>
+        <AsyncState kind="loading" title="Загрузка ранжирования..." />
       )}
 
       {selectedVacancyId && !loading && rankings.length === 0 && (
-        <div className="ranking__empty">
-          <User size={48} />
-          <p>Кандидатов пока нет</p>
-          <p className="ranking__empty-hint">
-            Ранжирование появится после того как кандидаты пройдут тестирование
-          </p>
-        </div>
+        <AsyncState
+          kind="empty"
+          title="Кандидатов пока нет"
+          hint="Ранжирование появится после того как кандидаты пройдут тестирование"
+        />
       )}
 
       {/* ===== ТАБЛИЦА ===== */}
