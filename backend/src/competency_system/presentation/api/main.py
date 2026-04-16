@@ -148,6 +148,10 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=app_lifespan,
         root_path=settings.api_root_path,
+        swagger_ui_parameters={
+            "tryItOutEnabled": True,
+            "withCredentials": True,
+        },
     )
 
     app.add_middleware(
