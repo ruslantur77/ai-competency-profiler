@@ -40,3 +40,18 @@ async def test_list_vacancies_use_case_returns_empty_list(
     result = await use_case.execute(statuses={VacancyStatus.READY})
 
     assert result == []
+
+
+async def test_list_vacancies_use_case_without_filter_returns_all(
+    use_case: ListVacanciesUseCase, mock_uow
+) -> None:
+    rows = [
+        VacancyFactory().make({"status": VacancyStatus.DRAFT}),
+        VacancyFactory().make({"status": VacancyStatus.READY}),
+    ]
+    mock_uow.vacancies.list_by_statuses.return_value = rows
+
+    result = await use_case.execute()
+
+    assert len(result) == 2
+    mock_uow.vacancies.list_by_statuses.assert_awaited_once_with(None)

@@ -37,6 +37,7 @@ from competency_system.presentation.api.dependencies import (
     get_get_vacancy_ranking_use_case,
     get_issue_token_pair_use_case,
     get_list_tasks_use_case,
+    get_list_vacancies_use_case,
     get_list_vacancy_suggestions_use_case,
     get_logout_use_case,
     get_rebuild_task_mapping_use_case,
@@ -124,6 +125,9 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
     app.dependency_overrides[get_get_vacancy_graph_use_case] = lambda: _StaticUseCase(
         vacancy
     )
+    app.dependency_overrides[get_list_vacancies_use_case] = lambda: _StaticUseCase(
+        [vacancy]
+    )
     app.dependency_overrides[get_finalize_vacancy_graph_use_case] = lambda: (
         _StaticUseCase(vacancy)
     )
@@ -141,6 +145,16 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
         ).model_dump(mode="json")
         created = client.post("/api/v1/vacancies", json=create_payload)
         assert created.status_code == 201
+
+        listed = client.get("/api/v1/vacancies")
+        assert listed.status_code == 200
+        assert len(listed.json()) == 1
+
+        listed_filtered = client.get(
+            "/api/v1/vacancies",
+            params=[("status_filter", "draft"), ("status_filter", "ready")],
+        )
+        assert listed_filtered.status_code == 200
 
         fetched = client.get(f"/api/v1/vacancies/{vacancy.id}")
         assert fetched.status_code == 200

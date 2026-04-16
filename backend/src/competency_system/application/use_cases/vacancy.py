@@ -707,7 +707,7 @@ class ListVacanciesUseCase:
     async def execute(
         self,
         *,
-        statuses: set[VacancyStatus],
+        statuses: set[VacancyStatus] | None = None,
     ) -> list[VacancyListItemDTO]:
         async with self._uow as uow:
             rows = await uow.vacancies.list_by_statuses(statuses)

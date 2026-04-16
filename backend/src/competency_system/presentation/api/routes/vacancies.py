@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
@@ -45,9 +45,10 @@ router = APIRouter(prefix="/vacancies", tags=["vacancies"])
 async def list_vacancies(
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[ListVacanciesUseCase, Depends(get_list_vacancies_use_case)],
-    status_filter: VacancyStatus,
+    status_filter: Annotated[list[VacancyStatus] | None, Query()] = None,
 ) -> list[VacancyListItemDTO]:
-    return await use_case.execute(statuses={status_filter})
+    statuses = set(status_filter) if status_filter else None
+    return await use_case.execute(statuses=statuses)
 
 
 @router.get("/review-queue", response_model=list[VacancyListItemDTO])
