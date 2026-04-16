@@ -40,6 +40,7 @@ from competency_system.presentation.api.dependencies import (
     get_create_sub_competency_use_case,
     get_current_user,
     get_decide_vacancy_suggestion_use_case,
+    get_decide_vacancy_suggestions_use_case,
     get_delete_category_use_case,
     get_delete_competency_use_case,
     get_delete_sub_competency_use_case,
@@ -172,6 +173,9 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
     app.dependency_overrides[get_decide_vacancy_suggestion_use_case] = lambda: (
         _StaticUseCase(suggestion)
     )
+    app.dependency_overrides[get_decide_vacancy_suggestions_use_case] = lambda: (
+        _StaticUseCase([suggestion])
+    )
 
     with TestClient(app) as client:
         create_payload = VacancyCreateDTO(
@@ -231,6 +235,20 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
             },
         )
         assert decision.status_code == 200
+
+        bulk_decision = client.post(
+            f"/api/v1/vacancies/{vacancy.id}/suggestions/decisions",
+            json={
+                "decisions": [
+                    {
+                        "suggestion_id": str(suggestion.id),
+                        "status": SuggestionStatus.REJECTED.value,
+                    }
+                ]
+            },
+        )
+        assert bulk_decision.status_code == 200
+        assert len(bulk_decision.json()) == 1
 
 
 def test_tasks_admin_and_webhook_routes_contract(

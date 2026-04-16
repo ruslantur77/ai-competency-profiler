@@ -18,6 +18,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyGraphUpdateDTO,
     VacancyListItemDTO,
     VacancyStatusUpdateDTO,
+    VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
 )
 from competency_system.application.llm.llm_dispatch_payload import (
@@ -716,6 +717,50 @@ class DecideVacancySuggestionUseCase:
                 position=self._next_position(vacancy.sub_competency_nodes),
             )
         )
+
+
+class DecideVacancySuggestionsUseCase(DecideVacancySuggestionUseCase):
+    async def execute(
+        self,
+        vacancy_id: UUID,
+        command: VacancySuggestionBulkDecisionDTO,
+    ) -> list[VacancyGraphSuggestionDTO]:
+        async with self._uow as uow:
+            vacancy: Vacancy | None = None
+            vacancy_changed = False
+            results: list[VacancyGraphSuggestionDTO] = []
+
+            for decision in command.decisions:
+                if decision.status == SuggestionStatus.PENDING:
+                    raise ValueError("Decision status must be approved or rejected")
+
+                suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
+                if suggestion is None or suggestion.vacancy_id != vacancy_id:
+                    raise ValueError(f"Suggestion {decision.suggestion_id} not found")
+
+                if (
+                    decision.status == SuggestionStatus.APPROVED
+                    and suggestion.status != SuggestionStatus.APPROVED
+                ):
+                    if vacancy is None:
+                        vacancy = await uow.vacancies.get(
+                            vacancy_id,
+                            include={VacancyInclude.NORMALIZED_GRAPH},
+                        )
+                        if vacancy is None:
+                            raise ValueError(f"Vacancy {vacancy_id} not found")
+                    await self._apply_approved_suggestion(uow, vacancy, suggestion)
+                    vacancy_changed = True
+
+                suggestion.status = decision.status
+                await uow.vacancy_suggestions.add(suggestion)
+                results.append(suggestion_dto_from_domain(suggestion))
+
+            if vacancy_changed and vacancy is not None:
+                await uow.vacancies.add(vacancy)
+
+            await uow.commit()
+            return results
 
 
 class ListVacanciesUseCase:

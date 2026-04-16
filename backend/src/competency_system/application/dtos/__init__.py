@@ -49,6 +49,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyListItemDTO,
     VacancySubCompetencyExtractionResultDTO,
     VacancySubCompetencySuggestionDTO,
+    VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
 )
 
@@ -97,6 +98,7 @@ __all__ = [
     "VacancySubCompetencySuggestionDTO",
     "VacancySubCompetencyExtractionResultDTO",
     "VacancyGraphSuggestionDTO",
+    "VacancySuggestionBulkDecisionDTO",
     "VacancySuggestionDecisionDTO",
     "ExternalTaskAssessmentPayload",
     "ExternalTaskRecord",

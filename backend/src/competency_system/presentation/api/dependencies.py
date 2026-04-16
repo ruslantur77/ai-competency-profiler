@@ -66,6 +66,7 @@ from competency_system.application.use_cases.task import (
 )
 from competency_system.application.use_cases.vacancy import (
     CreateVacancyGraphUseCase,
+    DecideVacancySuggestionsUseCase,
     DecideVacancySuggestionUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
@@ -197,6 +198,12 @@ def get_decide_vacancy_suggestion_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> DecideVacancySuggestionUseCase:
     return DecideVacancySuggestionUseCase(uow)
+
+
+def get_decide_vacancy_suggestions_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> DecideVacancySuggestionsUseCase:
+    return DecideVacancySuggestionsUseCase(uow)
 
 
 # ontology use cases

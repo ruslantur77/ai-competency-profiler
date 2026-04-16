@@ -12,10 +12,12 @@ from competency_system.application.dtos.vacancy import (
     VacancyGraphUpdateDTO,
     VacancyListItemDTO,
     VacancyStatusUpdateDTO,
+    VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
 )
 from competency_system.application.use_cases.vacancy import (
     CreateVacancyGraphUseCase,
+    DecideVacancySuggestionsUseCase,
     DecideVacancySuggestionUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
@@ -28,6 +30,7 @@ from competency_system.application.use_cases.vacancy import (
 from competency_system.domain.value_objects.enums import VacancyStatus
 from competency_system.presentation.api.dependencies import (
     get_decide_vacancy_suggestion_use_case,
+    get_decide_vacancy_suggestions_use_case,
     get_extract_vacancy_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_vacancy_graph_use_case,
@@ -193,6 +196,27 @@ async def decide_vacancy_suggestion(
         Depends(get_decide_vacancy_suggestion_use_case),
     ],
 ) -> VacancyGraphSuggestionDTO:
+    try:
+        return await use_case.execute(vacancy_id, payload)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+
+@router.post(
+    "/{vacancy_id}/suggestions/decisions",
+    response_model=list[VacancyGraphSuggestionDTO],
+)
+async def decide_vacancy_suggestions(
+    vacancy_id: UUID,
+    payload: VacancySuggestionBulkDecisionDTO,
+    _: Annotated[None, Depends(require_admin_or_expert)],
+    use_case: Annotated[
+        DecideVacancySuggestionsUseCase,
+        Depends(get_decide_vacancy_suggestions_use_case),
+    ],
+) -> list[VacancyGraphSuggestionDTO]:
     try:
         return await use_case.execute(vacancy_id, payload)
     except ValueError as exc:

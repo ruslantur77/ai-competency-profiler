@@ -203,3 +203,14 @@ class VacancyGraphSuggestionDTO(BaseDTO):
 class VacancySuggestionDecisionDTO(BaseDTO):
     suggestion_id: UUID
     status: SuggestionStatus
+
+
+class VacancySuggestionBulkDecisionDTO(BaseDTO):
+    decisions: list[VacancySuggestionDecisionDTO] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_unique_suggestion_ids(self) -> VacancySuggestionBulkDecisionDTO:
+        suggestion_ids = [item.suggestion_id for item in self.decisions]
+        if len(set(suggestion_ids)) != len(suggestion_ids):
+            raise ValueError("Duplicate suggestion_id values are not allowed")
+        return self
