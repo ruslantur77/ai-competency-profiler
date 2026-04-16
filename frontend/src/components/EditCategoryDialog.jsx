@@ -1,26 +1,18 @@
 // frontend/src/components/EditCategoryDialog.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { X, Save } from 'lucide-react'
 import './EditCategoryDialog.css'
 
 const EMOJI_OPTIONS = ['🔧', '📊', '🏢', '🤝', '💡', '📱', '🎨', '📈', '🔬', '🛠️', '📋', '🎯', '🧠', '💻', '📚', '⚙️']
 
-export default function EditCategoryDialog({ category, onSave, onClose, title }) {
-  const [form, setForm] = useState({
-    name: '',
-    emoji: '📌',
-    description: '',
-  })
+const buildInitialForm = (category) => ({
+  name: category?.name || '',
+  emoji: category?.emoji || '📌',
+  description: category?.description || '',
+})
 
-  useEffect(() => {
-    if (category) {
-      setForm({
-        name: category.name || '',
-        emoji: category.emoji || '📌',
-        description: category.description || '',
-      })
-    }
-  }, [category])
+export default function EditCategoryDialog({ category, onSave, onClose, title }) {
+  const [form, setForm] = useState(() => buildInitialForm(category))
 
   const handleSave = () => {
     if (!form.name.trim()) return

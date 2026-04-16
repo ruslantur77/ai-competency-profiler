@@ -1,24 +1,16 @@
 // frontend/src/components/EditCompetencyDialog.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { X, Save } from 'lucide-react'
 import './EditCompetencyDialog.css'
 
-export default function EditCompetencyDialog({ competency, onSave, onClose }) {
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    is_required: true,
-  })
+const buildInitialForm = (competency) => ({
+  name: competency?.competency_name || '',
+  description: competency?.competency_description || '',
+  is_required: competency?.is_required ?? true,
+})
 
-  useEffect(() => {
-    if (competency) {
-      setForm({
-        name: competency.competency_name || '',
-        description: competency.competency_description || '',
-        is_required: competency.is_required ?? true,
-      })
-    }
-  }, [competency])
+export default function EditCompetencyDialog({ competency, onSave, onClose }) {
+  const [form, setForm] = useState(() => buildInitialForm(competency))
 
   const handleSave = () => {
     if (!form.name.trim()) return

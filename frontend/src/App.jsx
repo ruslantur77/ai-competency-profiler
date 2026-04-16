@@ -76,7 +76,7 @@ export default function App() {
           path="/vacancy/:vacancyId"
           element={
             <PrivateRoute isAuth={isAuth}>
-              <VacancyEditor notify={notify} onLogout={handleLogout} />
+              <VacancyEditor notify={notify} />
             </PrivateRoute>
           }
         />

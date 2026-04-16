@@ -27,6 +27,12 @@ const TASK_TYPE_LABELS = {
   test: '📝 Тест',
 }
 
+const getItemsFromPage = (payload) => {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.items)) return payload.items
+  return []
+}
+
 function TaskCard({ task, onRebuild, onValidate, rebuilding, validating }) {
   const [expanded, setExpanded] = useState(false)
   const statusConfig = MAPPING_STATUS_CONFIG[task.mapping_status] || MAPPING_STATUS_CONFIG.pending
@@ -85,16 +91,16 @@ function TaskCard({ task, onRebuild, onValidate, rebuilding, validating }) {
             </div>
           )}
 
-          {task.competency_mappings.length > 0 ? (
+          {(task.competency_mappings || []).length > 0 ? (
             <div className="task-card__mappings">
               <span className="task-card__mappings-label">Маппинг компетенций:</span>
-              {task.competency_mappings.map(m => (
+              {(task.competency_mappings || []).map(m => (
                 <div key={m.sub_competency_id} className="task-card__mapping-item">
                   <span className="task-card__mapping-id">
                     {m.sub_competency_id}
                   </span>
                   <span className="task-card__mapping-weight">
-                    вес: {m.weight.toFixed(2)}
+                    вес: {Number(m.weight ?? 0).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -115,10 +121,12 @@ export default function TasksTab({ notify }) {
   const [validatingId, setValidatingId] = useState(null)
 
   const fetchTasks = useCallback(async () => {
+    setLoading(true)
     try {
       const { data } = await listTasks()
-      setTasks(data)
+      setTasks(getItemsFromPage(data))
     } catch {
+      setTasks([])
       notify('Ошибка загрузки заданий', 'error')
     } finally {
       setLoading(false)

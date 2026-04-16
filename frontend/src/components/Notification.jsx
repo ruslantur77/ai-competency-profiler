@@ -1,20 +1,20 @@
 // frontend/src/components/Notification.jsx
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { CheckCircle, AlertCircle, X } from 'lucide-react'
 import './Notification.css'
 
 export default function Notification({ message, type = 'success', onClose }) {
   const [closing, setClosing] = useState(false)
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setClosing(true)
     setTimeout(onClose, 400) // ждём завершения анимации
-  }
+  }, [onClose])
 
   useEffect(() => {
     const timer = setTimeout(handleClose, 8000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [handleClose])
 
   if (!message) return null
 

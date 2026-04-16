@@ -17,7 +17,6 @@ export default function SuggestionsPanel({
   categoryNodes,
   competencyNodes,
   onApprove,
-  onReject,
   notify,
 }) {
   const [suggestions, setSuggestions] = useState([])

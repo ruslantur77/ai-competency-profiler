@@ -1,5 +1,5 @@
 // frontend/src/components/NodeEditor.jsx
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { X, Save } from 'lucide-react'
 import './NodeEditor.css'
 
@@ -12,24 +12,15 @@ const LEVEL_OPTIONS = [
   { value: 5, label: '⭐ Expert' },
 ]
 
-export default function NodeEditor({ sub, onSave, onClose }) {
-  const [form, setForm] = useState({
-    name: '',
-    target_level: 2,
-    description: '',
-    weight: 1.0,
-  })
+const buildInitialForm = (sub) => ({
+  name: sub?.sub_competency_name || '',
+  target_level: sub?.target_level ?? 2,
+  description: sub?.sub_competency_description || '',
+  weight: sub?.weight ?? 1.0,
+})
 
-  useEffect(() => {
-    if (sub) {
-      setForm({
-        name: sub.sub_competency_name || '',
-        target_level: sub.target_level ?? 2,
-        description: sub.sub_competency_description || '',
-        weight: sub.weight ?? 1.0,
-      })
-    }
-  }, [sub])
+export default function NodeEditor({ sub, onSave, onClose }) {
+  const [form, setForm] = useState(() => buildInitialForm(sub))
 
   const handleSave = () => {
     if (!form.name.trim()) return

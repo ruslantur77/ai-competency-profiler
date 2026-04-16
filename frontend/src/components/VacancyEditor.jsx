@@ -39,7 +39,7 @@ const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes) => ({
   })),
 })
 
-export default function VacancyEditor({ notify, onLogout }) {
+export default function VacancyEditor({ notify }) {
   const { vacancyId } = useParams()
   const navigate = useNavigate()
 
@@ -301,7 +301,6 @@ const handleSuggestionsApplied = useCallback(async () => {
             categoryNodes={categoryNodes}
             competencyNodes={competencyNodes}
             onApprove={handleSuggestionsApplied}
-            onReject={handleSuggestionsApplied}
             notify={notify}
           />
         )}

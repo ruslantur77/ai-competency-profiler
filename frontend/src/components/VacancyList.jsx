@@ -39,6 +39,12 @@ const TABS = [
   { id: 'ranking', label: '🏆 Ранжирование' },
 ]
 
+const getItemsFromPage = (payload) => {
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.items)) return payload.items
+  return []
+}
+
 export default function VacancyList({ notify, onLogout }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -48,15 +54,24 @@ export default function VacancyList({ notify, onLogout }) {
   const [creating, setCreating] = useState(false)
 
   const fetchVacancies = useCallback(async () => {
+    setLoading(true)
     try {
-      const results = await Promise.all(
-        ALL_STATUSES.map(status => listVacancies(status).then(r => r.data))
+      const responses = await Promise.allSettled(
+        ALL_STATUSES.map(status => listVacancies(status))
       )
-      const all = results
-        .flat()
+      const fulfilled = responses.filter(result => result.status === 'fulfilled')
+      const all = fulfilled
+        .flatMap(result => getItemsFromPage(result.value.data))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       setVacancies(all)
+
+      if (fulfilled.length === 0) {
+        notify('Ошибка загрузки вакансий', 'error')
+      } else if (fulfilled.length < ALL_STATUSES.length) {
+        notify('Часть вакансий не загрузилась, повторите позже', 'error')
+      }
     } catch {
+      setVacancies([])
       notify('Ошибка загрузки вакансий', 'error')
     } finally {
       setLoading(false)
