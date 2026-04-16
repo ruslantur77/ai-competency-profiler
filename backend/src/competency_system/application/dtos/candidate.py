@@ -17,6 +17,7 @@ class CandidateListItemDto(BaseDTO):
     vacancy_id: UUID
     status: AssessmentStatus = AssessmentStatus.PENDING
     last_assessment_at: datetime | None = None
+    deleted_at: datetime | None = None
 
 
 class CandidateDTO(BaseDTO):

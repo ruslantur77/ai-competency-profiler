@@ -11,7 +11,10 @@ from competency_system.application.use_cases.auth import (
 )
 from competency_system.application.use_cases.candidate import (
     AssessCandidateUseCase,
+    DeleteCandidateUseCase,
     GetCandidateProfileUseCase,
+    GetCandidateUseCase,
+    ListCandidatesUseCase,
     ListVacancyCandidatesUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
@@ -85,6 +88,9 @@ __all__ = [
     "ListTasksUseCase",
     "GetTaskUseCase",
     "AssessCandidateUseCase",
+    "ListCandidatesUseCase",
+    "GetCandidateUseCase",
+    "DeleteCandidateUseCase",
     "GetCandidateProfileUseCase",
     "ListVacancyCandidatesUseCase",
     "GetCurrentUserUseCase",

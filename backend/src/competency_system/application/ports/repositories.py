@@ -175,6 +175,7 @@ class CandidateRepository(Repository[Candidate], Protocol):
         entity_id: UUID,
         *,
         include: Collection[CandidateInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Candidate | None: ...
 
     async def get_list(
@@ -183,6 +184,7 @@ class CandidateRepository(Repository[Candidate], Protocol):
         include: Collection[CandidateInclude] | None = None,
         limit: int | None = None,
         offset: int = 0,
+        include_deleted: bool = False,
     ) -> Sequence[Candidate]: ...
 
     async def get_by_external_id(
@@ -190,6 +192,7 @@ class CandidateRepository(Repository[Candidate], Protocol):
         external_id: str,
         *,
         include: Collection[CandidateInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Candidate | None: ...
 
     async def list_by_vacancy(
@@ -197,7 +200,10 @@ class CandidateRepository(Repository[Candidate], Protocol):
         vacancy_id: UUID,
         *,
         include: Collection[CandidateInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Sequence[Candidate]: ...
+
+    async def soft_delete(self, entity_id: UUID) -> Candidate | None: ...
 
 
 class TaskRepository(Repository[Task], Protocol):

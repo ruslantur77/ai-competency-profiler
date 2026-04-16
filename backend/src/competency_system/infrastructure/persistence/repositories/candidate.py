@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -33,6 +34,44 @@ class CandidateRepository(
 ):
     model = CandidateOrm
 
+    async def get(
+        self,
+        entity_id: UUID,
+        *,
+        include: Collection[CandidateInclude] | None = None,
+        include_deleted: bool = False,
+    ) -> Candidate | None:
+        statement = (
+            select(self.model)
+            .where(CandidateOrm.id == entity_id)
+            .options(*self.load_options(include))
+        )
+        if not include_deleted:
+            statement = statement.where(CandidateOrm.deleted_at.is_(None))
+        model = await self._session.scalar(statement)
+        if model is None:
+            return None
+        return self.to_domain(model)
+
+    async def get_list(
+        self,
+        *,
+        include: Collection[CandidateInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+        include_deleted: bool = False,
+    ) -> Sequence[Candidate]:
+        statement = select(self.model).options(*self.load_options(include))
+        if not include_deleted:
+            statement = statement.where(CandidateOrm.deleted_at.is_(None))
+        statement = statement.order_by(CandidateOrm.created_at.asc())
+        if offset > 0:
+            statement = statement.offset(offset)
+        if limit is not None:
+            statement = statement.limit(limit)
+        result = await self._session.scalars(statement)
+        return [self.to_domain(row) for row in result.all()]
+
     def load_options(
         self,
         include: Collection[CandidateInclude] | None = None,
@@ -61,12 +100,15 @@ class CandidateRepository(
         external_id: str,
         *,
         include: Collection[CandidateInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Candidate | None:
         statement = (
             select(self.model)
             .where(CandidateOrm.external_id == external_id)
             .options(*self.load_options(include))
         )
+        if not include_deleted:
+            statement = statement.where(CandidateOrm.deleted_at.is_(None))
         model = await self._session.scalar(statement)
         if model is None:
             return None
@@ -78,6 +120,7 @@ class CandidateRepository(
         vacancy_id: UUID,
         *,
         include: Collection[CandidateInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Sequence[Candidate]:
         statement = (
             select(CandidateOrm)
@@ -85,6 +128,8 @@ class CandidateRepository(
             .order_by(CandidateOrm.created_at.asc())
             .options(*self.load_options(include))
         )
+        if not include_deleted:
+            statement = statement.where(CandidateOrm.deleted_at.is_(None))
         result = await self._session.scalars(statement)
         rows = result.all()
         candidates: list[Candidate] = [self.to_domain(row) for row in rows]
@@ -108,6 +153,15 @@ class CandidateRepository(
                 )
             )
         await self._session.flush()
+
+    async def soft_delete(self, entity_id: UUID) -> Candidate | None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return None
+        if model.deleted_at is None:
+            model.deleted_at = datetime.now(UTC)
+            await self._session.flush()
+        return self.to_domain(model)
 
     def to_domain(self, model: CandidateOrm) -> Candidate:
         return candidate_from_orm(model)

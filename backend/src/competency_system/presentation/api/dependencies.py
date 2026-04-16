@@ -34,7 +34,10 @@ from competency_system.application.use_cases.auth import (
 )
 from competency_system.application.use_cases.candidate import (
     AssessCandidateUseCase,
+    DeleteCandidateUseCase,
     GetCandidateProfileUseCase,
+    GetCandidateUseCase,
+    ListCandidatesUseCase,
     ListVacancyCandidatesUseCase,
 )
 from competency_system.application.use_cases.health import HealthCheckUseCase
@@ -400,6 +403,24 @@ def get_get_candidate_profile_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> GetCandidateProfileUseCase:
     return GetCandidateProfileUseCase(uow)
+
+
+def get_list_candidates_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ListCandidatesUseCase:
+    return ListCandidatesUseCase(uow)
+
+
+def get_get_candidate_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> GetCandidateUseCase:
+    return GetCandidateUseCase(uow)
+
+
+def get_delete_candidate_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> DeleteCandidateUseCase:
+    return DeleteCandidateUseCase(uow)
 
 
 def get_list_vacancy_candidates_use_case(

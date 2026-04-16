@@ -29,6 +29,7 @@ class Candidate(Entity):
     vacancy_id: UUID
     status: AssessmentStatus = AssessmentStatus.PENDING
     last_assessment_at: datetime | None = None
+    deleted_at: datetime | None = None
     vacancy: Vacancy | None = None
     achievements: list[CandidateSubCompetencyAchievement] = field(default_factory=list)
     test_results: list[TestResult] = field(default_factory=list)

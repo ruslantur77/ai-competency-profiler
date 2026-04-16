@@ -45,6 +45,7 @@ from competency_system.presentation.api.dependencies import (
     get_current_user,
     get_decide_vacancy_suggestion_use_case,
     get_decide_vacancy_suggestions_use_case,
+    get_delete_candidate_use_case,
     get_delete_category_use_case,
     get_delete_competency_use_case,
     get_delete_sub_competency_use_case,
@@ -52,6 +53,7 @@ from competency_system.presentation.api.dependencies import (
     get_extract_vacancy_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_candidate_profile_use_case,
+    get_get_candidate_use_case,
     get_get_category_use_case,
     get_get_competency_use_case,
     get_get_current_user_use_case,
@@ -61,6 +63,7 @@ from competency_system.presentation.api.dependencies import (
     get_get_vacancy_ranking_use_case,
     get_hard_delete_vacancy_use_case,
     get_issue_token_pair_use_case,
+    get_list_candidates_use_case,
     get_list_categories_use_case,
     get_list_competencies_use_case,
     get_list_sub_competencies_use_case,
@@ -641,12 +644,29 @@ def test_candidates_and_ranking_routes_contract(
     vacancy_id = uuid4()
     ranking = api_dto_factory.make_ranking(vacancy_id)
     profile = api_dto_factory.make_candidate_profile()
+    candidate = CandidateListItemDto(
+        id=profile.candidate_id,
+        external_id=profile.external_id,
+        vacancy_id=vacancy_id,
+        status=AssessmentStatus.COMPLETED,
+        last_assessment_at=None,
+        deleted_at=None,
+    )
 
     app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
         user_id=uuid4(), role=UserRole.ADMIN
     )
     app.dependency_overrides[get_get_candidate_profile_use_case] = lambda: (
         _StaticUseCase(profile)
+    )
+    app.dependency_overrides[get_list_candidates_use_case] = lambda: _StaticUseCase(
+        [candidate]
+    )
+    app.dependency_overrides[get_get_candidate_use_case] = lambda: _StaticUseCase(
+        candidate
+    )
+    app.dependency_overrides[get_delete_candidate_use_case] = lambda: _StaticUseCase(
+        None
     )
     app.dependency_overrides[get_recalculate_ranking_use_case] = lambda: _StaticUseCase(
         ranking
@@ -656,10 +676,20 @@ def test_candidates_and_ranking_routes_contract(
     )
 
     with TestClient(app) as client:
+        candidates = client.get("/api/v1/candidates")
+        assert candidates.status_code == 200
+        assert len(candidates.json()) == 1
+
+        candidate_detail = client.get(f"/api/v1/candidates/{profile.candidate_id}")
+        assert candidate_detail.status_code == 200
+
         profile_response = client.get(
             f"/api/v1/candidates/{profile.candidate_id}/profile"
         )
         assert profile_response.status_code == 200
+
+        deleted = client.delete(f"/api/v1/candidates/{profile.candidate_id}")
+        assert deleted.status_code == 204
 
         rankings = client.get(f"/api/v1/vacancies/{vacancy_id}/rankings")
         assert rankings.status_code == 200

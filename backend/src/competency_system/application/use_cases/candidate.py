@@ -23,7 +23,7 @@ from competency_system.application.dtos.webhooks import (
     WebhookEventPayload,
     WebhookEventStatus,
 )
-from competency_system.application.errors import NotFoundError
+from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
 )
@@ -385,7 +385,9 @@ class CandidateScoringOperation:
         uow: UnitOfWork, command: CandidateTaskAssessmentDTO
     ) -> Candidate:
         candidate = await uow.candidates.get_by_external_id(
-            command.candidate_external_id, include={CandidateInclude.ACHIEVEMENTS}
+            command.candidate_external_id,
+            include={CandidateInclude.ACHIEVEMENTS},
+            include_deleted=True,
         )
         if candidate is None:
             return Candidate(
@@ -393,6 +395,8 @@ class CandidateScoringOperation:
                 external_id=command.candidate_external_id,
                 vacancy_id=command.vacancy_id,
             )
+        if candidate.deleted_at is not None:
+            raise ConflictError("Candidate is deleted")
         if candidate.vacancy_id != command.vacancy_id:
             raise ValueError("Candidate is already assigned to another vacancy")
         return candidate
@@ -534,12 +538,12 @@ class GetCandidateProfileUseCase:
                 },
             )
             if candidate is None:
-                raise ValueError(f"Candidate {candidate_id} not found")
+                raise NotFoundError(f"Candidate {candidate_id} not found")
             vacancy = await uow.vacancies.get(
                 candidate.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {candidate.vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {candidate.vacancy_id} not found")
 
             scores = self._scorer.calculate_scores(
                 candidate, vacancy.requirement_competencies
@@ -564,6 +568,60 @@ class ListVacancyCandidatesUseCase:
                     vacancy_id=item.vacancy_id,
                     status=item.status,
                     last_assessment_at=item.last_assessment_at,
+                    deleted_at=item.deleted_at,
                 )
                 for item in candidates
             ]
+
+
+class ListCandidatesUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(
+        self,
+    ) -> list[CandidateListItemDto]:
+        async with self._uow as uow:
+            candidates = await uow.candidates.get_list()
+            return [
+                CandidateListItemDto(
+                    id=item.id,
+                    external_id=item.external_id,
+                    vacancy_id=item.vacancy_id,
+                    status=item.status,
+                    last_assessment_at=item.last_assessment_at,
+                    deleted_at=item.deleted_at,
+                )
+                for item in candidates
+            ]
+
+
+class GetCandidateUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, candidate_id: UUID) -> CandidateListItemDto:
+        async with self._uow as uow:
+            candidate = await uow.candidates.get(candidate_id)
+            if candidate is None:
+                raise NotFoundError(f"Candidate {candidate_id} not found")
+            return CandidateListItemDto(
+                id=candidate.id,
+                external_id=candidate.external_id,
+                vacancy_id=candidate.vacancy_id,
+                status=candidate.status,
+                last_assessment_at=candidate.last_assessment_at,
+                deleted_at=candidate.deleted_at,
+            )
+
+
+class DeleteCandidateUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, candidate_id: UUID) -> None:
+        async with self._uow as uow:
+            deleted = await uow.candidates.soft_delete(candidate_id)
+            if deleted is None:
+                raise NotFoundError(f"Candidate {candidate_id} not found")
+            await uow.commit()

@@ -395,6 +395,7 @@ class CandidateFields(TypedDict):
     vacancy_id: NotRequired[UUID]
     status: NotRequired[AssessmentStatus]
     last_assessment_at: NotRequired[datetime | None]
+    deleted_at: NotRequired[datetime | None]
     achievements: NotRequired[list[CandidateSubCompetencyAchievement]]
     test_results: NotRequired[list[TestResult]]
 
@@ -408,6 +409,7 @@ class CandidateFactory(AbstractFactory[CandidateFields, Candidate, CandidateOrm]
             vacancy_id=data.get("vacancy_id", uuid4()),
             status=data.get("status", AssessmentStatus.PENDING),
             last_assessment_at=data.get("last_assessment_at", None),
+            deleted_at=data.get("deleted_at", None),
             achievements=data.get("achievements", []),
             test_results=data.get("test_results", []),
         )
