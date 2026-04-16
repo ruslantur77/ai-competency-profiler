@@ -1,7 +1,7 @@
 // frontend/src/components/SuggestionsPanel.jsx
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Check, X, CheckCheck, XCircle, Loader2, ChevronDown, ChevronRight, Save } from 'lucide-react'
-import { getSuggestions, decideSuggestion } from '../api/suggestions'
+import { getSuggestions, decideSuggestionsBulk } from '../api/suggestions'
 import { getErrorMessage } from '../api/errors'
 import './SuggestionsPanel.css'
 
@@ -24,6 +24,7 @@ export default function SuggestionsPanel({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [expanded, setExpanded] = useState(true)
+  const saveInFlightRef = useRef(false)
   // id → 'approved' | 'rejected'
   const [decisions, setDecisions] = useState({})
 
@@ -83,29 +84,34 @@ export default function SuggestionsPanel({
 
   // ===== СОХРАНЕНИЕ ПРЕДЛОЖЕНИЙ =====
   const handleSaveDecisions = useCallback(async () => {
+    if (saveInFlightRef.current) return
+    saveInFlightRef.current = true
     setSaving(true)
     try {
-      // Сначала approved, потом rejected — чтобы граф обновился до отклонений
-      const approved = suggestions.filter(s => decisions[s.id] === 'approved')
-      const rejected = suggestions.filter(s => decisions[s.id] === 'rejected')
+      const payload = suggestions
+        .filter(s => decisions[s.id])
+        .map(s => ({
+          suggestion_id: s.id,
+          status: decisions[s.id],
+        }))
 
-      for (const s of approved) {
-        await decideSuggestion(vacancyId, s.id, 'approved')
-      }
-      for (const s of rejected) {
-        await decideSuggestion(vacancyId, s.id, 'rejected')
-      }
+      if (payload.length === 0) return
+
+      await decideSuggestionsBulk(vacancyId, payload)
 
       // Обновляем граф один раз после всех запросов
       await onApprove()
 
-      notify('✅ Предложения применены')
+      const approvedCount = payload.filter(item => item.status === 'approved').length
+      const rejectedCount = payload.length - approvedCount
+      notify(`✅ Применено: ${approvedCount} одобрено, ${rejectedCount} отклонено`)
 
       // Перезагружаем suggestions — pending должны исчезнуть
       await loadSuggestions()
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка при сохранении предложений' }), 'error')
     } finally {
+      saveInFlightRef.current = false
       setSaving(false)
     }
   }, [vacancyId, suggestions, decisions, onApprove, notify, loadSuggestions])

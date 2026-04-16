@@ -8,3 +8,6 @@ export const decideSuggestion = (vacancyId, suggestionId, status) =>
     suggestion_id: suggestionId,
     status,
   })
+
+export const decideSuggestionsBulk = (vacancyId, decisions) =>
+  api.post(`/vacancies/${vacancyId}/suggestions/decisions`, { decisions })
