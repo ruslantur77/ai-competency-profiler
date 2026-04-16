@@ -20,6 +20,9 @@ from competency_system.application.use_cases.ontology import (
     CreateCategoryUseCase,
     CreateCompetencyUseCase,
     CreateSubCompetencyUseCase,
+    DeleteCategoryUseCase,
+    DeleteCompetencyUseCase,
+    DeleteSubCompetencyUseCase,
     GetCategoryUseCase,
     GetCompetencyUseCase,
     GetSubCompetencyUseCase,
@@ -34,6 +37,9 @@ from competency_system.presentation.api.dependencies import (
     get_create_category_use_case,
     get_create_competency_use_case,
     get_create_sub_competency_use_case,
+    get_delete_category_use_case,
+    get_delete_competency_use_case,
+    get_delete_sub_competency_use_case,
     get_get_category_use_case,
     get_get_competency_use_case,
     get_get_sub_competency_use_case,
@@ -109,6 +115,18 @@ async def update_category(
         ) from exc
 
 
+@router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_category(
+    category_id: UUID,
+    _: Annotated[None, Depends(require_admin_or_expert)],
+    use_case: Annotated[
+        DeleteCategoryUseCase,
+        Depends(get_delete_category_use_case),
+    ],
+) -> None:
+    await use_case.execute(category_id)
+
+
 @router.get("/competencies", response_model=list[CompetencyDTO])
 async def list_competencies(
     _: Annotated[None, Depends(require_hr_expert_admin)],
@@ -180,6 +198,18 @@ async def update_competency(
             else status.HTTP_400_BAD_REQUEST
         )
         raise HTTPException(status_code=status_code, detail=message) from exc
+
+
+@router.delete("/competencies/{competency_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_competency(
+    competency_id: UUID,
+    _: Annotated[None, Depends(require_admin_or_expert)],
+    use_case: Annotated[
+        DeleteCompetencyUseCase,
+        Depends(get_delete_competency_use_case),
+    ],
+) -> None:
+    await use_case.execute(competency_id)
 
 
 @router.get("/sub-competencies", response_model=list[SubCompetencyDTO])
@@ -256,3 +286,18 @@ async def update_sub_competency(
             else status.HTTP_400_BAD_REQUEST
         )
         raise HTTPException(status_code=status_code, detail=message) from exc
+
+
+@router.delete(
+    "/sub-competencies/{sub_competency_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_sub_competency(
+    sub_competency_id: UUID,
+    _: Annotated[None, Depends(require_admin_or_expert)],
+    use_case: Annotated[
+        DeleteSubCompetencyUseCase,
+        Depends(get_delete_sub_competency_use_case),
+    ],
+) -> None:
+    await use_case.execute(sub_competency_id)

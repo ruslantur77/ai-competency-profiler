@@ -40,6 +40,9 @@ from competency_system.application.use_cases.ontology import (
     CreateCategoryUseCase,
     CreateCompetencyUseCase,
     CreateSubCompetencyUseCase,
+    DeleteCategoryUseCase,
+    DeleteCompetencyUseCase,
+    DeleteSubCompetencyUseCase,
     GetCategoryUseCase,
     GetCompetencyUseCase,
     GetSubCompetencyUseCase,
@@ -216,6 +219,12 @@ def get_update_category_use_case(
     return UpdateCategoryUseCase(uow=uow)
 
 
+def get_delete_category_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> DeleteCategoryUseCase:
+    return DeleteCategoryUseCase(uow=uow)
+
+
 def get_list_competencies_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ListCompetenciesUseCase:
@@ -240,6 +249,12 @@ def get_update_competency_use_case(
     return UpdateCompetencyUseCase(uow=uow)
 
 
+def get_delete_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> DeleteCompetencyUseCase:
+    return DeleteCompetencyUseCase(uow=uow)
+
+
 def get_list_sub_competencies_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ListSubCompetenciesUseCase:
@@ -262,6 +277,12 @@ def get_update_sub_competency_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UpdateSubCompetencyUseCase:
     return UpdateSubCompetencyUseCase(uow=uow)
+
+
+def get_delete_sub_competency_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> DeleteSubCompetencyUseCase:
+    return DeleteSubCompetencyUseCase(uow=uow)
 
 
 # tasks use cases

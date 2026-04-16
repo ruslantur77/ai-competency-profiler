@@ -23,6 +23,8 @@ from competency_system.application.dtos.vacancy import (
     VacancyGraphSuggestionDTO,
     VacancyGraphUpdateDTO,
 )
+from competency_system.application.errors import ConflictError, NotFoundError
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
@@ -37,6 +39,9 @@ from competency_system.presentation.api.dependencies import (
     get_create_sub_competency_use_case,
     get_current_user,
     get_decide_vacancy_suggestion_use_case,
+    get_delete_category_use_case,
+    get_delete_competency_use_case,
+    get_delete_sub_competency_use_case,
     get_extract_vacancy_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_candidate_profile_use_case,
@@ -84,6 +89,14 @@ class _StaticUseCase:
 class _LogoutUseCase:
     async def execute(self, *args: object, **kwargs: object) -> None:
         return None
+
+
+@dataclass
+class _RaisingUseCase:
+    error: Exception
+
+    async def execute(self, *args: object, **kwargs: object) -> object:
+        raise self.error
 
 
 def test_auth_routes_contract() -> None:
@@ -306,7 +319,7 @@ def test_ontology_routes_contract() -> None:
         name="REST",
         description="HTTP APIs",
         weight=1.0,
-        target_level=2,
+        target_level=CompetencyLevel.BEGINNER,
     )
     competency = CompetencyDTO(
         id=competency_id,
@@ -338,6 +351,9 @@ def test_ontology_routes_contract() -> None:
     app.dependency_overrides[get_update_category_use_case] = lambda: _StaticUseCase(
         category
     )
+    app.dependency_overrides[get_delete_category_use_case] = lambda: _StaticUseCase(
+        None
+    )
 
     app.dependency_overrides[get_list_competencies_use_case] = lambda: _StaticUseCase(
         [competency]
@@ -351,6 +367,9 @@ def test_ontology_routes_contract() -> None:
     app.dependency_overrides[get_update_competency_use_case] = lambda: _StaticUseCase(
         competency
     )
+    app.dependency_overrides[get_delete_competency_use_case] = lambda: _StaticUseCase(
+        None
+    )
 
     app.dependency_overrides[get_list_sub_competencies_use_case] = lambda: (
         _StaticUseCase([sub])
@@ -363,6 +382,9 @@ def test_ontology_routes_contract() -> None:
     )
     app.dependency_overrides[get_update_sub_competency_use_case] = lambda: (
         _StaticUseCase(sub)
+    )
+    app.dependency_overrides[get_delete_sub_competency_use_case] = lambda: (
+        _StaticUseCase(None)
     )
 
     with TestClient(app) as client:
@@ -438,6 +460,52 @@ def test_ontology_routes_contract() -> None:
             json={"weight": 0.8},
         )
         assert sub_patch.status_code == 200
+
+        category_delete = client.delete(f"/api/v1/ontology/categories/{category_id}")
+        assert category_delete.status_code == 204
+
+        competency_delete = client.delete(
+            f"/api/v1/ontology/competencies/{competency_id}"
+        )
+        assert competency_delete.status_code == 204
+
+        sub_delete = client.delete(
+            f"/api/v1/ontology/sub-competencies/{sub_competency_id}"
+        )
+        assert sub_delete.status_code == 204
+
+
+def test_ontology_delete_routes_error_mapping_contract() -> None:
+    category_id = uuid4()
+    competency_id = uuid4()
+    sub_competency_id = uuid4()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUserDTO(
+        user_id=uuid4(), role=UserRole.ADMIN
+    )
+    app.dependency_overrides[get_delete_category_use_case] = lambda: _RaisingUseCase(
+        NotFoundError("Category not found")
+    )
+    app.dependency_overrides[get_delete_competency_use_case] = lambda: _RaisingUseCase(
+        ConflictError("Used in vacancy graph")
+    )
+    app.dependency_overrides[get_delete_sub_competency_use_case] = lambda: (
+        _RaisingUseCase(ConflictError("Used in task mappings"))
+    )
+
+    with TestClient(app) as client:
+        category_delete = client.delete(f"/api/v1/ontology/categories/{category_id}")
+        assert category_delete.status_code == 404
+
+        competency_delete = client.delete(
+            f"/api/v1/ontology/competencies/{competency_id}"
+        )
+        assert competency_delete.status_code == 409
+
+        sub_delete = client.delete(
+            f"/api/v1/ontology/sub-competencies/{sub_competency_id}"
+        )
+        assert sub_delete.status_code == 409
 
 
 def test_candidates_and_ranking_routes_contract(

@@ -13,9 +13,13 @@ from competency_system.application.dtos.competency import (
     SubCompetencyDTO,
     SubCompetencyUpdateDTO,
 )
+from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.application.ports.repositories import (
+    CandidateInclude,
     CategoryInclude,
     CompetencyInclude,
+    TaskInclude,
+    VacancyInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.domain.entities import Category, Competency, SubCompetency
@@ -278,3 +282,102 @@ class UpdateSubCompetencyUseCase:
             await uow.sub_competencies.add(sub_competency)
             await uow.commit()
             return _sub_competency_to_dto(sub_competency)
+
+
+class DeleteCategoryUseCase:
+    def __init__(self, *, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, category_id: UUID) -> None:
+        async with self._uow as uow:
+            category = await uow.categories.get(
+                category_id, include={CategoryInclude.COMPETENCIES}
+            )
+            if category is None:
+                raise NotFoundError(f"Category {category_id} not found")
+            if category.competencies:
+                raise ConflictError(
+                    f"Cannot delete category {category_id}: dependent competencies exist"  # noqa: E501
+                )
+            await uow.categories.delete(category_id)
+            await uow.commit()
+
+
+class DeleteCompetencyUseCase:
+    def __init__(self, *, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, competency_id: UUID) -> None:
+        async with self._uow as uow:
+            competency = await uow.competencies.get(
+                competency_id, include={CompetencyInclude.SUB_COMPETENCIES}
+            )
+            if competency is None:
+                raise NotFoundError(f"Competency {competency_id} not found")
+            if competency.sub_competencies:
+                raise ConflictError(
+                    f"Cannot delete competency {competency_id}: dependent sub-competencies exist"  # noqa: E501
+                )
+            vacancies = await uow.vacancies.get_list(
+                include={VacancyInclude.NORMALIZED_GRAPH}
+            )
+            if any(
+                node.competency_id == competency_id
+                for vacancy in vacancies
+                for node in vacancy.competency_nodes
+            ):
+                raise ConflictError(
+                    f"Cannot delete competency {competency_id}: used in vacancy graph"
+                )
+            await uow.competencies.delete(competency_id)
+            await uow.commit()
+
+
+class DeleteSubCompetencyUseCase:
+    def __init__(self, *, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, sub_competency_id: UUID) -> None:
+        async with self._uow as uow:
+            sub_competency = await uow.sub_competencies.get(sub_competency_id)
+            if sub_competency is None:
+                raise NotFoundError(f"Sub-competency {sub_competency_id} not found")
+
+            tasks = await uow.tasks.get_list(
+                include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+            )
+            if any(
+                mapping.sub_competency_id == sub_competency_id
+                for task in tasks
+                for mapping in task.sub_competency_mappings
+            ):
+                raise ConflictError(
+                    f"Cannot delete sub-competency {sub_competency_id}: used in task mappings"  # noqa: E501
+                )
+
+            candidates = await uow.candidates.get_list(
+                include={CandidateInclude.ACHIEVEMENTS}
+            )
+            if any(
+                achievement.sub_competency_id == sub_competency_id
+                for candidate in candidates
+                for achievement in candidate.achievements
+            ):
+                raise ConflictError(
+                    f"Cannot delete sub-competency {sub_competency_id}: used in candidate achievements"  # noqa: E501
+                )
+
+            vacancies = await uow.vacancies.get_list(
+                include={VacancyInclude.NORMALIZED_GRAPH}
+            )
+            if any(
+                node.sub_competency_id == sub_competency_id
+                for vacancy in vacancies
+                for node in vacancy.sub_competency_nodes
+            ):
+                raise ConflictError(
+                    f"Cannot delete sub-competency {sub_competency_id}: used in vacancy graph"  # noqa: E501
+                )
+
+            await uow.sub_competencies.delete(sub_competency_id)
+            await uow.commit()
