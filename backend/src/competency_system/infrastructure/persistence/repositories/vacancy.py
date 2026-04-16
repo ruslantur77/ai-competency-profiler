@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
@@ -46,9 +47,10 @@ class VacancyRepository(
         entity_id: UUID,
         *,
         include: Collection[VacancyInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Vacancy | None:
         model = await self._session.get(self.model, entity_id)
-        if model is None:
+        if model is None or (model.deleted_at is not None and not include_deleted):
             return None
         vacancy = self.to_domain(model)
         includes = normalize_include(include)
@@ -67,7 +69,11 @@ class VacancyRepository(
         limit: int | None = None,
         offset: int = 0,
     ) -> Sequence[Vacancy]:
-        statement = select(self.model).order_by(VacancyOrm.created_at.desc())
+        statement = (
+            select(self.model)
+            .where(VacancyOrm.deleted_at.is_(None))
+            .order_by(VacancyOrm.created_at.desc())
+        )
         if offset > 0:
             statement = statement.offset(offset)
         if limit is not None:
@@ -91,8 +97,11 @@ class VacancyRepository(
         include: Collection[VacancyInclude] | None = None,
         limit: int | None = None,
         offset: int = 0,
+        include_deleted: bool = False,
     ) -> Sequence[Vacancy]:
         statement = select(self.model).order_by(VacancyOrm.created_at.desc())
+        if not include_deleted:
+            statement = statement.where(VacancyOrm.deleted_at.is_(None))
         if statuses:
             statement = statement.where(VacancyOrm.status.in_(statuses))
         if offset > 0:
@@ -114,12 +123,40 @@ class VacancyRepository(
     async def count_by_statuses(
         self,
         statuses: set[VacancyStatus] | None = None,
+        *,
+        include_deleted: bool = False,
     ) -> int:
         statement = select(func.count()).select_from(VacancyOrm)
+        if not include_deleted:
+            statement = statement.where(VacancyOrm.deleted_at.is_(None))
         if statuses:
             statement = statement.where(VacancyOrm.status.in_(statuses))
         result = await self._session.scalar(statement)
         return int(result or 0)
+
+    async def soft_delete(self, entity_id: UUID) -> Vacancy | None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return None
+        if model.deleted_at is None:
+            model.deleted_at = datetime.now(UTC)
+            await self._session.flush()
+        return self.to_domain(model)
+
+    async def restore(self, entity_id: UUID) -> Vacancy | None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return None
+        model.deleted_at = None
+        await self._session.flush()
+        return self.to_domain(model)
+
+    async def hard_delete(self, entity_id: UUID) -> None:
+        model = await self._session.get(self.model, entity_id)
+        if model is None:
+            return
+        await self._session.delete(model)
+        await self._session.flush()
 
     async def add(self, entity: Vacancy) -> None:
         model = self.to_model(entity)

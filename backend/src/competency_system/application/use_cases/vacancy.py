@@ -24,8 +24,13 @@ from competency_system.application.dtos.vacancy import (
     VacancyStatusUpdateDTO,
     VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
+    VacancyUpdateDTO,
 )
-from competency_system.application.errors import NotFoundError, ValidationError
+from competency_system.application.errors import (
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+)
 from competency_system.application.llm.llm_dispatch_payload import (
     VacancyExtractionPayload,
 )
@@ -78,6 +83,26 @@ class _VacancyGraphPayload:
     competency_nodes: list[VacancyCompetencyNode]
     sub_competency_nodes: list[VacancySubCompetencyNode]
     suggestions: list[VacancyGraphSuggestion]
+
+
+async def _get_vacancy_for_mutation(
+    uow: UnitOfWork,
+    vacancy_id: UUID,
+    *,
+    include_graph: bool = False,
+) -> Vacancy:
+    include = {VacancyInclude.NORMALIZED_GRAPH} if include_graph else None
+    vacancy = await uow.vacancies.get(vacancy_id, include=include)
+    if vacancy is not None:
+        return vacancy
+    deleted = await uow.vacancies.get(
+        vacancy_id,
+        include=include,
+        include_deleted=True,
+    )
+    if deleted is not None and deleted.deleted_at is not None:
+        raise ConflictError(f"Vacancy {vacancy_id} is deleted")
+    raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
 
 def _map_category_node(
@@ -381,12 +406,11 @@ class SaveVacancyGraphUseCase:
         graph: VacancyGraphUpdateDTO,
     ) -> VacancyDTO:
         async with self._uow as uow:
-            vacancy = await uow.vacancies.get(
+            vacancy = await _get_vacancy_for_mutation(
+                uow,
                 vacancy_id,
-                include={VacancyInclude.NORMALIZED_GRAPH},
+                include_graph=True,
             )
-            if vacancy is None:
-                raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
             payload = await self._build_payload(uow, graph)
             for cat_node in payload.category_nodes:
@@ -582,17 +606,70 @@ class FinalizeVacancyGraphUseCase:
 
     async def execute(self, vacancy_id: UUID) -> VacancyDTO:
         async with self._uow as uow:
-            vacancy = await uow.vacancies.get(
+            vacancy = await _get_vacancy_for_mutation(
+                uow,
                 vacancy_id,
-                include={VacancyInclude.NORMALIZED_GRAPH},
+                include_graph=True,
             )
-            if vacancy is None:
-                raise NotFoundError(f"Vacancy {vacancy_id} not found")
 
             vacancy.status = VacancyStatus.READY
             await uow.vacancies.add(vacancy)
             await uow.commit()
             return vacancy_dto_from_domain(vacancy)
+
+
+class UpdateVacancyUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, vacancy_id: UUID, command: VacancyUpdateDTO) -> VacancyDTO:
+        async with self._uow as uow:
+            vacancy = await _get_vacancy_for_mutation(uow, vacancy_id)
+            name = command.name.strip()
+            if not name:
+                raise ValidationError("Vacancy name must not be empty")
+            vacancy.name = name
+            await uow.vacancies.add(vacancy)
+            await uow.commit()
+            return vacancy_dto_from_domain(vacancy)
+
+
+class DeleteVacancyUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, vacancy_id: UUID) -> None:
+        async with self._uow as uow:
+            deleted = await uow.vacancies.soft_delete(vacancy_id)
+            if deleted is None:
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
+            await uow.commit()
+
+
+class RestoreVacancyUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, vacancy_id: UUID) -> VacancyDTO:
+        async with self._uow as uow:
+            restored = await uow.vacancies.restore(vacancy_id)
+            if restored is None:
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
+            await uow.commit()
+            return vacancy_dto_from_domain(restored)
+
+
+class HardDeleteVacancyUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, vacancy_id: UUID) -> None:
+        async with self._uow as uow:
+            existing = await uow.vacancies.get(vacancy_id, include_deleted=True)
+            if existing is None:
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
+            await uow.vacancies.hard_delete(vacancy_id)
+            await uow.commit()
 
 
 class GetVacancyGraphUseCase:
@@ -616,6 +693,9 @@ class ListVacancySuggestionsUseCase:
 
     async def execute(self, vacancy_id: UUID) -> list[VacancyGraphSuggestionDTO]:
         async with self._uow as uow:
+            vacancy = await uow.vacancies.get(vacancy_id)
+            if vacancy is None:
+                raise NotFoundError(f"Vacancy {vacancy_id} not found")
             suggestions = await uow.vacancy_suggestions.list_by_vacancy(vacancy_id)
             return [
                 suggestion_dto_from_domain(suggestion) for suggestion in suggestions
@@ -804,6 +884,7 @@ class DecideVacancySuggestionUseCase(_VacancySuggestionApprovalHelper):
         if decision.status == SuggestionStatus.PENDING:
             raise ValidationError("Decision status must be approved or rejected")
         async with self._uow as uow:
+            await _get_vacancy_for_mutation(uow, vacancy_id)
             suggestion = await uow.vacancy_suggestions.get(decision.suggestion_id)
             if suggestion is None or suggestion.vacancy_id != vacancy_id:
                 raise NotFoundError(f"Suggestion {decision.suggestion_id} not found")
@@ -835,6 +916,7 @@ class DecideVacancySuggestionsUseCase(_VacancySuggestionApprovalHelper):
         command: VacancySuggestionBulkDecisionDTO,
     ) -> list[VacancyGraphSuggestionDTO]:
         async with self._uow as uow:
+            await _get_vacancy_for_mutation(uow, vacancy_id)
             vacancy: Vacancy | None = None
             vacancy_changed = False
             results: list[VacancyGraphSuggestionDTO] = []
@@ -919,9 +1001,7 @@ class UpdateVacancyStatusUseCase:
         command: VacancyStatusUpdateDTO,
     ) -> VacancyDTO:
         async with self._uow as uow:
-            vacancy = await uow.vacancies.get(vacancy_id)
-            if vacancy is None:
-                raise NotFoundError(f"Vacancy {vacancy_id} not found")
+            vacancy = await _get_vacancy_for_mutation(uow, vacancy_id)
             allowed = self._ALLOWED_TRANSITIONS.get(vacancy.status, set())
             if command.status != vacancy.status and command.status not in allowed:
                 raise ValidationError(

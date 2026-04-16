@@ -70,13 +70,17 @@ from competency_system.application.use_cases.vacancy import (
     CreateVacancyGraphUseCase,
     DecideVacancySuggestionsUseCase,
     DecideVacancySuggestionUseCase,
+    DeleteVacancyUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
+    HardDeleteVacancyUseCase,
     ListVacanciesForReviewUseCase,
     ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    RestoreVacancyUseCase,
     SaveVacancyGraphUseCase,
     UpdateVacancyStatusUseCase,
+    UpdateVacancyUseCase,
 )
 from competency_system.domain.value_objects.enums import UserRole
 from competency_system.infrastructure.health.database_health import (
@@ -170,6 +174,30 @@ def get_finalize_vacancy_graph_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> FinalizeVacancyGraphUseCase:
     return FinalizeVacancyGraphUseCase(uow)
+
+
+def get_update_vacancy_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> UpdateVacancyUseCase:
+    return UpdateVacancyUseCase(uow)
+
+
+def get_delete_vacancy_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> DeleteVacancyUseCase:
+    return DeleteVacancyUseCase(uow)
+
+
+def get_restore_vacancy_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> RestoreVacancyUseCase:
+    return RestoreVacancyUseCase(uow)
+
+
+def get_hard_delete_vacancy_use_case(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> HardDeleteVacancyUseCase:
+    return HardDeleteVacancyUseCase(uow)
 
 
 def get_list_vacancy_suggestions_use_case(

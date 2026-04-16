@@ -16,6 +16,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyStatusUpdateDTO,
     VacancySuggestionBulkDecisionDTO,
     VacancySuggestionDecisionDTO,
+    VacancyUpdateDTO,
 )
 from competency_system.application.use_cases.candidate import (
     ListVacancyCandidatesUseCase,
@@ -24,27 +25,35 @@ from competency_system.application.use_cases.vacancy import (
     CreateVacancyGraphUseCase,
     DecideVacancySuggestionsUseCase,
     DecideVacancySuggestionUseCase,
+    DeleteVacancyUseCase,
     FinalizeVacancyGraphUseCase,
     GetVacancyGraphUseCase,
+    HardDeleteVacancyUseCase,
     ListVacanciesForReviewUseCase,
     ListVacanciesUseCase,
     ListVacancySuggestionsUseCase,
+    RestoreVacancyUseCase,
     SaveVacancyGraphUseCase,
     UpdateVacancyStatusUseCase,
+    UpdateVacancyUseCase,
 )
 from competency_system.domain.value_objects.enums import VacancyStatus
 from competency_system.presentation.api.dependencies import (
     get_decide_vacancy_suggestion_use_case,
     get_decide_vacancy_suggestions_use_case,
+    get_delete_vacancy_use_case,
     get_extract_vacancy_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_vacancy_graph_use_case,
+    get_hard_delete_vacancy_use_case,
     get_list_vacancies_for_review_use_case,
     get_list_vacancies_use_case,
     get_list_vacancy_candidates_use_case,
     get_list_vacancy_suggestions_use_case,
+    get_restore_vacancy_use_case,
     get_save_vacancy_graph_use_case,
     get_update_vacancy_status_use_case,
+    get_update_vacancy_use_case,
     require_admin_or_expert,
     require_hr_expert_admin,
 )
@@ -113,6 +122,19 @@ async def get_vacancy(
     return await use_case.execute(vacancy_id)
 
 
+@router.patch("/{vacancy_id}", response_model=VacancyDTO)
+async def update_vacancy(
+    vacancy_id: UUID,
+    payload: VacancyUpdateDTO,
+    _: Annotated[None, Depends(require_hr_expert_admin)],
+    use_case: Annotated[
+        UpdateVacancyUseCase,
+        Depends(get_update_vacancy_use_case),
+    ],
+) -> VacancyDTO:
+    return await use_case.execute(vacancy_id, payload)
+
+
 @router.get("/{vacancy_id}/graph", response_model=VacancyDTO)
 async def get_vacancy_graph(
     vacancy_id: UUID,
@@ -161,6 +183,36 @@ async def update_vacancy_status(
     ],
 ) -> VacancyDTO:
     return await use_case.execute(vacancy_id, payload)
+
+
+@router.delete("/{vacancy_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_vacancy(
+    vacancy_id: UUID,
+    _: Annotated[None, Depends(require_hr_expert_admin)],
+    use_case: Annotated[DeleteVacancyUseCase, Depends(get_delete_vacancy_use_case)],
+) -> None:
+    await use_case.execute(vacancy_id)
+
+
+@router.post("/{vacancy_id}/restore", response_model=VacancyDTO)
+async def restore_vacancy(
+    vacancy_id: UUID,
+    _: Annotated[None, Depends(require_hr_expert_admin)],
+    use_case: Annotated[RestoreVacancyUseCase, Depends(get_restore_vacancy_use_case)],
+) -> VacancyDTO:
+    return await use_case.execute(vacancy_id)
+
+
+@router.delete("/{vacancy_id}/hard", status_code=status.HTTP_204_NO_CONTENT)
+async def hard_delete_vacancy(
+    vacancy_id: UUID,
+    _: Annotated[None, Depends(require_hr_expert_admin)],
+    use_case: Annotated[
+        HardDeleteVacancyUseCase,
+        Depends(get_hard_delete_vacancy_use_case),
+    ],
+) -> None:
+    await use_case.execute(vacancy_id)
 
 
 @router.get("/{vacancy_id}/suggestions", response_model=list[VacancyGraphSuggestionDTO])

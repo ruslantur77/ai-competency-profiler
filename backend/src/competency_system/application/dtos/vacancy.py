@@ -60,6 +60,7 @@ class VacancyDTO(BaseDTO):
         default_factory=list
     )
     error_message: str | None = None
+    deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -68,6 +69,7 @@ class VacancyListItemDTO(BaseDTO):
     id: UUID
     name: str
     status: VacancyStatus
+    deleted_at: datetime | None = None
     created_at: datetime
 
 
@@ -78,6 +80,10 @@ class VacancyStatusUpdateDTO(BaseDTO):
 class VacancyCreateDTO(BaseDTO):
     name: str
     description: str
+
+
+class VacancyUpdateDTO(BaseDTO):
+    name: str
 
 
 class VacancyGraphNodeMode(StrEnum):

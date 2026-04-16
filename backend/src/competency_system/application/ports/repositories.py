@@ -134,6 +134,7 @@ class VacancyRepository(Repository[Vacancy], Protocol):
         entity_id: UUID,
         *,
         include: Collection[VacancyInclude] | None = None,
+        include_deleted: bool = False,
     ) -> Vacancy | None: ...
 
     async def get_list(
@@ -151,12 +152,21 @@ class VacancyRepository(Repository[Vacancy], Protocol):
         include: Collection[VacancyInclude] | None = None,
         limit: int | None = None,
         offset: int = 0,
+        include_deleted: bool = False,
     ) -> Sequence[Vacancy]: ...
 
     async def count_by_statuses(
         self,
         statuses: set[VacancyStatus] | None = None,
+        *,
+        include_deleted: bool = False,
     ) -> int: ...
+
+    async def soft_delete(self, entity_id: UUID) -> Vacancy | None: ...
+
+    async def restore(self, entity_id: UUID) -> Vacancy | None: ...
+
+    async def hard_delete(self, entity_id: UUID) -> None: ...
 
 
 class CandidateRepository(Repository[Candidate], Protocol):

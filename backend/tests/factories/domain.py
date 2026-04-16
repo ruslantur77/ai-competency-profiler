@@ -193,6 +193,7 @@ class VacancyFields(TypedDict):
     description: NotRequired[str]
     status: NotRequired[VacancyStatus]
     error_message: NotRequired[str | None]
+    deleted_at: NotRequired[datetime | None]
     category_nodes: NotRequired[list[VacancyCategoryNode]]
     competency_nodes: NotRequired[list[VacancyCompetencyNode]]
     sub_competency_nodes: NotRequired[list[VacancySubCompetencyNode]]
@@ -208,6 +209,7 @@ class VacancyFactory(AbstractFactory[VacancyFields, Vacancy, VacancyOrm]):
             description=data.get("description", "Build APIs"),
             status=data.get("status", VacancyStatus.DRAFT),
             error_message=data.get("error_message", None),
+            deleted_at=data.get("deleted_at", None),
             category_nodes=data.get("category_nodes", []),
             competency_nodes=data.get("competency_nodes", []),
             sub_competency_nodes=data.get("sub_competency_nodes", []),

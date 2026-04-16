@@ -24,6 +24,7 @@ from competency_system.application.dtos.vacancy import (
     VacancyCreateDTO,
     VacancyGraphSuggestionDTO,
     VacancyGraphUpdateDTO,
+    VacancyUpdateDTO,
 )
 from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
@@ -47,6 +48,7 @@ from competency_system.presentation.api.dependencies import (
     get_delete_category_use_case,
     get_delete_competency_use_case,
     get_delete_sub_competency_use_case,
+    get_delete_vacancy_use_case,
     get_extract_vacancy_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_candidate_profile_use_case,
@@ -57,6 +59,7 @@ from competency_system.presentation.api.dependencies import (
     get_get_task_use_case,
     get_get_vacancy_graph_use_case,
     get_get_vacancy_ranking_use_case,
+    get_hard_delete_vacancy_use_case,
     get_issue_token_pair_use_case,
     get_list_categories_use_case,
     get_list_competencies_use_case,
@@ -71,11 +74,13 @@ from competency_system.presentation.api.dependencies import (
     get_refresh_token_data,
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
+    get_restore_vacancy_use_case,
     get_save_vacancy_graph_use_case,
     get_sync_tasks_use_case,
     get_update_category_use_case,
     get_update_competency_use_case,
     get_update_sub_competency_use_case,
+    get_update_vacancy_use_case,
     get_validate_task_mapping_use_case,
     verify_testing_system_webhook_secret,
 )
@@ -193,8 +198,18 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
     app.dependency_overrides[get_save_vacancy_graph_use_case] = lambda: _StaticUseCase(
         vacancy
     )
+    app.dependency_overrides[get_update_vacancy_use_case] = lambda: _StaticUseCase(
+        vacancy.model_copy(update={"name": "Senior Backend Engineer"})
+    )
     app.dependency_overrides[get_finalize_vacancy_graph_use_case] = lambda: (
         _StaticUseCase(vacancy.model_copy(update={"status": VacancyStatus.READY}))
+    )
+    app.dependency_overrides[get_delete_vacancy_use_case] = lambda: _StaticUseCase(None)
+    app.dependency_overrides[get_restore_vacancy_use_case] = lambda: _StaticUseCase(
+        vacancy
+    )
+    app.dependency_overrides[get_hard_delete_vacancy_use_case] = lambda: _StaticUseCase(
+        None
     )
     app.dependency_overrides[get_list_vacancy_suggestions_use_case] = lambda: (
         _StaticUseCase([suggestion])
@@ -234,6 +249,13 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
 
         graph = client.get(f"/api/v1/vacancies/{vacancy.id}/graph")
         assert graph.status_code == 200
+
+        update_payload = VacancyUpdateDTO(
+            name="Senior Backend Engineer",
+        ).model_dump(mode="json")
+        updated = client.patch(f"/api/v1/vacancies/{vacancy.id}", json=update_payload)
+        assert updated.status_code == 200
+        assert updated.json()["name"] == "Senior Backend Engineer"
 
         patch_payload = VacancyGraphUpdateDTO(
             categories=[],
@@ -288,6 +310,15 @@ def test_vacancy_routes_contract(api_dto_factory: ApiDTOFactory) -> None:
         assert candidates.status_code == 200
         assert len(candidates.json()) == 1
         assert candidates.json()[0]["external_id"] == "candidate-1"
+
+        deleted = client.delete(f"/api/v1/vacancies/{vacancy.id}")
+        assert deleted.status_code == 204
+
+        restored = client.post(f"/api/v1/vacancies/{vacancy.id}/restore")
+        assert restored.status_code == 200
+
+        hard_deleted = client.delete(f"/api/v1/vacancies/{vacancy.id}/hard")
+        assert hard_deleted.status_code == 204
 
 
 def test_tasks_admin_and_webhook_routes_contract(

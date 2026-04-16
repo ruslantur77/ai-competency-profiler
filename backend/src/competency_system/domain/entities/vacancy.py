@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -59,6 +60,7 @@ class Vacancy(Entity):
     description: str
     status: VacancyStatus = VacancyStatus.DRAFT
     error_message: str | None = None
+    deleted_at: datetime | None = None
     candidates: list[Candidate] = field(default_factory=list)
     category_nodes: list[VacancyCategoryNode] = field(default_factory=list)
     competency_nodes: list[VacancyCompetencyNode] = field(default_factory=list)

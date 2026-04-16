@@ -203,6 +203,7 @@ def vacancy_dto_from_domain(vacancy: Vacancy) -> VacancyDTO:
             for node in vacancy.sub_competency_nodes
         ],
         error_message=vacancy.error_message,
+        deleted_at=vacancy.deleted_at,
         created_at=vacancy.created_at,
         updated_at=vacancy.updated_at,
     )
@@ -233,5 +234,6 @@ def vacancy_list_item_dto_from_domain(vacancy: Vacancy) -> VacancyListItemDTO:
         id=vacancy.id,
         name=vacancy.name,
         status=vacancy.status,
+        deleted_at=vacancy.deleted_at,
         created_at=vacancy.created_at,
     )
