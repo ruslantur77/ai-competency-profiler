@@ -1,16 +1,12 @@
 // frontend/src/components/AddSubDialog.jsx
 import React, { useState } from 'react'
 import { X, Plus } from 'lucide-react'
+import {
+  COMPETENCY_LEVEL_OPTIONS,
+  normalizeTargetLevel,
+  normalizeWeight,
+} from '../domain/competencyGraph'
 import './AddSubDialog.css'
-
-const LEVEL_OPTIONS = [
-  { value: 0, label: '⚪ No level' },
-  { value: 1, label: '🟢 Beginner' },
-  { value: 2, label: '🟡 Intermediate' },
-  { value: 3, label: '🟠 Upper-Intermediate' },
-  { value: 4, label: '🔴 Advanced' },
-  { value: 5, label: '⭐ Expert' },
-]
 
 export default function AddSubDialog({ competencyName, onAdd, onClose }) {
   const [form, setForm] = useState({
@@ -24,9 +20,9 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
     if (!form.name.trim()) return
     onAdd({
       name: form.name.trim(),
-      target_level: form.target_level,
+      target_level: normalizeTargetLevel(form.target_level),
       description: form.description.trim(),
-      weight: parseFloat(form.weight) || 1.0,
+      weight: normalizeWeight(form.weight),
     })
   }
 
@@ -59,7 +55,7 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
               value={form.target_level}
               onChange={e => setForm({ ...form, target_level: parseInt(e.target.value) })}
             >
-              {LEVEL_OPTIONS.map(opt => (
+              {COMPETENCY_LEVEL_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -76,11 +72,11 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
           </label>
 
           <label>
-            Вес (0.1 — 2.0)
+            Вес (0.0 — 1.0)
             <input
               type="number"
-              min="0.1"
-              max="2.0"
+              min="0"
+              max="1"
               step="0.1"
               value={form.weight}
               onChange={e => setForm({ ...form, weight: e.target.value })}

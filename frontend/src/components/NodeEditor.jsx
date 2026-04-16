@@ -1,16 +1,12 @@
 // frontend/src/components/NodeEditor.jsx
 import React, { useState } from 'react'
 import { X, Save } from 'lucide-react'
+import {
+  COMPETENCY_LEVEL_OPTIONS,
+  normalizeTargetLevel,
+  normalizeWeight,
+} from '../domain/competencyGraph'
 import './NodeEditor.css'
-
-const LEVEL_OPTIONS = [
-  { value: 0, label: '⚪ No level' },
-  { value: 1, label: '🟢 Beginner' },
-  { value: 2, label: '🟡 Intermediate' },
-  { value: 3, label: '🟠 Upper-Intermediate' },
-  { value: 4, label: '🔴 Advanced' },
-  { value: 5, label: '⭐ Expert' },
-]
 
 const buildInitialForm = (sub) => ({
   name: sub?.sub_competency_name || '',
@@ -27,9 +23,9 @@ export default function NodeEditor({ sub, onSave, onClose }) {
     onSave({
       ...sub,
       sub_competency_name: form.name.trim(),
-      target_level: form.target_level,
+      target_level: normalizeTargetLevel(form.target_level),
       sub_competency_description: form.description.trim(),
-      weight: parseFloat(form.weight) || 1.0,
+      weight: normalizeWeight(form.weight),
     })
   }
 
@@ -57,7 +53,7 @@ export default function NodeEditor({ sub, onSave, onClose }) {
               value={form.target_level}
               onChange={e => setForm({ ...form, target_level: parseInt(e.target.value) })}
             >
-              {LEVEL_OPTIONS.map(opt => (
+              {COMPETENCY_LEVEL_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -73,11 +69,11 @@ export default function NodeEditor({ sub, onSave, onClose }) {
           </label>
 
           <label>
-            Вес (0.1 — 2.0)
+            Вес (0.0 — 1.0)
             <input
               type="number"
-              min="0.1"
-              max="2.0"
+              min="0"
+              max="1"
               step="0.1"
               value={form.weight}
               onChange={e => setForm({ ...form, weight: e.target.value })}

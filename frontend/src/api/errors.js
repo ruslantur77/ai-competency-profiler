@@ -31,6 +31,7 @@ const normalizeDetail = (detail) => {
 export const getErrorMessage = (error, options = {}) => {
   const { fallback = 'Ошибка запроса', overrides = {} } = options
   const status = error?.response?.status
+  const localMessage = typeof error?.message === 'string' ? error.message.trim() : ''
 
   if (status && overrides[status]) {
     return overrides[status]
@@ -52,6 +53,10 @@ export const getErrorMessage = (error, options = {}) => {
 
   if (error?.code === 'ECONNABORTED') {
     return 'Превышено время ожидания ответа сервера'
+  }
+
+  if (!status && localMessage) {
+    return localMessage
   }
 
   if (!status) {

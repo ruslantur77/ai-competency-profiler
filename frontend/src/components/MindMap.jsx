@@ -13,11 +13,11 @@ import './MindMap.css'
 
 // ===== КОНСТАНТЫ =====
 const LEVEL_CONFIG = {
-  0: { bg: '#1e293b', border: '#475569', text: '#94a3b8', label: '⚪ No level' },
-  1: { bg: '#dcfce7', border: '#22c55e', text: '#15803d', label: '🟢 Beginner' },
-  2: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', label: '🟡 Intermediate' },
-  3: { bg: '#fef9c3', border: '#eab308', text: '#854d0e', label: '🟠 Upper-Int.' },
-  4: { bg: '#fee2e2', border: '#ef4444', text: '#b91c1c', label: '🔴 Advanced' },
+  0: { bg: '#1e293b', border: '#475569', text: '#94a3b8', label: '⚪ None' },
+  1: { bg: '#dcfce7', border: '#22c55e', text: '#15803d', label: '🟢 Novice' },
+  2: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af', label: '🔵 Beginner' },
+  3: { bg: '#fef9c3', border: '#eab308', text: '#854d0e', label: '🟡 Intermediate' },
+  4: { bg: '#ffedd5', border: '#f97316', text: '#9a3412', label: '🟠 Advanced' },
   5: { bg: '#fae8ff', border: '#a855f7', text: '#7e22ce', label: '⭐ Expert' },
 }
 

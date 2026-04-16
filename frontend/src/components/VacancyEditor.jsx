@@ -10,37 +10,24 @@ import ForbiddenState from './ForbiddenState'
 import { getVacancy, updateGraph } from '../api/vacancies'
 import { getErrorMessage } from '../api/errors'
 import { canEditGraph, canUseSuggestions } from '../api/roles'
+import {
+  buildVacancyGraphDTO,
+  isUuidLike,
+  nextPosition,
+  normalizeTargetLevel,
+  normalizeWeight,
+} from '../domain/competencyGraph'
 import './VacancyEditor.css'
 
 // ===== HELPERS =====
 const tempId = () => crypto.randomUUID()
-
-const buildGraphDTO = (categoryNodes, competencyNodes, subCompetencyNodes) => ({
-  categories: categoryNodes.map(cat => ({
-    id: cat.category_id,
-    name: cat.category_name,
-    description: cat.category_description || '',
-    emoji: cat.category_emoji || '',
-    competencies: competencyNodes
-      .filter(comp => comp.category_id === cat.category_id)
-      .map(comp => ({
-        id: comp.competency_id,
-        category_id: cat.category_id,
-        name: comp.competency_name,
-        description: comp.competency_description || '',
-        is_required: comp.is_required ?? true,
-        sub_competencies: subCompetencyNodes
-          .filter(sub => sub.competency_id === comp.competency_id)
-          .map(sub => ({
-            id: sub.sub_competency_id,
-            name: sub.sub_competency_name,
-            description: sub.sub_competency_description || '',
-            target_level: sub.target_level ?? 2,
-            weight: sub.weight ?? 1.0,
-          })),
-      })),
-  })),
-})
+const EDITABLE_STATUSES = new Set(['draft', 'ready'])
+const VACANCY_STATUS_LABELS = {
+  pending: 'Извлечение компетенций',
+  draft: 'Черновик',
+  ready: 'Готово',
+  failed: 'Ошибка обработки',
+}
 
 export default function VacancyEditor({ notify, role }) {
   const { vacancyId } = useParams()
@@ -59,7 +46,9 @@ export default function VacancyEditor({ notify, role }) {
   const [addingCategory, setAddingCategory] = useState(false)
   const [isForbidden, setIsForbidden] = useState(false)
   const canEdit = canEditGraph(role)
-  const canReviewSuggestions = canUseSuggestions(role)
+  const isEditableStatus = EDITABLE_STATUSES.has(vacancy?.status)
+  const canMutateGraph = canEdit && isEditableStatus
+  const canReviewSuggestions = canUseSuggestions(role) && vacancy?.status === 'draft'
 
   // ===== ЗАГРУЗКА =====
   const loadVacancy = useCallback(async () => {
@@ -93,13 +82,13 @@ export default function VacancyEditor({ notify, role }) {
 
   // ===== СОХРАНЕНИЕ ГРАФА =====
   const handleSave = async () => {
-    if (!canEdit) {
+    if (!canMutateGraph) {
       notify('Недостаточно прав для редактирования графа', 'error')
       return
     }
     setSaving(true)
     try {
-      const dto = buildGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
+      const dto = buildVacancyGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
       await updateGraph(vacancyId, dto)
   
       // Читаем свежие данные с именами через GET, не из ответа PATCH
@@ -147,7 +136,7 @@ const handleSuggestionsApplied = useCallback(async () => {
     const subs = data.sub_competency_nodes || []
 
     // 2. Сохраняем граф → бек переводит статус в ready
-    await updateGraph(vacancyId, buildGraphDTO(cats, comps, subs))
+    await updateGraph(vacancyId, buildVacancyGraphDTO(cats, comps, subs))
 
     // 3. Читаем ЕЩЁ РАЗ — теперь с заполненными именами
     const { data: fresh } = await getVacancy(vacancyId)
@@ -169,7 +158,7 @@ const handleSuggestionsApplied = useCallback(async () => {
 
   // ===== КАТЕГОРИИ =====
   const handleUpdateCategory = (updated) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     setCategoryNodes(prev => prev.map(c =>
       c.category_id === updated.category_id ? { ...c, ...updated } : c
     ))
@@ -177,7 +166,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleDeleteCategory = (categoryId) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     const removedCompIds = competencyNodes
       .filter(c => c.category_id === categoryId)
       .map(c => c.competency_id)
@@ -190,7 +179,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleAddCategorySubmit = (newCat) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     const id = tempId()
     setCategoryNodes(prev => [...prev, {
       id,
@@ -199,7 +188,7 @@ const handleSuggestionsApplied = useCallback(async () => {
       category_name: newCat.name,
       category_emoji: newCat.emoji || '',
       category_description: newCat.description || '',
-      position: prev.length,
+      position: nextPosition(prev),
     }])
     setAddingCategory(false)
     markDirty()
@@ -207,7 +196,7 @@ const handleSuggestionsApplied = useCallback(async () => {
 
   // ===== КОМПЕТЕНЦИИ =====
   const handleUpdateCompetency = (updated) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     setCompetencyNodes(prev => prev.map(c =>
       c.competency_id === updated.competency_id ? { ...c, ...updated } : c
     ))
@@ -215,14 +204,14 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleDeleteCompetency = (competencyId) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     setCompetencyNodes(prev => prev.filter(c => c.competency_id !== competencyId))
     setSubCompetencyNodes(prev => prev.filter(s => s.competency_id !== competencyId))
     markDirty()
   }
 
   const handleAddCompetency = (categoryId, newComp) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     const id = tempId()
     setCompetencyNodes(prev => [...prev, {
       id,
@@ -232,22 +221,29 @@ const handleSuggestionsApplied = useCallback(async () => {
       competency_name: newComp.name,
       competency_description: newComp.description || '',
       is_required: newComp.is_required ?? true,
-      position: prev.filter(c => c.category_id === categoryId).length,
+      position: nextPosition(prev, c => c.category_id === categoryId),
     }])
     markDirty()
   }
 
   // ===== ПОДКОМПЕТЕНЦИИ =====
   const handleUpdateSub = (updatedSub) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     setSubCompetencyNodes(prev => prev.map(s =>
-      s.sub_competency_id === updatedSub.sub_competency_id ? { ...s, ...updatedSub } : s
+      s.sub_competency_id === updatedSub.sub_competency_id
+        ? {
+          ...s,
+          ...updatedSub,
+          target_level: normalizeTargetLevel(updatedSub.target_level),
+          weight: normalizeWeight(updatedSub.weight),
+        }
+        : s
     ))
     markDirty()
   }
 
   const handleDeleteSub = (subCompetencyId) => {
-    if (!canEdit) return
+    if (!canMutateGraph) return
     setSubCompetencyNodes(prev =>
       prev.filter(s => s.sub_competency_id !== subCompetencyId)
     )
@@ -255,8 +251,9 @@ const handleSuggestionsApplied = useCallback(async () => {
   }
 
   const handleAddSub = (competencyId, newSub) => {
-    if (!canEdit) return
-    const id = tempId()
+    if (!canMutateGraph) return
+    const rawId = newSub.id || tempId()
+    const id = isUuidLike(rawId) ? rawId : tempId()
     setSubCompetencyNodes(prev => [...prev, {
       id,
       vacancy_id: vacancyId,
@@ -264,9 +261,9 @@ const handleSuggestionsApplied = useCallback(async () => {
       competency_id: competencyId,
       sub_competency_name: newSub.name,
       sub_competency_description: newSub.description || '',
-      target_level: newSub.target_level ?? 2,
-      weight: newSub.weight ?? 1.0,
-      position: prev.filter(s => s.competency_id === competencyId).length,
+      target_level: normalizeTargetLevel(newSub.target_level),
+      weight: normalizeWeight(newSub.weight),
+      position: nextPosition(prev, s => s.competency_id === competencyId),
     }])
     markDirty()
   }
@@ -295,9 +292,20 @@ const handleSuggestionsApplied = useCallback(async () => {
           </button>
 
           <h2 className="editor-topbar__title">{vacancy?.name}</h2>
+          <span
+            style={{
+              borderRadius: 999,
+              border: '1px solid #d1d5db',
+              padding: '4px 10px',
+              fontSize: 12,
+              color: '#374151',
+            }}
+          >
+            Статус: {VACANCY_STATUS_LABELS[vacancy?.status] || vacancy?.status}
+          </span>
 
           <div className="editor-topbar__actions">
-            {isDirty && canEdit && (
+            {isDirty && canMutateGraph && (
               <button
                 className="btn-secondary"
                 onClick={handleDiscard}
@@ -309,7 +317,7 @@ const handleSuggestionsApplied = useCallback(async () => {
             <button
               className="btn-primary"
               onClick={handleSave}
-              disabled={saving || !isDirty || !canEdit}
+              disabled={saving || !isDirty || !canMutateGraph}
             >
               {saving
                 ? <><Loader2 size={16} className="spin" /> Сохранение...</>
@@ -323,7 +331,16 @@ const handleSuggestionsApplied = useCallback(async () => {
           <ForbiddenState hint="Недостаточно прав для работы с этой вакансией." />
         ) : (
           <>
-            {vacancy?.status === 'draft' && canReviewSuggestions && (
+            {!isEditableStatus && (
+              <div style={{ marginBottom: 12 }}>
+                <ForbiddenState
+                  title="Редактирование недоступно"
+                  hint="Изменения графа доступны только для вакансий в статусах draft и ready."
+                />
+              </div>
+            )}
+
+            {canReviewSuggestions && (
               <SuggestionsPanel
                 vacancyId={vacancyId}
                 categoryNodes={categoryNodes}
@@ -334,7 +351,7 @@ const handleSuggestionsApplied = useCallback(async () => {
             )}
 
             <MindMap
-              readOnly={!canEdit}
+              readOnly={!canMutateGraph}
               categoryNodes={categoryNodes}
               competencyNodes={competencyNodes}
               subCompetencyNodes={subCompetencyNodes}
@@ -351,7 +368,7 @@ const handleSuggestionsApplied = useCallback(async () => {
           </>
         )}
 
-        {addingCategory && canEdit && !isForbidden && (
+        {addingCategory && canMutateGraph && !isForbidden && (
           <EditCategoryDialog
             category={{ id: '', name: '', emoji: '📌', description: '' }}
             onSave={handleAddCategorySubmit}
