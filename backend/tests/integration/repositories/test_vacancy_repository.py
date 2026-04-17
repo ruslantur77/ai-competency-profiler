@@ -102,3 +102,38 @@ async def test_vacancy_repository_replaces_normalized_nodes_on_update(
     assert category_nodes == 1
     assert competency_nodes == 1
     assert sub_nodes == 1
+
+
+async def test_vacancy_repository_soft_delete_restore_and_hard_delete(
+    pg_session: AsyncSession,
+) -> None:
+    category_repo = CategoryRepository(pg_session)
+    repo = VacancyRepository(pg_session)
+    vacancy, category, _, _, _ = build_vacancy_with_graph()
+
+    await category_repo.add(category)
+    await pg_session.commit()
+    await repo.add(vacancy)
+    await pg_session.commit()
+
+    deleted = await repo.soft_delete(vacancy.id)
+    await pg_session.commit()
+    assert deleted is not None
+    assert deleted.deleted_at is not None
+
+    hidden = await repo.get(vacancy.id)
+    assert hidden is None
+
+    visible_with_deleted = await repo.get(vacancy.id, include_deleted=True)
+    assert visible_with_deleted is not None
+    assert visible_with_deleted.deleted_at is not None
+
+    restored = await repo.restore(vacancy.id)
+    await pg_session.commit()
+    assert restored is not None
+    assert restored.deleted_at is None
+    assert await repo.get(vacancy.id) is not None
+
+    await repo.hard_delete(vacancy.id)
+    await pg_session.commit()
+    assert await repo.get(vacancy.id, include_deleted=True) is None

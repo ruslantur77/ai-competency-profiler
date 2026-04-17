@@ -85,3 +85,30 @@ async def test_candidate_repository_constraints(pg_session: AsyncSession) -> Non
 
     with pytest.raises(IntegrityError):
         await repo.add(Candidate(external_id="new", vacancy_id=uuid4()))
+
+
+async def test_candidate_repository_soft_delete_hides_default(
+    pg_session: AsyncSession,
+) -> None:
+    vacancy_repo = VacancyRepository(pg_session)
+    repo = CandidateRepository(pg_session)
+
+    vacancy = Vacancy(name="Backend", description="Role")
+    await vacancy_repo.add(vacancy)
+
+    candidate = Candidate(external_id="to-delete", vacancy_id=vacancy.id)
+    await repo.add(candidate)
+    await pg_session.commit()
+
+    deleted = await repo.soft_delete(candidate.id)
+    await pg_session.commit()
+    assert deleted is not None
+    assert deleted.deleted_at is not None
+
+    assert await repo.get(candidate.id) is None
+    assert await repo.get_by_external_id("to-delete") is None
+    assert await repo.list_by_vacancy(vacancy.id) == []
+
+    visible = await repo.get(candidate.id, include_deleted=True)
+    assert visible is not None
+    assert visible.deleted_at is not None
