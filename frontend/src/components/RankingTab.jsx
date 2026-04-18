@@ -1,4 +1,3 @@
-// frontend/src/components/RankingTab.jsx
 import React, { useState, useCallback, useEffect } from 'react'
 import { ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
 import { getVacancyRankings } from '../api/ranking'
@@ -7,7 +6,6 @@ import ForbiddenState from './ForbiddenState'
 import AsyncState from './AsyncState'
 import './RankingTab.css'
 
-// Медали для топ-3
 const MEDALS = ['🥇', '🥈', '🥉']
 
 function ScoreBar({ value, max = 1, color = '#3b82f6' }) {
@@ -23,6 +21,7 @@ function ScoreBar({ value, max = 1, color = '#3b82f6' }) {
 }
 
 function BreakdownModal({ candidate, onClose }) {
+  const breakdown = Array.isArray(candidate.breakdown) ? candidate.breakdown : []
   const score = Math.round(candidate.total_score * 100)
   const required = Math.round(candidate.required_match * 100)
   const desired = Math.round(candidate.desired_match * 100)
@@ -40,7 +39,6 @@ function BreakdownModal({ candidate, onClose }) {
           </button>
         </div>
 
-        {/* Общие метрики */}
         <div className="ranking__modal-summary">
           <div className="ranking__modal-metric">
             <span className="ranking__modal-metric-label">Общий балл</span>
@@ -62,13 +60,12 @@ function BreakdownModal({ candidate, onClose }) {
           </div>
         </div>
 
-        {/* Breakdown по компетенциям */}
         <div className="ranking__modal-breakdown">
           <h4>Детализация по компетенциям</h4>
-          {candidate.breakdown.length === 0 ? (
+          {breakdown.length === 0 ? (
             <p className="ranking__modal-empty">Нет данных по компетенциям</p>
           ) : (
-            candidate.breakdown.map(item => {
+            breakdown.map(item => {
               const coverage = Math.round(item.coverage * 100)
               return (
                 <div key={item.competency_id} className="ranking__breakdown-item">
@@ -94,10 +91,12 @@ function BreakdownModal({ candidate, onClose }) {
                   />
                   <div className="ranking__breakdown-meta">
                     <span>
-                      Подкомпетенции: {item.matched_subcompetency_ids.length} / {item.total_subcompetency_ids.length}
+                      Подкомпетенции: {(item.matched_subcompetency_ids || []).length}
+                      {' / '}
+                      {(item.total_subcompetency_ids || []).length}
                     </span>
                     <span>
-                      Вклад в балл: {item.score_contribution.toFixed(2)}
+                      Вклад в балл: {(item.score_contribution || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -109,191 +108,8 @@ function BreakdownModal({ candidate, onClose }) {
     </div>
   )
 }
-
-// MOCK DATA
-// const MOCK_RANKINGS = {
-//   vacancy_id: 'mock',
-//   rankings: [
-//     {
-//       candidate_id: '1',
-//       candidate_external_id: 'ivanov_ivan',
-//       total_score: 0.87,
-//       required_match: 0.95,
-//       desired_match: 0.72,
-//       required_score: 0.91,
-//       desired_score: 0.68,
-//       breakdown: [
-//         {
-//           competency_id: 'c1',
-//           competency_name: 'Python Backend',
-//           required: true,
-//           matched_weight: 0.9,
-//           total_weight: 1.0,
-//           coverage: 0.9,
-//           score_contribution: 0.32,
-//           matched_subcompetency_ids: ['s1', 's2', 's3'],
-//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
-//         },
-//         {
-//           competency_id: 'c2',
-//           competency_name: 'SQL Modeling',
-//           required: true,
-//           matched_weight: 0.8,
-//           total_weight: 1.0,
-//           coverage: 0.8,
-//           score_contribution: 0.28,
-//           matched_subcompetency_ids: ['s5', 's6'],
-//           total_subcompetency_ids: ['s5', 's6', 's7'],
-//         },
-//         {
-//           competency_id: 'c3',
-//           competency_name: 'Containers and Delivery',
-//           required: false,
-//           matched_weight: 0.6,
-//           total_weight: 1.0,
-//           coverage: 0.6,
-//           score_contribution: 0.15,
-//           matched_subcompetency_ids: ['s8'],
-//           total_subcompetency_ids: ['s8', 's9'],
-//         },
-//       ],
-//     },
-//     {
-//       candidate_id: '2',
-//       candidate_external_id: 'petrova_maria',
-//       total_score: 0.74,
-//       required_match: 0.82,
-//       desired_match: 0.61,
-//       required_score: 0.79,
-//       desired_score: 0.55,
-//       breakdown: [
-//         {
-//           competency_id: 'c1',
-//           competency_name: 'Python Backend',
-//           required: true,
-//           matched_weight: 0.75,
-//           total_weight: 1.0,
-//           coverage: 0.75,
-//           score_contribution: 0.27,
-//           matched_subcompetency_ids: ['s1', 's2'],
-//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
-//         },
-//         {
-//           competency_id: 'c2',
-//           competency_name: 'SQL Modeling',
-//           required: true,
-//           matched_weight: 0.9,
-//           total_weight: 1.0,
-//           coverage: 0.9,
-//           score_contribution: 0.31,
-//           matched_subcompetency_ids: ['s5', 's6', 's7'],
-//           total_subcompetency_ids: ['s5', 's6', 's7'],
-//         },
-//         {
-//           competency_id: 'c3',
-//           competency_name: 'Containers and Delivery',
-//           required: false,
-//           matched_weight: 0.3,
-//           total_weight: 1.0,
-//           coverage: 0.3,
-//           score_contribution: 0.08,
-//           matched_subcompetency_ids: [],
-//           total_subcompetency_ids: ['s8', 's9'],
-//         },
-//       ],
-//     },
-//     {
-//       candidate_id: '3',
-//       candidate_external_id: 'sidorov_alex',
-//       total_score: 0.61,
-//       required_match: 0.65,
-//       desired_match: 0.55,
-//       required_score: 0.62,
-//       desired_score: 0.48,
-//       breakdown: [
-//         {
-//           competency_id: 'c1',
-//           competency_name: 'Python Backend',
-//           required: true,
-//           matched_weight: 0.5,
-//           total_weight: 1.0,
-//           coverage: 0.5,
-//           score_contribution: 0.18,
-//           matched_subcompetency_ids: ['s1'],
-//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
-//         },
-//         {
-//           competency_id: 'c2',
-//           competency_name: 'SQL Modeling',
-//           required: true,
-//           matched_weight: 0.7,
-//           total_weight: 1.0,
-//           coverage: 0.7,
-//           score_contribution: 0.24,
-//           matched_subcompetency_ids: ['s5', 's6'],
-//           total_subcompetency_ids: ['s5', 's6', 's7'],
-//         },
-//         {
-//           competency_id: 'c3',
-//           competency_name: 'Containers and Delivery',
-//           required: false,
-//           matched_weight: 0.5,
-//           total_weight: 1.0,
-//           coverage: 0.5,
-//           score_contribution: 0.12,
-//           matched_subcompetency_ids: ['s8'],
-//           total_subcompetency_ids: ['s8', 's9'],
-//         },
-//       ],
-//     },
-//     {
-//       candidate_id: '4',
-//       candidate_external_id: 'kozlov_dmitry',
-//       total_score: 0.45,
-//       required_match: 0.48,
-//       desired_match: 0.40,
-//       required_score: 0.44,
-//       desired_score: 0.35,
-//       breakdown: [
-//         {
-//           competency_id: 'c1',
-//           competency_name: 'Python Backend',
-//           required: true,
-//           matched_weight: 0.4,
-//           total_weight: 1.0,
-//           coverage: 0.4,
-//           score_contribution: 0.14,
-//           matched_subcompetency_ids: ['s1'],
-//           total_subcompetency_ids: ['s1', 's2', 's3', 's4'],
-//         },
-//         {
-//           competency_id: 'c2',
-//           competency_name: 'SQL Modeling',
-//           required: true,
-//           matched_weight: 0.5,
-//           total_weight: 1.0,
-//           coverage: 0.5,
-//           score_contribution: 0.17,
-//           matched_subcompetency_ids: ['s5'],
-//           total_subcompetency_ids: ['s5', 's6', 's7'],
-//         },
-//         {
-//           competency_id: 'c3',
-//           competency_name: 'Containers and Delivery',
-//           required: false,
-//           matched_weight: 0.2,
-//           total_weight: 1.0,
-//           coverage: 0.2,
-//           score_contribution: 0.05,
-//           matched_subcompetency_ids: [],
-//           total_subcompetency_ids: ['s8', 's9'],
-//         },
-//       ],
-//     },
-//   ],
-// }
-
 export default function RankingTab({ vacancies, notify, navigationTarget = null }) {
+  const vacancyList = Array.isArray(vacancies) ? vacancies : []
   const [selectedVacancyId, setSelectedVacancyId] = useState('')
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(false)
@@ -318,10 +134,6 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
         }
       }
       setIsForbidden(false)
-      
-      // Для использования mock данных раскомментируйте 2 строки ниже и закомментируйте 2 строки выше
-      // await new Promise(r => setTimeout(r, 600))
-      // setRankings(MOCK_RANKINGS.rankings)
     } catch (error) {
       setIsForbidden(error?.response?.status === 403)
       notify(getErrorMessage(error, { fallback: 'Ошибка загрузки ранжирования' }), 'error')
@@ -348,7 +160,6 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
         <ForbiddenState hint="Недостаточно прав для просмотра ранжирования." />
       )}
 
-      {/* ===== ВЫБОР ВАКАНСИИ ===== */}
       <div className="ranking__select-row">
         <Trophy size={20} className="ranking__trophy" />
         <select
@@ -357,18 +168,17 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
           onChange={handleVacancyChange}
         >
           <option value="">— Выберите вакансию —</option>
-          {vacancies.map(v => (
+          {vacancyList.map(v => (
             <option key={v.id} value={v.id}>{v.name}</option>
           ))}
         </select>
       </div>
 
-      {/* ===== СОСТОЯНИЯ ===== */}
       {!selectedVacancyId && (
         <div className="ranking__empty">
           <Trophy size={48} />
           <p>Выберите вакансию чтобы увидеть ранжирование кандидатов</p>
-          {vacancies.length === 0 && (
+          {vacancyList.length === 0 && (
             <p className="ranking__empty-hint">
               Нет вакансий со статусом "Готово". Сначала завершите редактирование вакансии.
             </p>
@@ -388,7 +198,6 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
         />
       )}
 
-      {/* ===== ТАБЛИЦА ===== */}
       {!loading && rankings.length > 0 && (
         <div className="ranking__table-wrap">
           <div className="ranking__table-header">
@@ -440,7 +249,6 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
         </div>
       )}
 
-      {/* ===== МОДАЛКА BREAKDOWN ===== */}
       {selectedCandidate && (
         <BreakdownModal
           candidate={selectedCandidate}

@@ -6,6 +6,7 @@ import { getErrorMessage } from '../api/errors'
 import ForbiddenState from './ForbiddenState'
 import AsyncState from './AsyncState'
 import TaskGraphDialog from './TaskGraphDialog'
+import TaskStats from './tasks/TaskStats'
 import './TasksTab.css'
 
 const TASK_STATUS_CONFIG = {
@@ -39,6 +40,9 @@ const TASK_TYPE_LABELS = {
 function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
   const statusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending
   const canFinalize = task.status === 'draft'
+  const createdAtLabel = task.created_at
+    ? new Date(task.created_at).toLocaleString('ru-RU')
+    : '—'
 
   return (
     <div className={`task-card task-card--${statusConfig.badge}`}>
@@ -80,7 +84,7 @@ function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
         <p className="task-card__description">{task.description || 'Описание не задано'}</p>
         <div className="task-card__meta">
           <span>ID: {task.external_id}</span>
-          <span>Создано: {new Date(task.created_at).toLocaleString('ru-RU')}</span>
+          <span>Создано: {createdAtLabel}</span>
         </div>
       </div>
     </div>
@@ -131,7 +135,7 @@ export default function TasksTab({ notify }) {
     const draft = tasks.filter((task) => task.status === 'draft').length
     const ready = tasks.filter((task) => task.status === 'ready').length
     const failed = tasks.filter((task) => task.status === 'failed').length
-    return { pending, draft, ready, failed }
+    return { total: tasks.length, pending, draft, ready, failed }
   }, [tasks])
 
   if (loading) {
@@ -156,28 +160,7 @@ export default function TasksTab({ notify }) {
 
   return (
     <div className="tasks-tab">
-      <div className="tasks-tab__stats">
-        <div className="tasks-tab__stat">
-          <span className="tasks-tab__stat-value">{tasks.length}</span>
-          <span className="tasks-tab__stat-label">Всего</span>
-        </div>
-        <div className="tasks-tab__stat tasks-tab__stat--completed">
-          <span className="tasks-tab__stat-value">{counters.ready}</span>
-          <span className="tasks-tab__stat-label">Ready</span>
-        </div>
-        <div className="tasks-tab__stat tasks-tab__stat--pending">
-          <span className="tasks-tab__stat-value">{counters.pending}</span>
-          <span className="tasks-tab__stat-label">Pending</span>
-        </div>
-        <div className="tasks-tab__stat tasks-tab__stat--draft">
-          <span className="tasks-tab__stat-value">{counters.draft}</span>
-          <span className="tasks-tab__stat-label">Draft</span>
-        </div>
-        <div className="tasks-tab__stat tasks-tab__stat--failed">
-          <span className="tasks-tab__stat-value">{counters.failed}</span>
-          <span className="tasks-tab__stat-label">Failed</span>
-        </div>
-      </div>
+      <TaskStats counters={counters} />
 
       <div className="tasks-tab__list">
         {tasks.map((task) => (

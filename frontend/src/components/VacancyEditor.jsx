@@ -1,4 +1,3 @@
-// frontend/src/components/VacancyEditor.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, RotateCcw, Loader2, CheckCircle2 } from 'lucide-react'
@@ -7,6 +6,7 @@ import MindMap from './MindMap'
 import AddCategoryDialog from './AddCategoryDialog'
 import SuggestionsPanel from './SuggestionsPanel'
 import ForbiddenState from './ForbiddenState'
+import AsyncState from './AsyncState'
 import { finalizeVacancyGraph, getVacancy, updateGraph } from '../api/vacancies'
 import { listCategories } from '../api/ontology'
 import { getErrorMessage } from '../api/errors'
@@ -380,12 +380,7 @@ export default function VacancyEditor({ notify, role }) {
   }
 
   if (loading) {
-    return (
-      <div className="loading-state">
-        <div className="spinner" />
-        <p>Загрузка вакансии...</p>
-      </div>
-    )
+    return <AsyncState kind="loading" title="Загрузка вакансии..." />
   }
 
   return (
@@ -402,15 +397,7 @@ export default function VacancyEditor({ notify, role }) {
           </button>
 
           <h2 className="editor-topbar__title">{vacancy?.name}</h2>
-          <span
-            style={{
-              borderRadius: 999,
-              border: '1px solid #d1d5db',
-              padding: '4px 10px',
-              fontSize: 12,
-              color: '#374151',
-            }}
-          >
+          <span className="editor-topbar__status">
             Статус: {VACANCY_STATUS_LABELS[vacancy?.status] || vacancy?.status}
           </span>
 
@@ -453,7 +440,7 @@ export default function VacancyEditor({ notify, role }) {
         ) : (
           <>
             {!isEditableStatus && (
-              <div style={{ marginBottom: 12 }}>
+              <div className="editor-readonly-banner">
                 <ForbiddenState
                   title="Редактирование недоступно"
                   hint="Изменения графа доступны только для вакансий в статусах draft и ready."
