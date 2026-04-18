@@ -18,6 +18,8 @@ export const canUseSuggestions = (role) => role === ROLES.ADMIN || role === ROLE
 export const canAccessRanking = (role) => canAccessVacancies(role)
 export const canAccessOntology = (role) => canAccessVacancies(role)
 export const canAccessCandidates = (role) => canAccessVacancies(role)
+export const canAccessReviewQueue = (role) =>
+  role === ROLES.ADMIN || role === ROLES.EXPERT
 
 export const canAccessAdminUsers = (role) =>
   role === ROLES.ADMIN || role === ROLES.SYSTEM

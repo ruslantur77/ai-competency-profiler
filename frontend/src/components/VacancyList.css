@@ -232,3 +232,77 @@
   border-bottom-color: #3b82f6;
   font-weight: 500;
 }
+
+.vacancy-list__mode {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.vacancy-list__mode-btn {
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.vacancy-list__mode-btn.is-active {
+  border-color: #60a5fa;
+  color: #dbeafe;
+}
+
+.vacancy-list__deleted-panel {
+  border: 1px dashed #475569;
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 0.9rem;
+  background: #111827;
+}
+
+.vacancy-list__deleted-panel h4 {
+  margin: 0 0 0.55rem;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.vacancy-list__deleted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.vacancy-list__deleted-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+}
+
+.vacancy-list__deleted-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.vacancy-card__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.vacancy-card__controls select {
+  background: #0f172a;
+  color: #d1d5db;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.75rem;
+}

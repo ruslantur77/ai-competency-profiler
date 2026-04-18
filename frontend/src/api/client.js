@@ -3,12 +3,16 @@ import api from './base'
 export { login, logout } from './auth'
 export {
   listVacancies,
+  listVacanciesForReview,
   createVacancy,
   getVacancy,
   getGraph,
   updateGraph,
   finalizeVacancyGraph,
   updateVacancyStatus,
+  deleteVacancy,
+  restoreVacancy,
+  hardDeleteVacancy,
 } from './vacancies'
 export { getSuggestions, decideSuggestion } from './suggestions'
 export { getVacancyRankings, getCandidateProfile } from './ranking'
