@@ -287,15 +287,15 @@ async def test_delete_sub_competency_use_case_conflict_when_used_in_task_mapping
 ) -> None:
     sub = SubCompetencyFactory().make()
     task = SimpleNamespace(
-        sub_competency_mappings=[SimpleNamespace(sub_competency_id=sub.id)]
+        sub_competency_nodes=[SimpleNamespace(sub_competency_id=sub.id)]
     )
     mock_uow.sub_competencies.get.return_value = sub
     mock_uow.tasks.get_list.return_value = [task]
 
-    with pytest.raises(ConflictError, match="task mappings"):
+    with pytest.raises(ConflictError, match="task graph"):
         await delete_sub_competency_use_case.execute(sub.id)
     mock_uow.tasks.get_list.assert_awaited_once_with(
-        include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+        include={TaskInclude.NORMALIZED_GRAPH}
     )
     mock_uow.sub_competencies.delete.assert_not_awaited()
 
@@ -312,7 +312,7 @@ async def test_delete_sub_competency_use_case_success(
     await delete_sub_competency_use_case.execute(sub.id)
 
     mock_uow.tasks.get_list.assert_awaited_once_with(
-        include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+        include={TaskInclude.NORMALIZED_GRAPH}
     )
     mock_uow.candidates.get_list.assert_awaited_once_with(
         include={CandidateInclude.ACHIEVEMENTS}

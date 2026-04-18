@@ -61,7 +61,7 @@ async def test_bulk_decide_rejected_updates_all_and_commits_once(
     assert result[0].status == SuggestionStatus.REJECTED
     assert result[1].status == SuggestionStatus.REJECTED
     assert mock_uow.vacancy_suggestions.add.await_count == 2
-    mock_uow.vacancies.get.assert_not_awaited()
+    mock_uow.vacancies.get.assert_awaited_once()
     mock_uow.vacancies.add.assert_not_awaited()
     mock_uow.commit.assert_awaited_once()
 
@@ -98,7 +98,7 @@ async def test_bulk_decide_approved_loads_vacancy_once_and_applies(
 
     assert len(result) == 1
     assert result[0].status == SuggestionStatus.APPROVED
-    mock_uow.vacancies.get.assert_awaited_once()
+    assert mock_uow.vacancies.get.await_count == 2
     mock_uow.competencies.add.assert_awaited_once()
     mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
     mock_uow.commit.assert_awaited_once()

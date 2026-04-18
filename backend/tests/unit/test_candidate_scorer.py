@@ -7,7 +7,7 @@ import pytest
 from competency_system.domain.entities import (
     SubCompetency,
     Task,
-    TaskSubCompetencyMapping,
+    TaskSubCompetencyNode,
     TestResult,
 )
 from competency_system.domain.services.candidate_scorer import CandidateScorer
@@ -24,9 +24,19 @@ def test_candidate_scorer_requires_sufficient_result_quality() -> None:
         title="Build API",
         description="Implement endpoint",
         type=TaskType.TEST,
-        sub_competency_mappings=[
-            TaskSubCompetencyMapping(sub_competency_id=sub_critical.id, weight=0.8),
-            TaskSubCompetencyMapping(sub_competency_id=sub_minor.id, weight=0.2),
+        sub_competency_nodes=[
+            TaskSubCompetencyNode(
+                sub_competency_id=sub_critical.id,
+                competency_id=uuid4(),
+                weight=0.8,
+                position=0,
+            ),
+            TaskSubCompetencyNode(
+                sub_competency_id=sub_minor.id,
+                competency_id=uuid4(),
+                weight=0.2,
+                position=1,
+            ),
         ],
     )
     result = TestResult(

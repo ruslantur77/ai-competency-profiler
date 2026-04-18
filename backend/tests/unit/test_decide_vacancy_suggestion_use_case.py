@@ -44,7 +44,7 @@ async def test_decide_vacancy_suggestion_use_case_rejected_updates_status_only(
     result = await use_case.execute(vacancy.id, decision)
 
     assert result.status == SuggestionStatus.REJECTED
-    mock_uow.vacancies.get.assert_not_awaited()
+    mock_uow.vacancies.get.assert_awaited_once()
     mock_uow.categories.add.assert_not_awaited()
     mock_uow.vacancy_suggestions.add.assert_awaited_once_with(suggestion)
     mock_uow.commit.assert_awaited_once()

@@ -18,7 +18,9 @@ from competency_system.domain.entities import (
     RefreshToken,
     SubCompetency,
     Task,
-    TaskSubCompetencyMapping,
+    TaskCategoryNode,
+    TaskCompetencyNode,
+    TaskSubCompetencyNode,
     TestResult,
     TestResultLLMAssessment,
     TestResultLLMFeedbackItem,
@@ -37,7 +39,7 @@ from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
-    TaskMappingStatus,
+    TaskStatus,
     TaskType,
     UserRole,
     VacancyStatus,
@@ -49,7 +51,10 @@ from competency_system.infrastructure.persistence.models import (
     RankingSnapshotOrm,
     RefreshTokenOrm,
     SubCompetencyOrm,
+    TaskCategoryNodeOrm,
+    TaskCompetencyNodeOrm,
     TaskOrm,
+    TaskSubCompetencyNodeOrm,
     TestResultOrm,
     UserOrm,
     VacancyCategoryNodeOrm,
@@ -452,10 +457,11 @@ class TaskFields(TypedDict):
     title: NotRequired[str]
     description: NotRequired[str]
     type: NotRequired[TaskType]
-    mapping_validated: NotRequired[bool]
-    mapping_status: NotRequired[TaskMappingStatus]
-    mapping_error_message: NotRequired[str | None]
-    sub_competency_mappings: NotRequired[list[TaskSubCompetencyMapping]]
+    status: NotRequired[TaskStatus]
+    error_message: NotRequired[str | None]
+    category_nodes: NotRequired[list[TaskCategoryNode]]
+    competency_nodes: NotRequired[list[TaskCompetencyNode]]
+    sub_competency_nodes: NotRequired[list[TaskSubCompetencyNode]]
 
 
 class TaskFactory(AbstractFactory[TaskFields, Task, TaskOrm]):
@@ -467,44 +473,131 @@ class TaskFactory(AbstractFactory[TaskFields, Task, TaskOrm]):
             title=data.get("title", "Task title"),
             description=data.get("description", "Task description"),
             type=data.get("type", TaskType.CODE),
-            mapping_validated=data.get("mapping_validated", False),
-            mapping_status=data.get("mapping_status", TaskMappingStatus.PENDING),
-            mapping_error_message=data.get("mapping_error_message", None),
-            sub_competency_mappings=data.get("sub_competency_mappings", []),
+            status=data.get("status", TaskStatus.PENDING),
+            error_message=data.get("error_message", None),
+            category_nodes=data.get("category_nodes", []),
+            competency_nodes=data.get("competency_nodes", []),
+            sub_competency_nodes=data.get("sub_competency_nodes", []),
         )
 
     def make_orm(self, fields: TaskFields | None = None) -> TaskOrm:
         return TaskOrm.from_entity(self.make(fields))
 
 
-class TaskSubCompetencyMappingFields(TypedDict):
+class TaskCategoryNodeFields(TypedDict):
     id: NotRequired[UUID]
     task_id: NotRequired[UUID]
-    sub_competency_id: NotRequired[UUID]
-    weight: NotRequired[float]
+    category_id: NotRequired[UUID]
     position: NotRequired[int]
-    sub_competency: NotRequired[SubCompetency | None]
+    task: NotRequired[Task | None]
+    category: NotRequired[Category | None]
 
 
-class TaskSubCompetencyMappingFactory(
-    AbstractFactory[TaskSubCompetencyMappingFields, TaskSubCompetencyMapping, object]
+class TaskCategoryNodeFactory(
+    AbstractFactory[TaskCategoryNodeFields, TaskCategoryNode, TaskCategoryNodeOrm]
 ):
     def make(
         self,
-        fields: TaskSubCompetencyMappingFields | None = None,
-    ) -> TaskSubCompetencyMapping:
+        fields: TaskCategoryNodeFields | None = None,
+    ) -> TaskCategoryNode:
         data = fields or {}
-        return TaskSubCompetencyMapping(
+        return TaskCategoryNode(
+            id=data.get("id", uuid4()),
+            task_id=data.get("task_id", UUID(int=0)),
+            category_id=data.get("category_id", uuid4()),
+            position=data.get("position", 0),
+            task=data.get("task", None),
+            category=data.get("category", None),
+        )
+
+    def make_orm(
+        self, fields: TaskCategoryNodeFields | None = None
+    ) -> TaskCategoryNodeOrm:
+        return TaskCategoryNodeOrm.from_entity(self.make(fields))
+
+
+class TaskCompetencyNodeFields(TypedDict):
+    id: NotRequired[UUID]
+    task_id: NotRequired[UUID]
+    competency_id: NotRequired[UUID]
+    category_id: NotRequired[UUID]
+    is_required: NotRequired[bool]
+    position: NotRequired[int]
+    task: NotRequired[Task | None]
+    competency: NotRequired[Competency | None]
+    category: NotRequired[Category | None]
+
+
+class TaskCompetencyNodeFactory(
+    AbstractFactory[TaskCompetencyNodeFields, TaskCompetencyNode, TaskCompetencyNodeOrm]
+):
+    def make(
+        self,
+        fields: TaskCompetencyNodeFields | None = None,
+    ) -> TaskCompetencyNode:
+        data = fields or {}
+        return TaskCompetencyNode(
+            id=data.get("id", uuid4()),
+            task_id=data.get("task_id", UUID(int=0)),
+            competency_id=data.get("competency_id", uuid4()),
+            category_id=data.get("category_id", uuid4()),
+            is_required=data.get("is_required", True),
+            position=data.get("position", 0),
+            task=data.get("task", None),
+            competency=data.get("competency", None),
+            category=data.get("category", None),
+        )
+
+    def make_orm(
+        self,
+        fields: TaskCompetencyNodeFields | None = None,
+    ) -> TaskCompetencyNodeOrm:
+        return TaskCompetencyNodeOrm.from_entity(self.make(fields))
+
+
+class TaskSubCompetencyNodeFields(TypedDict):
+    id: NotRequired[UUID]
+    task_id: NotRequired[UUID]
+    sub_competency_id: NotRequired[UUID]
+    competency_id: NotRequired[UUID]
+    target_level: NotRequired[CompetencyLevel]
+    weight: NotRequired[float]
+    position: NotRequired[int]
+    task: NotRequired[Task | None]
+    sub_competency: NotRequired[SubCompetency | None]
+    competency: NotRequired[Competency | None]
+
+
+class TaskSubCompetencyNodeFactory(
+    AbstractFactory[
+        TaskSubCompetencyNodeFields,
+        TaskSubCompetencyNode,
+        TaskSubCompetencyNodeOrm,
+    ]
+):
+    def make(
+        self,
+        fields: TaskSubCompetencyNodeFields | None = None,
+    ) -> TaskSubCompetencyNode:
+        data = fields or {}
+        return TaskSubCompetencyNode(
             id=data.get("id", uuid4()),
             task_id=data.get("task_id", UUID(int=0)),
             sub_competency_id=data.get("sub_competency_id", uuid4()),
+            competency_id=data.get("competency_id", uuid4()),
+            target_level=data.get("target_level", CompetencyLevel.BEGINNER),
             weight=data.get("weight", 1.0),
             position=data.get("position", 0),
+            task=data.get("task", None),
             sub_competency=data.get("sub_competency", None),
+            competency=data.get("competency", None),
         )
 
-    def make_orm(self, fields: TaskSubCompetencyMappingFields | None = None) -> object:
-        raise NotImplementedError("Task mapping has no direct ORM mapper function")
+    def make_orm(
+        self,
+        fields: TaskSubCompetencyNodeFields | None = None,
+    ) -> TaskSubCompetencyNodeOrm:
+        return TaskSubCompetencyNodeOrm.from_entity(self.make(fields))
 
 
 class TestResultFields(TypedDict):

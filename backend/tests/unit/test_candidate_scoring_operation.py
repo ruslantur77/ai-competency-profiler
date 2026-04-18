@@ -16,7 +16,7 @@ from competency_system.domain.value_objects.enums import LLMFeedbackType, TaskTy
 from tests.factories import (
     CandidateFactory,
     TaskFactory,
-    TaskSubCompetencyMappingFactory,
+    TaskSubCompetencyNodeFactory,
     TestResultFactory,
     TestResultLLMAssessmentFactory,
 )
@@ -52,8 +52,8 @@ async def test_candidate_scoring_operation_creates_result_and_candidate(
     task = TaskFactory().make(
         {
             "external_id": command.task_external_id,
-            "sub_competency_mappings": [
-                TaskSubCompetencyMappingFactory().make(
+            "sub_competency_nodes": [
+                TaskSubCompetencyNodeFactory().make(
                     {"task_id": uuid4(), "sub_competency_id": sub1.id, "weight": 1.0}
                 )
             ],
@@ -172,8 +172,8 @@ async def test_candidate_scoring_operation_reuses_existing_candidate_for_same_va
     task = TaskFactory().make(
         {
             "external_id": command.task_external_id,
-            "sub_competency_mappings": [
-                TaskSubCompetencyMappingFactory().make(
+            "sub_competency_nodes": [
+                TaskSubCompetencyNodeFactory().make(
                     {"task_id": uuid4(), "sub_competency_id": sub1.id, "weight": 1.0}
                 )
             ],

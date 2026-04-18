@@ -10,13 +10,16 @@ from competency_system.application.ports.repositories import TestResultInclude
 from competency_system.domain.entities import (
     Candidate,
     Task,
-    TaskSubCompetencyMapping,
+    TaskCategoryNode,
+    TaskCompetencyNode,
+    TaskSubCompetencyNode,
     TestResult,
     TestResultLLMAssessment,
     TestResultLLMFeedbackItem,
     TestResultQuestionAnswer,
     Vacancy,
 )
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import LLMFeedbackType
 from competency_system.infrastructure.persistence.repositories import (
     CandidateRepository,
@@ -39,7 +42,7 @@ async def test_test_result_repository_hydration_and_replacement(
     task_repo = TaskRepository(pg_session)
     repo = _TestResultRepository(pg_session)
 
-    category, _, sub1, _ = build_taxonomy()
+    category, competency, sub1, _ = build_taxonomy()
     await category_repo.add(category)
 
     vacancy = Vacancy(name="Backend", description="Role")
@@ -51,8 +54,23 @@ async def test_test_result_repository_hydration_and_replacement(
     task = Task(
         external_id="task-result",
         title="Result Task",
-        sub_competency_mappings=[
-            TaskSubCompetencyMapping(sub_competency_id=sub1.id, weight=1.0)
+        category_nodes=[TaskCategoryNode(category_id=category.id, position=0)],
+        competency_nodes=[
+            TaskCompetencyNode(
+                competency_id=competency.id,
+                category_id=category.id,
+                is_required=True,
+                position=0,
+            )
+        ],
+        sub_competency_nodes=[
+            TaskSubCompetencyNode(
+                sub_competency_id=sub1.id,
+                competency_id=competency.id,
+                target_level=CompetencyLevel.INTERMEDIATE,
+                weight=1.0,
+                position=0,
+            )
         ],
     )
     await task_repo.add(task)

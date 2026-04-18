@@ -81,7 +81,7 @@ DOMAIN_DB_SPECS: list[dict[str, Any]] = [
     {
         "domain": Task,
         "orm": TaskOrm,
-        "derived": {"sub_competency_mappings"},
+        "derived": {"category_nodes", "competency_nodes", "sub_competency_nodes"},
     },
     {
         "domain": _TestResult,
@@ -145,7 +145,9 @@ def test_derived_fields_use_existing_tables() -> None:
             "candidate_sub_competency_achievements"
         },
         "Candidate.achievements": {"candidate_sub_competency_achievements"},
-        "Task.sub_competency_mappings": {"task_sub_competency_mappings"},
+        "Task.category_nodes": {"task_category_nodes"},
+        "Task.competency_nodes": {"task_competency_nodes"},
+        "Task.sub_competency_nodes": {"task_sub_competency_nodes"},
         "TestResult.question_answers": {"test_result_question_answers"},
         "TestResult.llm_assessment": {
             "test_result_llm_assessments",

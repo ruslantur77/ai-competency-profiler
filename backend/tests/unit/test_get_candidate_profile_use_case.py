@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+from competency_system.application.errors import NotFoundError
 from competency_system.application.use_cases.candidate import GetCandidateProfileUseCase
 from tests.factories import CandidateAchievementFactory, CandidateFactory
 from tests.fixtures.domain_graph import build_vacancy_with_graph
@@ -42,7 +43,7 @@ async def test_get_candidate_profile_use_case_raises_when_candidate_not_found(
 ) -> None:
     mock_uow.candidates.get.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(uuid4())
 
 
@@ -53,5 +54,5 @@ async def test_get_candidate_profile_use_case_raises_when_vacancy_not_found(
     mock_uow.candidates.get.return_value = candidate
     mock_uow.vacancies.get.return_value = None
 
-    with pytest.raises(ValueError, match="Vacancy"):
+    with pytest.raises(NotFoundError, match="Vacancy"):
         await use_case.execute(candidate.id)

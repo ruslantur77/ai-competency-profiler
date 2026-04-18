@@ -334,8 +334,6 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm, TaskInclude], ITaskRepo
                 task_id=row.task_id,
                 category_id=row.category_id,
                 position=row.position,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
                 category=categories.get(row.category_id),
             )
             for row in category_rows
@@ -348,8 +346,6 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm, TaskInclude], ITaskRepo
                 category_id=row.category_id,
                 is_required=row.is_required,
                 position=row.position,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
                 category=categories.get(row.category_id),
                 competency=competencies.get(row.competency_id),
             )
@@ -364,8 +360,6 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm, TaskInclude], ITaskRepo
                 target_level=CompetencyLevel(row.target_level),
                 weight=row.weight,
                 position=row.position,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
                 competency=competencies.get(row.competency_id),
                 sub_competency=sub_models.get(row.sub_competency_id),
             )

@@ -13,7 +13,7 @@ from competency_system.infrastructure.persistence.models import UNSET
 from tests.factories import (
     SubCompetencyFactory,
     TaskFactory,
-    TaskSubCompetencyMappingFactory,
+    TaskSubCompetencyNodeFactory,
     TestResultFactory,
     TestResultLLMAssessmentFactory,
     TestResultLLMFeedbackItemFactory,
@@ -24,13 +24,13 @@ from .conftest import PolicyCase, assert_field_omitted, assert_field_set
 
 
 def test_task_to_orm_default_is_scalar_only(policy_case: PolicyCase) -> None:
-    mapping = TaskSubCompetencyMappingFactory().make()
-    task = TaskFactory().make({"sub_competency_mappings": [mapping]})
+    mapping = TaskSubCompetencyNodeFactory().make()
+    task = TaskFactory().make({"sub_competency_nodes": [mapping]})
 
     orm = task_to_orm(task, policy=policy_case.policy)
 
     assert_field_set(orm, "external_id")
-    assert_field_omitted(orm, "sub_competency_mappings")
+    assert_field_omitted(orm, "sub_competency_nodes")
 
 
 @pytest.mark.parametrize("as_empty", [False, True], ids=["none", "empty"])
@@ -38,52 +38,52 @@ def test_task_to_orm_collection_relationship_policy(
     policy_case: PolicyCase,
     as_empty: bool,
 ) -> None:
-    task = TaskFactory().make({"sub_competency_mappings": []})
+    task = TaskFactory().make({"sub_competency_nodes": []})
     if not as_empty:
-        task.sub_competency_mappings = None  # type: ignore[assignment]
+        task.sub_competency_nodes = None  # type: ignore[assignment]
 
     if not as_empty and policy_case.applies_relationship_none:
         with pytest.raises(TypeError):
             task_to_orm(
                 task,
-                present_fields={"sub_competency_mappings"},
+                present_fields={"sub_competency_nodes"},
                 policy=policy_case.policy,
             )
         return
 
     orm = task_to_orm(
         task,
-        present_fields={"sub_competency_mappings"},
+        present_fields={"sub_competency_nodes"},
         policy=policy_case.policy,
     )
 
     if as_empty:
         if policy_case.applies_empty_relationship:
-            assert_field_set(orm, "sub_competency_mappings")
-            assert orm.sub_competency_mappings == []
+            assert_field_set(orm, "sub_competency_nodes")
+            assert orm.sub_competency_nodes == []
         else:
-            assert_field_omitted(orm, "sub_competency_mappings")
+            assert_field_omitted(orm, "sub_competency_nodes")
     else:
-        assert_field_omitted(orm, "sub_competency_mappings")
+        assert_field_omitted(orm, "sub_competency_nodes")
 
 
 def test_task_to_orm_nested_mappings_dump(policy_case: PolicyCase) -> None:
     sub = SubCompetencyFactory().make()
-    mapping = TaskSubCompetencyMappingFactory().make(
+    mapping = TaskSubCompetencyNodeFactory().make(
         {"sub_competency_id": sub.id, "sub_competency": sub}
     )
-    task = TaskFactory().make({"sub_competency_mappings": [mapping]})
+    task = TaskFactory().make({"sub_competency_nodes": [mapping]})
 
     orm = task_to_orm(
         task,
         present_fields={
-            "sub_competency_mappings",
-            "sub_competency_mappings.sub_competency",
+            "sub_competency_nodes",
+            "sub_competency_nodes.sub_competency",
         },
         policy=policy_case.policy,
     )
-    assert len(orm.sub_competency_mappings) == 1
-    assert orm.sub_competency_mappings[0].sub_competency_id == sub.id
+    assert len(orm.sub_competency_nodes) == 1
+    assert orm.sub_competency_nodes[0].sub_competency_id == sub.id
 
 
 def test_test_result_to_orm_default_is_scalar_only(policy_case: PolicyCase) -> None:
@@ -180,23 +180,23 @@ def test_test_result_question_answers_collection_policy(
         assert_field_omitted(orm, "question_answers")
 
 
-def test_task_mapping_allows_explicit_none_relationship(
+def test_task_subcompetency_node_allows_explicit_none_relationship(
     policy_case: PolicyCase,
 ) -> None:
-    mapping = TaskSubCompetencyMappingFactory().make({"sub_competency": None})
-    task = TaskFactory().make({"sub_competency_mappings": [mapping]})
+    mapping = TaskSubCompetencyNodeFactory().make({"sub_competency": None})
+    task = TaskFactory().make({"sub_competency_nodes": [mapping]})
 
     orm = task_to_orm(
         task,
         present_fields={
-            "sub_competency_mappings",
-            "sub_competency_mappings.sub_competency",
+            "sub_competency_nodes",
+            "sub_competency_nodes.sub_competency",
         },
         policy=policy_case.policy,
     )
 
-    assert len(orm.sub_competency_mappings) == 1
+    assert len(orm.sub_competency_nodes) == 1
     if policy_case.applies_relationship_none:
-        assert_field_set(orm.sub_competency_mappings[0], "sub_competency")
+        assert_field_set(orm.sub_competency_nodes[0], "sub_competency")
     else:
-        assert_field_omitted(orm.sub_competency_mappings[0], "sub_competency")
+        assert_field_omitted(orm.sub_competency_nodes[0], "sub_competency")

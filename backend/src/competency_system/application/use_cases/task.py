@@ -330,11 +330,10 @@ class SyncTasksUseCase:
         end: datetime,
         force: bool = False,
     ) -> SyncTasksResultDTO:
-        del force
         external_tasks = await self._gateway.list_tasks(
             start=start,
             end=end,
-            force=False,
+            force=force,
         )
 
         async with self._uow as uow:
@@ -351,6 +350,28 @@ class SyncTasksUseCase:
                         type=record.type,
                         status=TaskStatus.PENDING,
                     )
+                    await uow.tasks.add(task)
+                    await self._enqueue_mapping(task.id)
+                    await uow.commit()
+                    synced.append(task_dto_from_domain(task))
+                    continue
+
+                changed = (
+                    task.title != record.title
+                    or task.description != record.description
+                    or task.type != record.type
+                )
+                if changed:
+                    task.title = record.title
+                    task.description = record.description
+                    task.type = record.type
+
+                if force or changed:
+                    task.category_nodes = []
+                    task.competency_nodes = []
+                    task.sub_competency_nodes = []
+                    task.status = TaskStatus.PENDING
+                    task.error_message = None
                     await uow.tasks.add(task)
                     await self._enqueue_mapping(task.id)
                     await uow.commit()

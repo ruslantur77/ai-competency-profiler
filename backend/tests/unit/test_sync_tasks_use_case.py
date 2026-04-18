@@ -9,7 +9,7 @@ from competency_system.application.ports.external_testing_system import (
     ExternalTaskRecord,
 )
 from competency_system.application.use_cases.task import SyncTasksUseCase
-from competency_system.domain.value_objects.enums import TaskMappingStatus, TaskType
+from competency_system.domain.value_objects.enums import TaskStatus, TaskType
 from tests.factories import TaskFactory
 
 pytestmark = pytest.mark.unit
@@ -47,7 +47,7 @@ async def test_sync_tasks_use_case_creates_task_and_enqueues_mapping(
     result = await use_case.execute(start=start, end=end)
 
     assert len(result.synced_tasks) == 1
-    assert result.synced_tasks[0].mapping_status == TaskMappingStatus.PENDING
+    assert result.synced_tasks[0].status == TaskStatus.PENDING
     mock_uow.tasks.add.assert_awaited_once()
     mock_uow.commit.assert_awaited_once()
     job_queue_mock.enqueue.assert_awaited_once()
@@ -71,8 +71,7 @@ async def test_sync_tasks_use_case_skips_unchanged_task_when_force_is_false(
             "title": external_record.title,
             "description": external_record.description,
             "type": external_record.type,
-            "mapping_validated": True,
-            "mapping_status": TaskMappingStatus.COMPLETED,
+            "status": TaskStatus.DRAFT,
         }
     )
     external_testing_gateway_mock.list_tasks.return_value = [external_record]
@@ -82,7 +81,7 @@ async def test_sync_tasks_use_case_skips_unchanged_task_when_force_is_false(
 
     assert len(result.synced_tasks) == 1
     assert result.synced_tasks[0].id == existing.id
-    assert existing.mapping_validated is True
+    assert existing.status == TaskStatus.DRAFT
     mock_uow.tasks.add.assert_not_awaited()
     mock_uow.commit.assert_not_awaited()
     job_queue_mock.enqueue.assert_not_awaited()
@@ -106,8 +105,7 @@ async def test_sync_tasks_use_case_force_resets_even_unchanged_task(
             "title": external_record.title,
             "description": external_record.description,
             "type": external_record.type,
-            "mapping_validated": True,
-            "mapping_status": TaskMappingStatus.COMPLETED,
+            "status": TaskStatus.READY,
         }
     )
     external_testing_gateway_mock.list_tasks.return_value = [external_record]
@@ -117,8 +115,10 @@ async def test_sync_tasks_use_case_force_resets_even_unchanged_task(
     result = await use_case.execute(start=start, end=end, force=True)
 
     assert len(result.synced_tasks) == 1
-    assert existing.mapping_validated is False
-    assert existing.mapping_status == TaskMappingStatus.PENDING
+    assert existing.status == TaskStatus.PENDING
+    assert existing.category_nodes == []
+    assert existing.competency_nodes == []
+    assert existing.sub_competency_nodes == []
     mock_uow.tasks.add.assert_awaited_once()
     mock_uow.commit.assert_awaited_once()
     job_queue_mock.enqueue.assert_awaited_once()
@@ -142,8 +142,7 @@ async def test_sync_tasks_use_case_resets_when_existing_task_changed(
             "title": "Old title",
             "description": external_record.description,
             "type": external_record.type,
-            "mapping_validated": True,
-            "mapping_status": TaskMappingStatus.COMPLETED,
+            "status": TaskStatus.READY,
         }
     )
     external_testing_gateway_mock.list_tasks.return_value = [external_record]
@@ -154,8 +153,7 @@ async def test_sync_tasks_use_case_resets_when_existing_task_changed(
 
     assert len(result.synced_tasks) == 1
     assert existing.title == external_record.title
-    assert existing.mapping_validated is False
-    assert existing.mapping_status == TaskMappingStatus.PENDING
+    assert existing.status == TaskStatus.PENDING
     mock_uow.tasks.add.assert_awaited_once()
     mock_uow.commit.assert_awaited_once()
     job_queue_mock.enqueue.assert_awaited_once()

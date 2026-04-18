@@ -15,14 +15,13 @@ from competency_system.application.dtos.ranking import (
     VacancyRankingDTO,
 )
 from competency_system.application.dtos.task import (
-    TaskCompetencyMappingDTO,
     TaskDTO,
     TestResultDTO,
 )
 from competency_system.application.dtos.vacancy import VacancyDTO
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
-    TaskMappingStatus,
+    TaskStatus,
     TaskType,
     VacancyStatus,
 )
@@ -41,6 +40,7 @@ class TaskDTOFields(TypedDict):
     title: NotRequired[str]
     description: NotRequired[str]
     type: NotRequired[TaskType]
+    status: NotRequired[TaskStatus]
 
 
 class ApiDTOFactory:
@@ -70,12 +70,11 @@ class ApiDTOFactory:
             title=data.get("title", "API Task"),
             description=data.get("description", "Implement API"),
             type=data.get("type", TaskType.CODE),
-            competency_mappings=[
-                TaskCompetencyMappingDTO(sub_competency_id=uuid4(), weight=1.0)
-            ],
-            mapping_validated=False,
-            mapping_status=TaskMappingStatus.COMPLETED,
-            mapping_error_message=None,
+            status=data.get("status", TaskStatus.DRAFT),
+            category_nodes=[],
+            competency_nodes=[],
+            sub_competency_nodes=[],
+            error_message=None,
             created_at=now,
             updated_at=now,
         )

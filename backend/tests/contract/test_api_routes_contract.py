@@ -51,6 +51,7 @@ from competency_system.presentation.api.dependencies import (
     get_delete_sub_competency_use_case,
     get_delete_vacancy_use_case,
     get_extract_vacancy_graph_use_case,
+    get_finalize_task_graph_use_case,
     get_finalize_vacancy_graph_use_case,
     get_get_candidate_profile_use_case,
     get_get_candidate_use_case,
@@ -58,7 +59,7 @@ from competency_system.presentation.api.dependencies import (
     get_get_competency_use_case,
     get_get_current_user_use_case,
     get_get_sub_competency_use_case,
-    get_get_task_use_case,
+    get_get_task_graph_use_case,
     get_get_vacancy_graph_use_case,
     get_get_vacancy_ranking_use_case,
     get_hard_delete_vacancy_use_case,
@@ -72,20 +73,19 @@ from competency_system.presentation.api.dependencies import (
     get_list_vacancy_candidates_use_case,
     get_list_vacancy_suggestions_use_case,
     get_logout_use_case,
-    get_rebuild_task_mapping_use_case,
     get_recalculate_ranking_use_case,
     get_refresh_token_data,
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
-    get_replace_task_mapping_use_case,
     get_restore_vacancy_use_case,
+    get_save_task_graph_use_case,
     get_save_vacancy_graph_use_case,
     get_sync_tasks_use_case,
     get_update_category_use_case,
     get_update_competency_use_case,
     get_update_sub_competency_use_case,
+    get_update_task_status_use_case,
     get_update_vacancy_use_case,
-    get_validate_task_mapping_use_case,
     verify_testing_system_webhook_secret,
 )
 from competency_system.presentation.api.main import app
@@ -337,18 +337,18 @@ def test_tasks_admin_and_webhook_routes_contract(
     app.dependency_overrides[get_sync_tasks_use_case] = lambda: _StaticUseCase(
         SyncTasksResultDTO(synced_tasks=[task])
     )
-    app.dependency_overrides[get_get_task_use_case] = lambda: _StaticUseCase(task)
-    app.dependency_overrides[get_replace_task_mapping_use_case] = lambda: (
-        _StaticUseCase(task)
+    app.dependency_overrides[get_get_task_graph_use_case] = lambda: _StaticUseCase(task)
+    app.dependency_overrides[get_save_task_graph_use_case] = lambda: _StaticUseCase(
+        task
     )
     app.dependency_overrides[get_list_tasks_use_case] = lambda: _StaticUseCase(
         SimpleNamespace(items=[task], total=1, limit=50, offset=0)
     )
-    app.dependency_overrides[get_rebuild_task_mapping_use_case] = lambda: (
-        _StaticUseCase(task)
+    app.dependency_overrides[get_finalize_task_graph_use_case] = lambda: _StaticUseCase(
+        task
     )
-    app.dependency_overrides[get_validate_task_mapping_use_case] = lambda: (
-        _StaticUseCase(task.model_copy(update={"mapping_validated": True}))
+    app.dependency_overrides[get_update_task_status_use_case] = lambda: _StaticUseCase(
+        task
     )
     app.dependency_overrides[get_assess_candidate_use_case] = lambda: _StaticUseCase(
         candidate_result
@@ -377,39 +377,44 @@ def test_tasks_admin_and_webhook_routes_contract(
         )
         assert sync_non_utc.status_code == 422
 
-        mapping = client.get(f"/api/v1/tasks/{task.id}/mapping")
-        assert mapping.status_code == 200
+        graph = client.get(f"/api/v1/tasks/{task.id}")
+        assert graph.status_code == 200
 
-        replace_mapping = client.put(
-            f"/api/v1/tasks/{task.id}/mapping",
+        save_graph = client.patch(
+            f"/api/v1/tasks/{task.id}/graph",
             json={
-                "mappings": [
+                "categories": [
                     {
-                        "category_id": str(uuid4()),
-                        "competency_id": str(uuid4()),
-                        "sub_competency_id": str(uuid4()),
-                        "weight": 0.6,
+                        "mode": "new",
+                        "temp_id": str(uuid4()),
+                        "name": "Engineering",
+                        "description": "Core",
+                        "emoji": "E",
+                        "competencies": [],
                     }
-                ]
+                ],
+                "error_message": None,
             },
         )
-        assert replace_mapping.status_code == 200
+        assert save_graph.status_code == 200
 
-        list_tasks = client.get("/api/v1/admin/tasks")
+        list_tasks = client.get("/api/v1/tasks")
         assert list_tasks.status_code == 200
         list_tasks_payload = list_tasks.json()
         assert list_tasks_payload["total"] == 1
         assert len(list_tasks_payload["items"]) == 1
 
-        detail = client.get(f"/api/v1/admin/tasks/{task.id}")
+        detail = client.get(f"/api/v1/tasks/{task.id}")
         assert detail.status_code == 200
 
-        rebuild = client.post(f"/api/v1/admin/tasks/{task.id}/mapping/rebuild")
-        assert rebuild.status_code == 200
+        finalize = client.post(f"/api/v1/tasks/{task.id}/graph/finalize")
+        assert finalize.status_code == 200
 
-        validate = client.post(f"/api/v1/admin/tasks/{task.id}/mapping/validate")
-        assert validate.status_code == 200
-        assert validate.json()["mapping_validated"] is True
+        update_status = client.patch(
+            f"/api/v1/tasks/{task.id}/status",
+            json={"status": "draft"},
+        )
+        assert update_status.status_code == 200
 
         webhook = client.post(
             "/api/v1/webhook/task-completed",

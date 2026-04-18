@@ -4,39 +4,49 @@ from uuid import uuid4
 
 import pytest
 
-from competency_system.application.errors import NotFoundError
-from competency_system.application.use_cases.task import RebuildTaskMappingUseCase
-from competency_system.domain.value_objects.enums import TaskMappingStatus
+from competency_system.application.dtos.task import TaskStatusUpdateDTO
+from competency_system.application.errors import NotFoundError, ValidationError
+from competency_system.application.use_cases.task import UpdateTaskStatusUseCase
+from competency_system.domain.value_objects.enums import TaskStatus
 from tests.factories import TaskFactory
 
 pytestmark = pytest.mark.unit
 
 
 @pytest.fixture
-def use_case(mock_uow, llm_gateway_mock, job_queue_mock):
-    return RebuildTaskMappingUseCase(mock_uow, llm_gateway_mock, job_queue_mock)
+def use_case(mock_uow):
+    return UpdateTaskStatusUseCase(mock_uow)
 
 
-async def test_rebuild_task_mapping_use_case_marks_pending_and_enqueues(
-    use_case: RebuildTaskMappingUseCase, mock_uow, job_queue_mock
+async def test_update_task_status_use_case_allows_valid_transition(
+    use_case: UpdateTaskStatusUseCase, mock_uow
 ) -> None:
-    task = TaskFactory().make({"mapping_status": TaskMappingStatus.COMPLETED})
+    task = TaskFactory().make({"status": TaskStatus.DRAFT})
     mock_uow.tasks.get.return_value = task
 
-    result = await use_case.execute(task.id)
+    result = await use_case.execute(
+        task.id, TaskStatusUpdateDTO(status=TaskStatus.READY)
+    )
 
-    assert result.id == task.id
-    assert task.mapping_status == TaskMappingStatus.PENDING
-    assert task.mapping_validated is False
+    assert result.status == TaskStatus.READY
     mock_uow.tasks.add.assert_awaited_once_with(task)
     mock_uow.commit.assert_awaited_once()
-    job_queue_mock.enqueue.assert_awaited_once()
 
 
-async def test_rebuild_task_mapping_use_case_raises_when_task_not_found(
-    use_case: RebuildTaskMappingUseCase, mock_uow
+async def test_update_task_status_use_case_rejects_invalid_transition(
+    use_case: UpdateTaskStatusUseCase, mock_uow
+) -> None:
+    task = TaskFactory().make({"status": TaskStatus.READY})
+    mock_uow.tasks.get.return_value = task
+
+    with pytest.raises(ValidationError, match="Invalid status transition"):
+        await use_case.execute(task.id, TaskStatusUpdateDTO(status=TaskStatus.PENDING))
+
+
+async def test_update_task_status_use_case_raises_when_task_not_found(
+    use_case: UpdateTaskStatusUseCase, mock_uow
 ) -> None:
     mock_uow.tasks.get.return_value = None
 
     with pytest.raises(NotFoundError, match="not found"):
-        await use_case.execute(uuid4())
+        await use_case.execute(uuid4(), TaskStatusUpdateDTO(status=TaskStatus.DRAFT))
