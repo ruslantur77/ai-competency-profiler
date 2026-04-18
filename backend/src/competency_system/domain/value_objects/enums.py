@@ -19,11 +19,12 @@ class TaskType(StrEnum):
     TEST = auto()
 
 
-class TaskMappingStatus(StrEnum):
-    """Status of task to competency mapping pipeline."""
+class TaskStatus(StrEnum):
+    """Status of task graph processing."""
 
     PENDING = auto()
-    COMPLETED = auto()
+    DRAFT = auto()
+    READY = auto()
     FAILED = auto()
 
 

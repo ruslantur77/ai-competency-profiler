@@ -5,7 +5,7 @@ from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
-    TaskMappingStatus,
+    TaskStatus,
     TaskType,
     UserRole,
     VacancyStatus,
@@ -21,5 +21,5 @@ __all__ = [
     "SuggestionEntityType",
     "SuggestionStage",
     "SuggestionStatus",
-    "TaskMappingStatus",
+    "TaskStatus",
 ]

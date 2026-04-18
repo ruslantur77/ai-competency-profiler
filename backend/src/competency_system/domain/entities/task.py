@@ -7,31 +7,51 @@ from uuid import UUID
 from competency_system.domain.entities import Entity
 from competency_system.domain.value_objects import (
     LLMFeedbackType,
-    TaskMappingStatus,
+    TaskStatus,
     TaskType,
 )
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
 
 if TYPE_CHECKING:
-    from competency_system.domain.entities import Candidate, Competency, SubCompetency
+    from competency_system.domain.entities import (
+        Candidate,
+        Category,
+        Competency,
+        SubCompetency,
+    )
 
 
 @dataclass(kw_only=True)
-class TaskSubCompetencyMapping(Entity):
+class TaskCategoryNode(Entity):
+    task_id: UUID = UUID(int=0)
+    category_id: UUID
+    position: int = 0
+    task: Task | None = None
+    category: Category | None = None
+
+
+@dataclass(kw_only=True)
+class TaskCompetencyNode(Entity):
+    task_id: UUID = UUID(int=0)
+    competency_id: UUID
+    category_id: UUID
+    is_required: bool = True
+    position: int = 0
+    task: Task | None = None
+    competency: Competency | None = None
+    category: Category | None = None
+
+
+@dataclass(kw_only=True)
+class TaskSubCompetencyNode(Entity):
     task_id: UUID = UUID(int=0)
     sub_competency_id: UUID
+    competency_id: UUID
+    target_level: CompetencyLevel = CompetencyLevel.BEGINNER
     weight: float = 1.0
     position: int = 0
     task: Task | None = None
     sub_competency: SubCompetency | None = None
-
-
-@dataclass(kw_only=True)
-class TaskCompetencyMapping(Entity):
-    task_id: UUID = UUID(int=0)
-    competency_id: UUID
-    weight: float = 1.0
-    position: int = 0
-    task: Task | None = None
     competency: Competency | None = None
 
 
@@ -43,13 +63,15 @@ class Task(Entity):
     title: str
     description: str = ""
     type: TaskType = TaskType.CODE
-    mapping_validated: bool = False
-    mapping_status: TaskMappingStatus = TaskMappingStatus.PENDING
-    mapping_error_message: str | None = None
+    status: TaskStatus = TaskStatus.PENDING
+    error_message: str | None = None
+    category_nodes: list[TaskCategoryNode] = field(default_factory=list)
+    competency_nodes: list[TaskCompetencyNode] = field(default_factory=list)
+    sub_competency_nodes: list[TaskSubCompetencyNode] = field(default_factory=list)
 
-    sub_competency_mappings: list[TaskSubCompetencyMapping] = field(
-        default_factory=list
-    )
+    @property
+    def is_ready(self) -> bool:
+        return self.status == TaskStatus.READY
 
 
 @dataclass(kw_only=True)

@@ -12,7 +12,9 @@ from competency_system.domain.entities.competency import (
 from competency_system.domain.entities.suggestion import VacancyGraphSuggestion
 from competency_system.domain.entities.task import (
     Task,
-    TaskSubCompetencyMapping,
+    TaskCategoryNode,
+    TaskCompetencyNode,
+    TaskSubCompetencyNode,
     TestResult,
     TestResultLLMAssessment,
     TestResultLLMFeedbackItem,
@@ -36,8 +38,9 @@ __all__ = [
     "CandidateSubCompetencyAchievement",
     "CompetencyScore",
     "Task",
-    "TaskSubCompetencyMapping",
-    "TaskSubCompetencyMapping",
+    "TaskCategoryNode",
+    "TaskCompetencyNode",
+    "TaskSubCompetencyNode",
     "TestResult",
     "TestResultQuestionAnswer",
     "TestResultLLMAssessment",

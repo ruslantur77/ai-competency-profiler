@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from competency_system.application.dtos.mappers import task_dto_from_domain
+from competency_system.application.dtos.mappers import (
+    task_dto_from_domain,
+    task_list_item_dto_from_domain,
+)
 from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
-    TaskMappingReplaceDTO,
+    TaskGraphUpdateDTO,
+    TaskListItemDTO,
+    TaskStatusUpdateDTO,
 )
 from competency_system.application.errors import NotFoundError, ValidationError
-from competency_system.application.llm.llm_dispatch_payload import (
-    TaskExtractionPayload,
-)
-from competency_system.application.llm.llm_orchestrator import (
-    StructuredLLMOrchestrator,
-)
+from competency_system.application.llm.llm_dispatch_payload import TaskExtractionPayload
+from competency_system.application.llm.llm_orchestrator import StructuredLLMOrchestrator
 from competency_system.application.llm.pipeline import (
     LLMSelectionCategoriesOutput,
     LLMSelectionCompetenciesOutput,
@@ -43,11 +45,86 @@ from competency_system.domain.entities import (
     Competency,
     SubCompetency,
     Task,
-    TaskSubCompetencyMapping,
+    TaskCategoryNode,
+    TaskCompetencyNode,
+    TaskSubCompetencyNode,
 )
-from competency_system.domain.value_objects.enums import TaskMappingStatus
+from competency_system.domain.value_objects.enums import TaskStatus
 
 logger = logging.getLogger(__name__)
+
+
+class _TaskGraphPayload:
+    def __init__(
+        self,
+        *,
+        category_nodes: list[TaskCategoryNode],
+        competency_nodes: list[TaskCompetencyNode],
+        sub_competency_nodes: list[TaskSubCompetencyNode],
+    ) -> None:
+        self.category_nodes = category_nodes
+        self.competency_nodes = competency_nodes
+        self.sub_competency_nodes = sub_competency_nodes
+
+
+def _build_nodes_from_competencies(
+    task_id: UUID,
+    competencies: list[Competency],
+) -> _TaskGraphPayload:
+    categories: dict[UUID, list[Competency]] = defaultdict(list)
+    category_order: list[UUID] = []
+
+    for comp in competencies:
+        if comp.category_id not in categories:
+            category_order.append(comp.category_id)
+        categories[comp.category_id].append(comp)
+
+    category_nodes = [
+        TaskCategoryNode(
+            id=uuid4(),
+            task_id=task_id,
+            category_id=category_id,
+            position=position,
+        )
+        for position, category_id in enumerate(category_order)
+    ]
+
+    competency_nodes: list[TaskCompetencyNode] = []
+    sub_nodes: list[TaskSubCompetencyNode] = []
+
+    for category_id in category_order:
+        comps = categories[category_id]
+
+        for comp in comps:
+            competency_nodes.append(
+                TaskCompetencyNode(
+                    id=uuid4(),
+                    task_id=task_id,
+                    competency_id=comp.id,
+                    category_id=comp.category_id,
+                    is_required=True,
+                    position=len(competency_nodes),
+                )
+            )
+
+            for sub in comp.sub_competencies:
+                sub_nodes.append(
+                    TaskSubCompetencyNode(
+                        id=uuid4(),
+                        task_id=task_id,
+                        sub_competency_id=sub.id,
+                        competency_id=comp.id,
+                        target_level=sub.target_level,
+                        weight=sub.weight,
+                        position=len(sub_nodes),
+                    )
+                )
+
+    return _TaskGraphPayload(
+        category_nodes=category_nodes,
+        competency_nodes=competency_nodes,
+        sub_competency_nodes=sub_nodes,
+    )
 
 
 class MapTaskToCompetenciesOperation:
@@ -132,32 +209,19 @@ class MapTaskToCompetenciesOperation:
             async with self._uow as uow:
                 task = await uow.tasks.get(
                     task_id,
-                    include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
+                    include={TaskInclude.NORMALIZED_GRAPH},
                 )
                 if not task:
-                    # TODO: Use NotFoundException
                     raise NotFoundError(f"Task {task_id} not found")
                 categories = await uow.categories.get_list()
 
-            task.sub_competency_mappings = await self._map(task, list(categories))
-            task.mapping_status = TaskMappingStatus.COMPLETED
-            task.mapping_error_message = None
-            logger.info(
-                "llm_operation_finished",
-                extra={
-                    "operation": "map_task_to_competencies",
-                    "status": "success",
-                    "task_id": str(task_id),
-                    "mappings_count": len(task.sub_competency_mappings),
-                    "mappings_sample": [
-                        {
-                            "sub_competency_id": str(item.sub_competency_id),
-                            "weight": item.weight,
-                        }
-                        for item in task.sub_competency_mappings[:3]
-                    ],
-                },
-            )
+            competencies = await self._map(task, list(categories))
+            payload = _build_nodes_from_competencies(task.id, competencies)
+            task.category_nodes = payload.category_nodes
+            task.competency_nodes = payload.competency_nodes
+            task.sub_competency_nodes = payload.sub_competency_nodes
+            task.status = TaskStatus.DRAFT
+            task.error_message = None
         except Exception as exc:
             if not task:
                 raise
@@ -171,10 +235,12 @@ class MapTaskToCompetenciesOperation:
                     "error": str(exc),
                 },
             )
-            task.sub_competency_mappings = []
-            task.mapping_status = TaskMappingStatus.FAILED
-            task.mapping_error_message = str(exc)
-        task.mapping_validated = False
+            task.category_nodes = []
+            task.competency_nodes = []
+            task.sub_competency_nodes = []
+            task.status = TaskStatus.FAILED
+            task.error_message = str(exc)
+
         async with self._uow as uow:
             await uow.tasks.add(task)
             await uow.commit()
@@ -183,7 +249,7 @@ class MapTaskToCompetenciesOperation:
         self,
         task: Task,
         categories: list[Category],
-    ) -> list[TaskSubCompetencyMapping]:
+    ) -> list[Competency]:
         if not categories:
             return []
 
@@ -193,34 +259,34 @@ class MapTaskToCompetenciesOperation:
             sub_competencies_by_competency=self.sub_competencies_by_competency,
             payload=self._task_payload(task),
         )
+        selected = sorted(subcompetencies, key=lambda item: item.weight)[
+            : self._max_mappings
+        ]
+        dedup: dict[UUID, Competency] = {}
+        for item in selected:
+            if item.competency is None:
+                continue
+            comp = dedup.setdefault(
+                item.competency.id,
+                Competency(
+                    id=item.competency.id,
+                    category_id=item.competency.category_id,
+                    name=item.competency.name,
+                    description=item.competency.description,
+                    sub_competencies=[],
+                    created_at=item.competency.created_at,
+                    updated_at=item.competency.updated_at,
+                ),
+            )
+            comp.sub_competencies.append(item)
 
-        return self._normalize_mappings(task.id, subcompetencies)
+        return list(dedup.values())
 
     def _task_payload(self, task: Task) -> dict[str, object]:
         return {
             "title": task.title,
             "description": task.description,
         }
-
-    def _normalize_mappings(
-        self,
-        task_id: UUID,
-        subcompetencies: list[SubCompetency],
-    ) -> list[TaskSubCompetencyMapping]:
-        ranked = sorted(subcompetencies, key=lambda item: item.weight)[
-            : self._max_mappings
-        ]
-
-        return [
-            TaskSubCompetencyMapping(
-                sub_competency_id=sub_competency.id,
-                sub_competency=sub_competency,
-                weight=sub_competency.weight,
-                position=idx,
-                task_id=task_id,
-            )
-            for idx, sub_competency in enumerate(ranked)
-        ]
 
 
 class SyncTasksUseCase:
@@ -241,10 +307,11 @@ class SyncTasksUseCase:
         end: datetime,
         force: bool = False,
     ) -> SyncTasksResultDTO:
+        del force
         external_tasks = await self._gateway.list_tasks(
             start=start,
             end=end,
-            force=force,
+            force=False,
         )
 
         async with self._uow as uow:
@@ -252,7 +319,6 @@ class SyncTasksUseCase:
 
             for record in external_tasks:
                 task = await uow.tasks.get_by_external_id(record.external_id)
-                should_reset_mapping = force
                 if task is None:
                     task = Task(
                         id=uuid4(),
@@ -260,27 +326,8 @@ class SyncTasksUseCase:
                         title=record.title,
                         description=record.description,
                         type=record.type,
+                        status=TaskStatus.PENDING,
                     )
-                    should_reset_mapping = True
-                else:
-                    has_changes = (
-                        task.title != record.title
-                        or task.description != record.description
-                        or task.type != record.type
-                    )
-                    if has_changes:
-                        task.title = record.title
-                        task.description = record.description
-                        task.type = record.type
-                        should_reset_mapping = True
-                    if task.mapping_status == TaskMappingStatus.FAILED:
-                        should_reset_mapping = True
-
-                if should_reset_mapping:
-                    task.sub_competency_mappings = []
-                    task.mapping_status = TaskMappingStatus.PENDING
-                    task.mapping_error_message = None
-                    task.mapping_validated = False
                     await uow.tasks.add(task)
                     await self._enqueue_mapping(task.id)
                     await uow.commit()
@@ -291,7 +338,6 @@ class SyncTasksUseCase:
 
     async def _enqueue_mapping(self, task_id: UUID) -> None:
         await self._job_queue.enqueue(
-            # TODO: replace in-process runner with external queue producer.
             job_type=LLMJobType.TASK_MAPPING,
             payload=TaskExtractionPayload(task_id=task_id, raw_text="").model_dump(
                 mode="json"
@@ -299,119 +345,138 @@ class SyncTasksUseCase:
         )
 
 
-class RebuildTaskMappingUseCase:
-    def __init__(
-        self,
-        uow: UnitOfWork,
-        llm_gateway: LLMGateway,
-        job_queue: LLMJobQueuePort,
-        *,
-        max_parallel_requests: int = 4,
-        stage_timeout_seconds: float = 45.0,
-        prompt_version: str = "v1",
-    ) -> None:
-        self._uow = uow
-        self._mapper = MapTaskToCompetenciesOperation(
-            llm_gateway,
-            uow=uow,
-            max_parallel_requests=max_parallel_requests,
-            stage_timeout_seconds=stage_timeout_seconds,
-            prompt_version=prompt_version,
-        )
-        self._job_queue = job_queue
-
-    async def execute(self, task_id: UUID) -> TaskDTO:
-        async with self._uow as uow:
-            task = await uow.tasks.get(
-                task_id,
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
-            )
-            if task is None:
-                raise NotFoundError(f"Task {task_id} not found")
-            task.mapping_status = TaskMappingStatus.PENDING
-            task.mapping_error_message = None
-            task.mapping_validated = False
-            await uow.tasks.add(task)
-            await uow.commit()
-            dto = task_dto_from_domain(task)
-
-        await self._enqueue_mapping(task.id)
-        return dto
-
-    async def _enqueue_mapping(self, task_id: UUID) -> None:
-        await self._job_queue.enqueue(
-            # TODO: replace in-process runner with external queue producer.
-            job_type=LLMJobType.TASK_MAPPING,
-            payload=TaskExtractionPayload(task_id=task_id, raw_text="").model_dump(
-                mode="json"
-            ),
-        )
-
-
-class ValidateTaskMappingUseCase:
+class SaveTaskGraphUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self, task_id: UUID) -> TaskDTO:
+    async def execute(self, task_id: UUID, graph: TaskGraphUpdateDTO) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(
-                task_id,
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
-            )
+            task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
-            task.mapping_validated = True
+
+            category_nodes: list[TaskCategoryNode] = []
+            competency_nodes: list[TaskCompetencyNode] = []
+            sub_nodes: list[TaskSubCompetencyNode] = []
+            used_category_ids: set[UUID] = set()
+            used_competency_ids: set[UUID] = set()
+            used_sub_competency_ids: set[UUID] = set()
+
+            for cat_input in graph.categories:
+                category = await uow.categories.get(cat_input.category_id)
+                if category is None:
+                    raise NotFoundError(f"Category {cat_input.category_id} not found")
+                if category.id in used_category_ids:
+                    raise ValidationError(
+                        f"Duplicate category node for category_id={category.id}"
+                    )
+                used_category_ids.add(category.id)
+                category_nodes.append(
+                    TaskCategoryNode(
+                        id=uuid4(),
+                        task_id=task.id,
+                        category_id=category.id,
+                        position=len(category_nodes),
+                    )
+                )
+
+                for comp_input in cat_input.competencies:
+                    competency = await uow.competencies.get(comp_input.competency_id)
+                    if competency is None:
+                        raise NotFoundError(
+                            f"Competency {comp_input.competency_id} not found"
+                        )
+                    if competency.category_id != category.id:
+                        raise ValidationError(
+                            "Competency does not belong to selected category"
+                        )
+                    if competency.id in used_competency_ids:
+                        raise ValidationError(
+                            "Duplicate competency node for "
+                            f"competency_id={competency.id}"
+                        )
+                    used_competency_ids.add(competency.id)
+                    competency_nodes.append(
+                        TaskCompetencyNode(
+                            id=uuid4(),
+                            task_id=task.id,
+                            competency_id=competency.id,
+                            category_id=category.id,
+                            is_required=comp_input.is_required,
+                            position=len(competency_nodes),
+                        )
+                    )
+
+                    for sub_input in comp_input.sub_competencies:
+                        sub_competency = await uow.sub_competencies.get(
+                            sub_input.sub_competency_id
+                        )
+                        if sub_competency is None:
+                            raise NotFoundError(
+                                "Sub-competency "
+                                f"{sub_input.sub_competency_id} not found"
+                            )
+                        if sub_competency.competency_id != competency.id:
+                            raise ValidationError(
+                                "Sub-competency does not belong to selected competency"
+                            )
+                        if sub_competency.id in used_sub_competency_ids:
+                            raise ValidationError(
+                                "Duplicate sub-competency node for "
+                                f"sub_competency_id={sub_competency.id}"
+                            )
+                        used_sub_competency_ids.add(sub_competency.id)
+                        sub_nodes.append(
+                            TaskSubCompetencyNode(
+                                id=uuid4(),
+                                task_id=task.id,
+                                sub_competency_id=sub_competency.id,
+                                competency_id=competency.id,
+                                target_level=sub_input.target_level,
+                                weight=sub_input.weight,
+                                position=len(sub_nodes),
+                            )
+                        )
+
+            task.category_nodes = category_nodes
+            task.competency_nodes = competency_nodes
+            task.sub_competency_nodes = sub_nodes
+            task.status = TaskStatus.DRAFT
+            task.error_message = graph.error_message
             await uow.tasks.add(task)
             await uow.commit()
             return task_dto_from_domain(task)
 
 
-class ReplaceTaskMappingUseCase:
+class FinalizeTaskGraphUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self, task_id: UUID, command: TaskMappingReplaceDTO) -> TaskDTO:
+    async def execute(self, task_id: UUID) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(
-                task_id,
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
-            )
+            task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
-
-            mappings: list[TaskSubCompetencyMapping] = []
-            for index, item in enumerate(command.mappings):
-                sub_competency = await uow.sub_competencies.get(item.sub_competency_id)
-                if sub_competency is None:
-                    raise NotFoundError(
-                        f"Sub-competency {item.sub_competency_id} not found"
-                    )
-                if sub_competency.competency_id != item.competency_id:
-                    raise ValidationError(
-                        "Sub-competency does not belong to selected competency"
-                    )
-                competency = await uow.competencies.get(item.competency_id)
-                if competency is None:
-                    raise NotFoundError(f"Competency {item.competency_id} not found")
-                if competency.category_id != item.category_id:
-                    raise ValidationError(
-                        "Competency does not belong to selected category"
-                    )
-                mappings.append(
-                    TaskSubCompetencyMapping(
-                        task_id=task.id,
-                        sub_competency_id=sub_competency.id,
-                        weight=item.weight,
-                        position=index,
-                    )
+            if not task.sub_competency_nodes:
+                raise ValidationError(
+                    "Task graph must contain at least one sub-competency"
                 )
-
-            task.sub_competency_mappings = mappings
-            task.mapping_status = TaskMappingStatus.COMPLETED
-            task.mapping_error_message = None
-            task.mapping_validated = True
+            task.status = TaskStatus.READY
+            task.error_message = None
             await uow.tasks.add(task)
             await uow.commit()
+            return task_dto_from_domain(task)
+
+
+class GetTaskGraphUseCase:
+    def __init__(self, uow: UnitOfWork) -> None:
+        self._uow = uow
+
+    async def execute(self, task_id: UUID) -> TaskDTO:
+        async with self._uow as uow:
+            task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
+            if task is None:
+                raise NotFoundError(f"Task {task_id} not found")
             return task_dto_from_domain(task)
 
 
@@ -419,32 +484,51 @@ class ListTasksUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self, *, limit: int, offset: int) -> PaginatedItemsDTO[TaskDTO]:
+    async def execute(
+        self,
+        *,
+        statuses: set[TaskStatus] | None,
+        limit: int,
+        offset: int,
+    ) -> PaginatedItemsDTO[TaskListItemDTO]:
         async with self._uow as uow:
-            tasks = await uow.tasks.get_list(
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
-                limit=limit,
-                offset=offset,
+            rows = await uow.tasks.list_by_statuses(
+                statuses, limit=limit, offset=offset
             )
-            total = await uow.tasks.count()
-            return PaginatedItemsDTO[TaskDTO](
-                items=[task_dto_from_domain(task) for task in tasks],
+            total = await uow.tasks.count_by_statuses(statuses)
+            return PaginatedItemsDTO[TaskListItemDTO](
+                items=[task_list_item_dto_from_domain(task) for task in rows],
                 total=total,
                 limit=limit,
                 offset=offset,
             )
 
 
-class GetTaskUseCase:
+class UpdateTaskStatusUseCase:
+    _ALLOWED_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
+        TaskStatus.DRAFT: {TaskStatus.PENDING, TaskStatus.READY},
+        TaskStatus.PENDING: {TaskStatus.DRAFT, TaskStatus.FAILED},
+        TaskStatus.READY: {TaskStatus.DRAFT},
+        TaskStatus.FAILED: {TaskStatus.DRAFT, TaskStatus.PENDING},
+    }
+
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self, task_id: UUID) -> TaskDTO:
+    async def execute(self, task_id: UUID, command: TaskStatusUpdateDTO) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(
-                task_id,
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS},
-            )
+            task = await uow.tasks.get(task_id)
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
+            allowed = self._ALLOWED_TRANSITIONS.get(task.status, set())
+            if command.status != task.status and command.status not in allowed:
+                raise ValidationError(
+                    "Invalid status transition: "
+                    f"{task.status.value} -> {command.status.value}"
+                )
+            task.status = command.status
+            if command.status != TaskStatus.FAILED:
+                task.error_message = None
+            await uow.tasks.add(task)
+            await uow.commit()
             return task_dto_from_domain(task)

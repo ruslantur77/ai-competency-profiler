@@ -63,12 +63,12 @@ from competency_system.application.use_cases.ranking import (
     RecalculateRankingUseCase,
 )
 from competency_system.application.use_cases.task import (
-    GetTaskUseCase,
+    FinalizeTaskGraphUseCase,
+    GetTaskGraphUseCase,
     ListTasksUseCase,
-    RebuildTaskMappingUseCase,
-    ReplaceTaskMappingUseCase,
+    SaveTaskGraphUseCase,
     SyncTasksUseCase,
-    ValidateTaskMappingUseCase,
+    UpdateTaskStatusUseCase,
 )
 from competency_system.application.use_cases.vacancy import (
     CreateVacancyGraphUseCase,
@@ -94,7 +94,6 @@ from competency_system.infrastructure.persistence.uow import SQLAlchemyUnitOfWor
 from competency_system.infrastructure.security import decode_jwt, oauth2_scheme
 from competency_system.presentation.api.runtime_config import (
     AuthCookieConfig,
-    RebuildTaskMappingConfig,
 )
 
 
@@ -113,10 +112,6 @@ def get_uow(
     ],
 ) -> UnitOfWork:
     return SQLAlchemyUnitOfWork(session_factory)
-
-
-def get_rebuild_task_mapping_config(request: Request) -> RebuildTaskMappingConfig:
-    return cast(RebuildTaskMappingConfig, request.app.state.rebuild_task_mapping_config)
 
 
 def get_auth_cookie_config(request: Request) -> AuthCookieConfig:
@@ -346,10 +341,10 @@ def get_sync_tasks_use_case(
     return SyncTasksUseCase(uow, gateway, job_queue)
 
 
-def get_get_task_use_case(
+def get_get_task_graph_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> GetTaskUseCase:
-    return GetTaskUseCase(uow)
+) -> GetTaskGraphUseCase:
+    return GetTaskGraphUseCase(uow)
 
 
 def get_assess_candidate_use_case(
@@ -366,34 +361,22 @@ def get_list_tasks_use_case(
     return ListTasksUseCase(uow)
 
 
-def get_rebuild_task_mapping_use_case(
+def get_save_task_graph_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
-    llm_gateway: Annotated[LLMGateway, Depends(get_llm_gateway)],
-    job_queue: Annotated[LLMJobQueuePort, Depends(get_llm_job_queue)],
-    config: Annotated[
-        RebuildTaskMappingConfig, Depends(get_rebuild_task_mapping_config)
-    ],
-) -> RebuildTaskMappingUseCase:
-    return RebuildTaskMappingUseCase(
-        uow,
-        llm_gateway,
-        job_queue,
-        max_parallel_requests=config.max_parallel_requests,
-        stage_timeout_seconds=config.stage_timeout_seconds,
-        prompt_version=config.task_prompt_version,
-    )
+) -> SaveTaskGraphUseCase:
+    return SaveTaskGraphUseCase(uow)
 
 
-def get_validate_task_mapping_use_case(
+def get_finalize_task_graph_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> ValidateTaskMappingUseCase:
-    return ValidateTaskMappingUseCase(uow)
+) -> FinalizeTaskGraphUseCase:
+    return FinalizeTaskGraphUseCase(uow)
 
 
-def get_replace_task_mapping_use_case(
+def get_update_task_status_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> ReplaceTaskMappingUseCase:
-    return ReplaceTaskMappingUseCase(uow)
+) -> UpdateTaskStatusUseCase:
+    return UpdateTaskStatusUseCase(uow)
 
 
 # candidates use cases

@@ -345,9 +345,8 @@ def task_to_orm(
             "title",
             "description",
             "type",
-            "mapping_validated",
-            "mapping_status",
-            "mapping_error_message",
+            "status",
+            "error_message",
             "created_at",
             "updated_at",
         }

@@ -9,8 +9,11 @@ from competency_system.application.dtos.ranking import (
     RankingItemDTO,
 )
 from competency_system.application.dtos.task import (
-    TaskCompetencyMappingDTO,
+    TaskCategoryNodeDTO,
+    TaskCompetencyNodeDTO,
     TaskDTO,
+    TaskListItemDTO,
+    TaskSubCompetencyNodeDTO,
     TestResultDTO,
 )
 from competency_system.application.dtos.vacancy import (
@@ -136,18 +139,66 @@ def task_dto_from_domain(task: Task) -> TaskDTO:
         title=task.title,
         description=task.description,
         type=task.type,
-        competency_mappings=[
-            TaskCompetencyMappingDTO(
-                sub_competency_id=mapping.sub_competency_id,
-                weight=mapping.weight,
+        status=task.status,
+        category_nodes=[
+            TaskCategoryNodeDTO(
+                id=node.id,
+                task_id=node.task_id,
+                category_id=node.category_id,
+                position=node.position,
+                category_name=node.category.name if node.category else "",
+                category_description=node.category.description if node.category else "",
+                category_emoji=node.category.emoji if node.category else "",
             )
-            for mapping in task.sub_competency_mappings
+            for node in task.category_nodes
         ],
-        mapping_validated=task.mapping_validated,
-        mapping_status=task.mapping_status,
-        mapping_error_message=task.mapping_error_message,
+        competency_nodes=[
+            TaskCompetencyNodeDTO(
+                id=node.id,
+                task_id=node.task_id,
+                competency_id=node.competency_id,
+                category_id=node.category_id,
+                is_required=node.is_required,
+                position=node.position,
+                competency_name=node.competency.name if node.competency else "",
+                competency_description=(
+                    node.competency.description if node.competency else ""
+                ),
+            )
+            for node in task.competency_nodes
+        ],
+        sub_competency_nodes=[
+            TaskSubCompetencyNodeDTO(
+                id=node.id,
+                task_id=node.task_id,
+                sub_competency_id=node.sub_competency_id,
+                competency_id=node.competency_id,
+                target_level=node.target_level,
+                weight=node.weight,
+                position=node.position,
+                sub_competency_name=(
+                    node.sub_competency.name if node.sub_competency else ""
+                ),
+                sub_competency_description=(
+                    node.sub_competency.description if node.sub_competency else ""
+                ),
+            )
+            for node in task.sub_competency_nodes
+        ],
+        error_message=task.error_message,
         created_at=task.created_at,
         updated_at=task.updated_at,
+    )
+
+
+def task_list_item_dto_from_domain(task: Task) -> TaskListItemDTO:
+    return TaskListItemDTO(
+        id=task.id,
+        external_id=task.external_id,
+        title=task.title,
+        type=task.type,
+        status=task.status,
+        created_at=task.created_at,
     )
 
 

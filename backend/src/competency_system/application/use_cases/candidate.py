@@ -296,7 +296,8 @@ class CandidateScoringOperation:
             candidate = await self._get_or_create_candidate(uow, command)
 
             task = await uow.tasks.get_by_external_id(
-                command.task_external_id, include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
+                command.task_external_id,
+                include={TaskInclude.NORMALIZED_GRAPH},
             )
             if task is None:
                 raise ValueError(f"Task {command.task_external_id} not found")

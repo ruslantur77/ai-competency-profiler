@@ -31,9 +31,6 @@ from competency_system.presentation.api.exception_handlers import (
 from competency_system.presentation.api.middleware import (
     request_observability_middleware,
 )
-from competency_system.presentation.api.routes.admin_tasks import (
-    router as admin_tasks_router,
-)
 from competency_system.presentation.api.routes.admin_users import (
     router as admin_users_router,
 )
@@ -53,7 +50,6 @@ from competency_system.presentation.api.routes.vacancies import (
 )
 from competency_system.presentation.api.runtime_config import (
     AuthCookieConfig,
-    RebuildTaskMappingConfig,
 )
 
 logger = get_logger(__name__)
@@ -108,11 +104,6 @@ async def app_lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.llm_gateway = llm_gateway
     app.state.testing_system_gateway = testing_gateway
     app.state.llm_job_queue = llm_job_queue
-    app.state.rebuild_task_mapping_config = RebuildTaskMappingConfig(
-        max_parallel_requests=settings.llm_max_parallel_requests,
-        stage_timeout_seconds=settings.llm_stage_timeout_seconds,
-        task_prompt_version=settings.llm_task_prompt_version,
-    )
     app.state.auth_cookie_config = AuthCookieConfig(
         secure=settings.auth_cookie_secure,
         samesite=settings.auth_cookie_samesite,
@@ -168,7 +159,6 @@ def create_app() -> FastAPI:
     app.include_router(vacancies_router, prefix=settings.api_prefix)
     app.include_router(ontology_router, prefix=settings.api_prefix)
     app.include_router(tasks_router, prefix=settings.api_prefix)
-    app.include_router(admin_tasks_router, prefix=settings.api_prefix)
     app.include_router(admin_users_router, prefix=settings.api_prefix)
     app.include_router(webhook_router, prefix=settings.api_prefix)
     app.include_router(candidates_router, prefix=settings.api_prefix)

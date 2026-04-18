@@ -343,16 +343,14 @@ class DeleteSubCompetencyUseCase:
             if sub_competency is None:
                 raise NotFoundError(f"Sub-competency {sub_competency_id} not found")
 
-            tasks = await uow.tasks.get_list(
-                include={TaskInclude.SUB_COMPETENCY_MAPPINGS}
-            )
+            tasks = await uow.tasks.get_list(include={TaskInclude.NORMALIZED_GRAPH})
             if any(
-                mapping.sub_competency_id == sub_competency_id
+                node.sub_competency_id == sub_competency_id
                 for task in tasks
-                for mapping in task.sub_competency_mappings
+                for node in task.sub_competency_nodes
             ):
                 raise ConflictError(
-                    f"Cannot delete sub-competency {sub_competency_id}: used in task mappings"  # noqa: E501
+                    f"Cannot delete sub-competency {sub_competency_id}: used in task graph"  # noqa: E501
                 )
 
             candidates = await uow.candidates.get_list(

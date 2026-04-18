@@ -19,7 +19,7 @@ from competency_system.domain.entities import (
     Vacancy,
     VacancyGraphSuggestion,
 )
-from competency_system.domain.value_objects.enums import VacancyStatus
+from competency_system.domain.value_objects.enums import TaskStatus, VacancyStatus
 
 
 class CategoryInclude(StrEnum):
@@ -44,7 +44,7 @@ class CandidateInclude(StrEnum):
 
 
 class TaskInclude(StrEnum):
-    SUB_COMPETENCY_MAPPINGS = auto()
+    NORMALIZED_GRAPH = auto()
 
 
 class TestResultInclude(StrEnum):
@@ -228,6 +228,20 @@ class TaskRepository(Repository[Task], Protocol):
         *,
         include: Collection[TaskInclude] | None = None,
     ) -> Task | None: ...
+
+    async def list_by_statuses(
+        self,
+        statuses: set[TaskStatus] | None = None,
+        *,
+        include: Collection[TaskInclude] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> Sequence[Task]: ...
+
+    async def count_by_statuses(
+        self,
+        statuses: set[TaskStatus] | None = None,
+    ) -> int: ...
 
 
 class TestResultRepository(Repository[TestResult], Protocol):

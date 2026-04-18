@@ -36,7 +36,7 @@ from competency_system.domain.value_objects.enums import (
     SuggestionEntityType,
     SuggestionStage,
     SuggestionStatus,
-    TaskMappingStatus,
+    TaskStatus,
     TaskType,
     UserRole,
     VacancyStatus,
@@ -609,18 +609,15 @@ class TaskOrm(Base):
         Enum(TaskType, name="task_type", values_callable=_enum_values),
         server_default=TaskType.CODE.value,
     )
-    mapping_validated: Mapped[bool] = mapped_column(default=False)
-    mapping_status: Mapped[TaskMappingStatus] = mapped_column(
+    status: Mapped[TaskStatus] = mapped_column(
         Enum(
-            TaskMappingStatus,
-            name="task_mapping_status",
+            TaskStatus,
+            name="task_status",
             values_callable=_enum_values,
         ),
-        server_default=TaskMappingStatus.PENDING.value,
+        server_default=TaskStatus.PENDING.value,
     )
-    mapping_error_message: Mapped[str | None] = mapped_column(
-        String(1000), nullable=True
-    )
+    error_message: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -628,7 +625,13 @@ class TaskOrm(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    sub_competency_mappings: Mapped[list[TaskSubCompetencyMappingOrm]] = relationship(
+    category_nodes: Mapped[list[TaskCategoryNodeOrm]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", lazy="raise"
+    )
+    competency_nodes: Mapped[list[TaskCompetencyNodeOrm]] = relationship(
+        back_populates="task", cascade="all, delete-orphan", lazy="raise"
+    )
+    sub_competency_nodes: Mapped[list[TaskSubCompetencyNodeOrm]] = relationship(
         back_populates="task", cascade="all, delete-orphan", lazy="raise"
     )
     test_results: Mapped[list[TestResultOrm]] = relationship(
@@ -636,12 +639,56 @@ class TaskOrm(Base):
     )
 
 
-class TaskSubCompetencyMappingOrm(Base):
-    __tablename__ = "task_sub_competency_mappings"
+class TaskCategoryNodeOrm(Base):
+    __tablename__ = "task_category_nodes"
     __table_args__ = (
-        UniqueConstraint("task_id", "position", name="uq_task_mapping_position"),
+        UniqueConstraint("task_id", "position", name="uq_task_category_position"),
+        UniqueConstraint("task_id", "category_id", name="uq_task_category_node"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    task_id: Mapped[UUID] = mapped_column(ForeignKey(TaskOrm.id, ondelete="CASCADE"))
+    category_id: Mapped[UUID] = mapped_column(
+        ForeignKey(CategoryOrm.id, ondelete="CASCADE")
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    task: Mapped[TaskOrm] = relationship(back_populates="category_nodes", lazy="raise")
+    category: Mapped[CategoryOrm] = relationship(lazy="raise")
+
+
+class TaskCompetencyNodeOrm(Base):
+    __tablename__ = "task_competency_nodes"
+    __table_args__ = (
+        UniqueConstraint("task_id", "position", name="uq_task_competency_position"),
+        UniqueConstraint("task_id", "competency_id", name="uq_task_competency_node"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    task_id: Mapped[UUID] = mapped_column(ForeignKey(TaskOrm.id, ondelete="CASCADE"))
+    competency_id: Mapped[UUID] = mapped_column(
+        ForeignKey(CompetencyOrm.id, ondelete="CASCADE")
+    )
+    category_id: Mapped[UUID] = mapped_column(
+        ForeignKey(CategoryOrm.id, ondelete="CASCADE")
+    )
+    is_required: Mapped[bool] = mapped_column(default=True)
+    position: Mapped[int] = mapped_column(Integer)
+    task: Mapped[TaskOrm] = relationship(
+        back_populates="competency_nodes",
+        lazy="raise",
+    )
+    competency: Mapped[CompetencyOrm] = relationship(lazy="raise")
+    category: Mapped[CategoryOrm] = relationship(lazy="raise")
+
+
+class TaskSubCompetencyNodeOrm(Base):
+    __tablename__ = "task_sub_competency_nodes"
+    __table_args__ = (
+        UniqueConstraint("task_id", "position", name="uq_task_subcompetency_position"),
         UniqueConstraint(
-            "task_id", "sub_competency_id", name="uq_task_sub_competency_mapping"
+            "task_id",
+            "sub_competency_id",
+            name="uq_task_sub_competency_node",
         ),
     )
 
@@ -650,12 +697,18 @@ class TaskSubCompetencyMappingOrm(Base):
     sub_competency_id: Mapped[UUID] = mapped_column(
         ForeignKey(SubCompetencyOrm.id, ondelete="CASCADE")
     )
+    competency_id: Mapped[UUID] = mapped_column(
+        ForeignKey(CompetencyOrm.id, ondelete="CASCADE")
+    )
+    target_level: Mapped[int] = mapped_column(default=2)
     weight: Mapped[float] = mapped_column(Float, default=1.0)
     position: Mapped[int] = mapped_column(Integer)
     task: Mapped[TaskOrm] = relationship(
-        back_populates="sub_competency_mappings", lazy="raise"
+        back_populates="sub_competency_nodes",
+        lazy="raise",
     )
     sub_competency: Mapped[SubCompetencyOrm] = relationship(lazy="raise")
+    competency: Mapped[CompetencyOrm] = relationship(lazy="raise")
 
 
 class TestResultOrm(Base):

@@ -6,36 +6,96 @@ from uuid import UUID
 from pydantic import ConfigDict, Field, field_validator, model_validator
 
 from competency_system.application.dtos.base import BaseDTO
+from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     LLMFeedbackType,
-    TaskMappingStatus,
+    TaskStatus,
     TaskType,
 )
 
 
-class TaskCompetencyMappingDTO(BaseDTO):
-    """DTO для маппинга задачи на компетенцию."""
-
-    sub_competency_id: UUID
-    weight: float
-
-
-class TaskMappingReplaceItemDTO(BaseDTO):
+class TaskCategoryNodeDTO(BaseDTO):
+    id: UUID
+    task_id: UUID
     category_id: UUID
+    position: int
+    category_name: str = ""
+    category_description: str = ""
+    category_emoji: str = ""
+
+
+class TaskCompetencyNodeDTO(BaseDTO):
+    id: UUID
+    task_id: UUID
     competency_id: UUID
+    category_id: UUID
+    is_required: bool
+    position: int
+    competency_name: str = ""
+    competency_description: str = ""
+
+
+class TaskSubCompetencyNodeDTO(BaseDTO):
+    id: UUID
+    task_id: UUID
     sub_competency_id: UUID
+    competency_id: UUID
+    target_level: CompetencyLevel
+    weight: float
+    position: int
+    sub_competency_name: str = ""
+    sub_competency_description: str = ""
+
+
+class TaskDTO(BaseDTO):
+    id: UUID
+    external_id: str
+    title: str
+    description: str
+    type: TaskType
+    status: TaskStatus
+    category_nodes: list[TaskCategoryNodeDTO] = Field(default_factory=list)
+    competency_nodes: list[TaskCompetencyNodeDTO] = Field(default_factory=list)
+    sub_competency_nodes: list[TaskSubCompetencyNodeDTO] = Field(default_factory=list)
+    error_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class TaskListItemDTO(BaseDTO):
+    id: UUID
+    external_id: str
+    title: str
+    type: TaskType
+    status: TaskStatus
+    created_at: datetime
+
+
+class TaskStatusUpdateDTO(BaseDTO):
+    status: TaskStatus
+
+
+class TaskSubCompetencyInputDTO(BaseDTO):
+    sub_competency_id: UUID
+    target_level: CompetencyLevel = CompetencyLevel.BEGINNER
     weight: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
-class TaskMappingReplaceDTO(BaseDTO):
-    mappings: list[TaskMappingReplaceItemDTO]
+class TaskCompetencyInputDTO(BaseDTO):
+    competency_id: UUID
+    is_required: bool = True
+    sub_competencies: list[TaskSubCompetencyInputDTO] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def _validate_unique_sub_competencies(self) -> TaskMappingReplaceDTO:
-        ids = [item.sub_competency_id for item in self.mappings]
-        if len(ids) != len(set(ids)):
-            raise ValueError("Duplicate sub_competency_id in mappings")
-        return self
+
+class TaskCategoryInputDTO(BaseDTO):
+    category_id: UUID
+    competencies: list[TaskCompetencyInputDTO] = Field(default_factory=list)
+
+
+class TaskGraphUpdateDTO(BaseDTO):
+    model_config = ConfigDict(extra="forbid")
+    categories: list[TaskCategoryInputDTO]
+    error_message: str | None = None
 
 
 class _StrictExtractionDTO(BaseDTO):
@@ -77,28 +137,6 @@ class TaskSubCompetencySelectionDTO(StrictSelectionItemDTO):
 
 class TaskSubCompetencyExtractionResultDTO(_StrictExtractionDTO):
     sub_competencies: list[TaskSubCompetencySelectionDTO]
-
-
-class TaskMappingExtractionResultDTO(BaseDTO):
-    """Final normalized mapping output."""
-
-    mappings: list[TaskCompetencyMappingDTO]
-
-
-class TaskDTO(BaseDTO):
-    """DTO для задачи из тестирующей системы."""
-
-    id: UUID
-    external_id: str
-    title: str
-    description: str
-    type: TaskType
-    competency_mappings: list[TaskCompetencyMappingDTO]
-    mapping_validated: bool
-    mapping_status: TaskMappingStatus = TaskMappingStatus.PENDING
-    mapping_error_message: str | None = None
-    created_at: datetime
-    updated_at: datetime
 
 
 class ExternalTaskDTO(BaseDTO):

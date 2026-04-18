@@ -33,11 +33,11 @@ class CandidateScorer:
                 continue
 
             if result.normalized_score >= self.pass_threshold:
-                for mapping in task.sub_competency_mappings:
-                    mapping_weight = min(max(mapping.weight, 0.0), 1.0)
+                for node in task.sub_competency_nodes:
+                    mapping_weight = min(max(node.weight, 0.0), 1.0)
                     coverage = result.normalized_score * mapping_weight
                     if coverage >= self.mapping_coverage_threshold:
-                        achieved.add(mapping.sub_competency_id)
+                        achieved.add(node.sub_competency_id)
 
         return achieved
 
