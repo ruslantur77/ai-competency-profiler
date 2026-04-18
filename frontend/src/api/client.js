@@ -19,6 +19,23 @@ export {
   finalizeTaskGraph,
   updateTaskStatus,
 } from './tasks'
+export {
+  listCategories,
+  getCategory,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  listCompetencies,
+  getCompetency,
+  createCompetency,
+  updateCompetency,
+  deleteCompetency,
+  listSubCompetencies,
+  getSubCompetency,
+  createSubCompetency,
+  updateSubCompetency,
+  deleteSubCompetency,
+} from './ontology'
 export { healthCheck } from './health'
 export { normalizePageResponse, extractItems } from './adapters'
 export { getErrorMessage } from './errors'

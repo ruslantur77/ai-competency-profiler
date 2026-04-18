@@ -18,6 +18,7 @@ import CreateVacancyDialog from './CreateVacancyDialog'
 import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
 import AsyncState from './AsyncState'
+import OntologyTab from './OntologyTab'
 import SectionStub from './SectionStub'
 import './VacancyList.css'
 
@@ -277,10 +278,7 @@ export default function VacancyList({ notify, onLogout, role }) {
 
         {/* ОНТОЛОГИЯ */}
         {activeTab === 'ontology' && (
-          <SectionStub
-            title="🧩 Онтология"
-            hint="Каркас раздела создан в итерации 1. CRUD и редактор появятся в следующих итерациях."
-          />
+          <OntologyTab notify={notify} />
         )}
 
         {/* КАНДИДАТЫ */}
