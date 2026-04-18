@@ -1,0 +1,242 @@
+.candidates-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.candidates-tab__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.candidates-tab__stat {
+  border: 1px solid #334155;
+  background: #111827;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.candidates-tab__stat-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.candidates-tab__stat-label {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.candidates-tab__stat--completed {
+  border-color: #14532d;
+}
+
+.candidates-tab__stat--pending {
+  border-color: #854d0e;
+}
+
+.candidates-tab__stat--failed {
+  border-color: #7f1d1d;
+}
+
+.candidates-tab__layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
+  gap: 1rem;
+}
+
+.candidates-tab__list {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 0.5rem;
+  max-height: 70vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.candidates-tab__row {
+  text-align: left;
+  border: 1px solid #334155;
+  background: #111827;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 0.6rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.candidates-tab__row:hover,
+.candidates-tab__row.is-selected {
+  border-color: #60a5fa;
+  background: #172554;
+}
+
+.candidates-tab__row-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.candidates-tab__candidate-id {
+  font-weight: 600;
+}
+
+.candidates-tab__status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.candidates-tab__status--pending {
+  background: #422006;
+  color: #fbbf24;
+}
+
+.candidates-tab__status--completed {
+  background: #052e16;
+  color: #4ade80;
+}
+
+.candidates-tab__status--failed {
+  background: #2d1515;
+  color: #ef4444;
+}
+
+.candidates-tab__row-meta {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.candidates-tab__detail {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 1rem;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.candidates-tab__detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.candidates-tab__detail-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.candidates-tab__detail-title h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.candidates-tab__detail-id {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.candidates-tab__detail-meta {
+  display: grid;
+  gap: 0.3rem;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+}
+
+.candidates-tab__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.candidates-tab__actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.candidates-tab__profile {
+  border-top: 1px solid #334155;
+  padding-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.candidates-tab__profile-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.candidates-tab__profile-score-label {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.candidates-tab__profile-score strong {
+  font-size: 1.3rem;
+}
+
+.candidates-tab__profile-table {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.candidates-tab__profile-header,
+.candidates-tab__profile-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.candidates-tab__profile-header {
+  color: #93c5fd;
+  background: #1e293b;
+  font-weight: 600;
+}
+
+.candidates-tab__profile-row {
+  border-top: 1px solid #334155;
+  color: #dbeafe;
+}
+
+.candidates-tab__profile-empty {
+  padding: 0.7rem;
+  color: #94a3b8;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 900px) {
+  .candidates-tab__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .candidates-tab__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .candidates-tab__list {
+    max-height: 320px;
+  }
+}

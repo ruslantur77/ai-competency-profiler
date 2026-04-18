@@ -17,6 +17,11 @@ export {
 export { getSuggestions, decideSuggestion } from './suggestions'
 export { getVacancyRankings, getCandidateProfile } from './ranking'
 export {
+  listCandidates,
+  getCandidate,
+  deleteCandidate,
+} from './candidates'
+export {
   listTasks,
   getTask,
   updateTaskGraph,

@@ -41,6 +41,7 @@ import AsyncState from './AsyncState'
 import OntologyTab from './OntologyTab'
 import SectionStub from './SectionStub'
 import ConfirmDialog from './ConfirmDialog'
+import CandidatesTab from './CandidatesTab'
 import './VacancyList.css'
 
 const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
@@ -79,6 +80,8 @@ export default function VacancyList({ notify, onLogout, role }) {
   const [updatingStatusId, setUpdatingStatusId] = useState(null)
   const [confirmAction, setConfirmAction] = useState(null)
   const [recentlyDeleted, setRecentlyDeleted] = useState([])
+  const [allVacancies, setAllVacancies] = useState([])
+  const [rankingNavigationTarget, setRankingNavigationTarget] = useState(null)
   const pollCycleRef = useRef(0)
   const canSeeVacancies = canAccessVacancies(role)
   const canSeeTasks = canAccessTasks(role)
@@ -135,6 +138,7 @@ export default function VacancyList({ notify, onLogout, role }) {
           .flatMap(result => extractItems(result.value.data))
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         setVacancies(all)
+        setAllVacancies(all)
 
         if (fulfilled.length === 0) {
           notify('Ошибка загрузки вакансий', 'error')
@@ -144,6 +148,9 @@ export default function VacancyList({ notify, onLogout, role }) {
       }
     } catch (error) {
       setVacancies([])
+      if (vacancyMode !== 'review') {
+        setAllVacancies([])
+      }
       notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансий' }), 'error')
     } finally {
       if (!silent) setLoading(false)
@@ -281,6 +288,19 @@ export default function VacancyList({ notify, onLogout, role }) {
     }
   }
 
+  const handleOpenCandidateVacancy = (vacancyId) => {
+    navigate(`/vacancy/${vacancyId}`)
+  }
+
+  const handleOpenCandidateRanking = ({ vacancyId, candidateId }) => {
+    setRankingNavigationTarget({
+      vacancyId,
+      candidateId,
+      token: Date.now(),
+    })
+    setActiveTab('ranking')
+  }
+
   const handleLogout = async () => {
     try {
       await onLogout()
@@ -291,8 +311,10 @@ export default function VacancyList({ notify, onLogout, role }) {
 
   const isClickable = (status) => status === 'ready' || status === 'draft'
 
+  const vacancyUniverse = allVacancies.length > 0 ? allVacancies : vacancies
+
   // Только ready вакансии для ранжирования
-  const readyVacancies = vacancies.filter(v => v.status === 'ready')
+  const readyVacancies = vacancyUniverse.filter(v => v.status === 'ready')
 
   return (
     <div className="vacancy-list">
@@ -469,7 +491,11 @@ export default function VacancyList({ notify, onLogout, role }) {
 
         {/* РАНЖИРОВАНИЕ */}
         {activeTab === 'ranking' && (
-          <RankingTab vacancies={readyVacancies} notify={notify} />
+          <RankingTab
+            vacancies={readyVacancies}
+            notify={notify}
+            navigationTarget={rankingNavigationTarget}
+          />
         )}
 
         {/* ОНТОЛОГИЯ */}
@@ -479,9 +505,11 @@ export default function VacancyList({ notify, onLogout, role }) {
 
         {/* КАНДИДАТЫ */}
         {activeTab === 'candidates' && (
-          <SectionStub
-            title="👤 Кандидаты"
-            hint="Каркас раздела создан в итерации 1. Список, профили и операции будут добавлены далее."
+          <CandidatesTab
+            notify={notify}
+            vacancies={vacancyUniverse}
+            onOpenVacancy={handleOpenCandidateVacancy}
+            onOpenRanking={handleOpenCandidateRanking}
           />
         )}
 

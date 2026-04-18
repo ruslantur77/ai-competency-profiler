@@ -1,5 +1,5 @@
 // frontend/src/components/RankingTab.jsx
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react'
 import { getVacancyRankings } from '../api/ranking'
 import { getErrorMessage } from '../api/errors'
@@ -293,20 +293,30 @@ function BreakdownModal({ candidate, onClose }) {
 //   ],
 // }
 
-export default function RankingTab({ vacancies, notify }) {
+export default function RankingTab({ vacancies, notify, navigationTarget = null }) {
   const [selectedVacancyId, setSelectedVacancyId] = useState('')
   const [rankings, setRankings] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState(null)
   const [isForbidden, setIsForbidden] = useState(false)
 
-  const loadRankings = useCallback(async (vacancyId) => {
+  const loadRankings = useCallback(async (vacancyId, focusCandidateId = null) => {
     if (!vacancyId) return
     setLoading(true)
     setRankings([])
+    setSelectedCandidate(null)
     try {
       const { data } = await getVacancyRankings(vacancyId)
-      setRankings(data.rankings || [])
+      const nextRankings = data.rankings || []
+      setRankings(nextRankings)
+      if (focusCandidateId) {
+        const target = nextRankings.find((item) => item.candidate_id === focusCandidateId)
+        if (target) {
+          setSelectedCandidate(target)
+        } else {
+          notify('Кандидат не найден в текущем ранжировании вакансии', 'error')
+        }
+      }
       setIsForbidden(false)
       
       // Для использования mock данных раскомментируйте 2 строки ниже и закомментируйте 2 строки выше
@@ -325,6 +335,12 @@ export default function RankingTab({ vacancies, notify }) {
     setSelectedVacancyId(id)
     loadRankings(id)
   }
+
+  useEffect(() => {
+    if (!navigationTarget?.vacancyId) return
+    setSelectedVacancyId(navigationTarget.vacancyId)
+    loadRankings(navigationTarget.vacancyId, navigationTarget.candidateId || null)
+  }, [navigationTarget, loadRankings])
 
   return (
     <div className="ranking">
