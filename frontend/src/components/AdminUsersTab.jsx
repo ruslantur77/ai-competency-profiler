@@ -29,6 +29,13 @@ export default function AdminUsersTab({ notify, currentUserId }) {
     return data;
   }, []);
 
+  const handleError = useCallback(
+    (error) => {
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки пользователей' }), 'error');
+    },
+    [notify]
+  );
+
   const {
     items: usersRaw,
     total: usersTotal,
@@ -39,13 +46,11 @@ export default function AdminUsersTab({ notify, currentUserId }) {
     fetchPage: fetchUsersPage,
     initialLimit: USERS_PAGE_LIMIT,
     initialOffset: 0,
-    onError: (error) =>
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки пользователей' }), 'error'),
+    onError: handleError,
   });
 
   useEffect(() => {
     loadUsersPage({ offset: 0, limit: USERS_PAGE_LIMIT });
-    console.log('effect triggered');
   }, [loadUsersPage]);
 
   const users = useMemo(

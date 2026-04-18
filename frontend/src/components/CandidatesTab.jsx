@@ -31,15 +31,17 @@ export default function CandidatesTab({ notify, vacancies, onOpenVacancy, onOpen
     [vacancies]
   );
 
-  const selectedCandidate = useMemo(
-    () => candidates.find((item) => item.id === selectedCandidateId) || null,
-    [candidates, selectedCandidateId]
-  );
-
   const fetchCandidatesPage = useCallback(async ({ offset, limit }) => {
     const { data } = await listCandidates({ limit, offset });
     return data;
   }, []);
+
+  const handleError = useCallback(
+    (error) => {
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки кандидатов' }), 'error');
+    },
+    [notify]
+  );
 
   const {
     items: candidates,
@@ -52,9 +54,13 @@ export default function CandidatesTab({ notify, vacancies, onOpenVacancy, onOpen
     fetchPage: fetchCandidatesPage,
     initialLimit: PAGE_LIMIT,
     initialOffset: 0,
-    onError: (error) =>
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки кандидатов' }), 'error'),
+    onError: handleError,
   });
+
+  const selectedCandidate = useMemo(
+    () => candidates.find((item) => item.id === selectedCandidateId) || null,
+    [candidates, selectedCandidateId]
+  );
 
   useEffect(() => {
     loadCandidatesPage({ offset: 0, limit: PAGE_LIMIT });
