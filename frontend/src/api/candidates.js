@@ -1,6 +1,6 @@
 import { api } from './base'
 
-export const listCandidates = () => api.get('/candidates')
+export const listCandidates = (params = {}) => api.get('/candidates', { params })
 
 export const getCandidate = (candidateId) => api.get(`/candidates/${candidateId}`)
 

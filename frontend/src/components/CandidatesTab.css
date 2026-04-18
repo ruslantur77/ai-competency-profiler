@@ -49,6 +49,29 @@
   gap: 1rem;
 }
 
+.candidates-tab__list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.candidates-tab__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid #334155;
+  background: #111827;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+  color: #cbd5e1;
+  font-size: 0.83rem;
+}
+
+.candidates-tab__pagination .btn-secondary {
+  padding: 0.35rem 0.65rem;
+}
+
 .candidates-tab__list {
   background: #0f172a;
   border: 1px solid #334155;
