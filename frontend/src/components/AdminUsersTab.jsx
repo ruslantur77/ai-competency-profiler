@@ -13,6 +13,8 @@ import AsyncState from './AsyncState'
 import './AdminUsersTab.css'
 
 const ROLE_OPTIONS = ['admin', 'expert', 'hr', 'system']
+const SELF_ACTION_GUARD_MESSAGE =
+  'Операция запрещена: нельзя изменять собственную роль или деактивировать свою учетную запись'
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -131,7 +133,16 @@ export default function AdminUsersTab({ notify, currentUserId }) {
       setUsers((prev) => prev.map((item) => (item.id === userId ? data : item)))
       notify('Роль пользователя обновлена')
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка смены роли' }), 'error')
+      notify(
+        getErrorMessage(error, {
+          fallback: 'Ошибка смены роли',
+          overrides: {
+            409: SELF_ACTION_GUARD_MESSAGE,
+            422: SELF_ACTION_GUARD_MESSAGE,
+          },
+        }),
+        'error'
+      )
     } finally {
       setUpdatingRoleId(null)
     }
@@ -147,7 +158,16 @@ export default function AdminUsersTab({ notify, currentUserId }) {
       notify(data.is_active ? 'Пользователь активирован' : 'Пользователь деактивирован')
       setPendingAction(null)
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка изменения статуса' }), 'error')
+      notify(
+        getErrorMessage(error, {
+          fallback: 'Ошибка изменения статуса',
+          overrides: {
+            409: SELF_ACTION_GUARD_MESSAGE,
+            422: SELF_ACTION_GUARD_MESSAGE,
+          },
+        }),
+        'error'
+      )
     } finally {
       setUpdatingStatusId(null)
     }
@@ -197,6 +217,7 @@ export default function AdminUsersTab({ notify, currentUserId }) {
                 <select
                   value={user.role}
                   disabled={updatingRoleId === user.id || isSelf}
+                  title={isSelf ? 'Собственную роль менять нельзя' : undefined}
                   onChange={(event) => handleRoleChange(user.id, event.target.value)}
                 >
                   {ROLE_OPTIONS.map((item) => (
@@ -215,6 +236,7 @@ export default function AdminUsersTab({ notify, currentUserId }) {
                 <button
                   className="btn-secondary admin-users__toggle"
                   disabled={updatingStatusId === user.id || isSelf}
+                  title={isSelf ? 'Собственную учетную запись деактивировать нельзя' : undefined}
                   onClick={() =>
                     setPendingAction({
                       user,
