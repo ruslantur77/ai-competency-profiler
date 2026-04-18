@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from competency_system.application.dtos.auth import UserStatusUpdateDTO
-from competency_system.application.errors import NotFoundError
+from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.application.use_cases.auth import UpdateUserStatusUseCase
 from tests.factories import UserFactory
 
@@ -28,7 +28,7 @@ async def test_update_user_status_use_case_updates_status(
     user = UserFactory().make({"is_active": True})
     mock_uow.users.get.return_value = user
 
-    result = await use_case.execute(user.id, status_update)
+    result = await use_case.execute(user.id, status_update, actor_user_id=uuid4())
 
     assert result.is_active is False
     mock_uow.users.add.assert_awaited_once_with(user)
@@ -41,5 +41,22 @@ async def test_update_user_status_use_case_raises_when_user_not_found(
     mock_uow.users.get.return_value = None
 
     with pytest.raises(NotFoundError, match="not found"):
-        await use_case.execute(uuid4(), status_update)
+        await use_case.execute(uuid4(), status_update, actor_user_id=uuid4())
+    mock_uow.commit.assert_not_awaited()
+
+
+async def test_update_user_status_use_case_blocks_self_deactivation(
+    use_case: UpdateUserStatusUseCase,
+    mock_uow,
+) -> None:
+    actor_id = uuid4()
+
+    with pytest.raises(ConflictError, match="deactivate own account"):
+        await use_case.execute(
+            actor_id,
+            UserStatusUpdateDTO(is_active=False),
+            actor_user_id=actor_id,
+        )
+
+    mock_uow.users.get.assert_not_awaited()
     mock_uow.commit.assert_not_awaited()

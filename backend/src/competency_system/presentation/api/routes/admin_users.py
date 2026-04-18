@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
 
 from competency_system.application.dtos.auth import (
+    CurrentUserDTO,
     UserAdminDTO,
     UserCreateDTO,
     UserRoleUpdateDTO,
@@ -21,6 +22,7 @@ from competency_system.application.use_cases.auth import (
 from competency_system.presentation.api.dependencies import (
     get_create_user_use_case,
     get_list_users_use_case,
+    get_current_user,
     get_update_user_role_use_case,
     get_update_user_status_use_case,
     require_admin_or_system,
@@ -57,9 +59,14 @@ async def update_user_role(
     user_id: UUID,
     payload: UserRoleUpdateDTO,
     _: Annotated[None, Depends(require_admin_or_system)],
+    current_user: Annotated[CurrentUserDTO, Depends(get_current_user)],
     use_case: Annotated[UpdateUserRoleUseCase, Depends(get_update_user_role_use_case)],
 ) -> UserAdminDTO:
-    return await use_case.execute(user_id, payload)
+    return await use_case.execute(
+        user_id,
+        payload,
+        actor_user_id=current_user.user_id,
+    )
 
 
 @router.patch("/{user_id}/status", response_model=UserAdminDTO)
@@ -67,8 +74,13 @@ async def update_user_status(
     user_id: UUID,
     payload: UserStatusUpdateDTO,
     _: Annotated[None, Depends(require_admin_or_system)],
+    current_user: Annotated[CurrentUserDTO, Depends(get_current_user)],
     use_case: Annotated[
         UpdateUserStatusUseCase, Depends(get_update_user_status_use_case)
     ],
 ) -> UserAdminDTO:
-    return await use_case.execute(user_id, payload)
+    return await use_case.execute(
+        user_id,
+        payload,
+        actor_user_id=current_user.user_id,
+    )

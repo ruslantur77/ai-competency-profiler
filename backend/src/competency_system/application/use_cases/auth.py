@@ -203,8 +203,16 @@ class UpdateUserRoleUseCase:
     def __init__(self, *, uow: UnitOfWork) -> None:
         self._uow = uow
 
-    async def execute(self, user_id: UUID, command: UserRoleUpdateDTO) -> UserAdminDTO:
+    async def execute(
+        self,
+        user_id: UUID,
+        command: UserRoleUpdateDTO,
+        *,
+        actor_user_id: UUID,
+    ) -> UserAdminDTO:
         async with self._uow as uow:
+            if user_id == actor_user_id:
+                raise ConflictError("Cannot change own role")
             user = await uow.users.get(user_id)
             if user is None:
                 raise NotFoundError(f"User {user_id} not found")
@@ -219,9 +227,15 @@ class UpdateUserStatusUseCase:
         self._uow = uow
 
     async def execute(
-        self, user_id: UUID, command: UserStatusUpdateDTO
+        self,
+        user_id: UUID,
+        command: UserStatusUpdateDTO,
+        *,
+        actor_user_id: UUID,
     ) -> UserAdminDTO:
         async with self._uow as uow:
+            if user_id == actor_user_id and not command.is_active:
+                raise ConflictError("Cannot deactivate own account")
             user = await uow.users.get(user_id)
             if user is None:
                 raise NotFoundError(f"User {user_id} not found")
