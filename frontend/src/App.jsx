@@ -124,7 +124,7 @@ export default function App() {
               isAuth={isAuth}
               isLoading={authLoading}
               role={currentUser?.role}
-              allowedRoles={[ROLES.ADMIN, ROLES.EXPERT, ROLES.HR]}
+              allowedRoles={[ROLES.ADMIN, ROLES.EXPERT, ROLES.HR, ROLES.SYSTEM]}
             >
               <VacancyList
                 notify={notify}

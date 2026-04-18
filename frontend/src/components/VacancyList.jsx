@@ -5,11 +5,20 @@ import { Plus, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit
 import { listVacancies, createVacancy } from '../api/vacancies'
 import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
-import { canAccessTasks, canCreateVacancy } from '../api/roles'
+import {
+  canAccessAdminUsers,
+  canAccessCandidates,
+  canAccessOntology,
+  canAccessRanking,
+  canAccessTasks,
+  canAccessVacancies,
+  canCreateVacancy,
+} from '../api/roles'
 import CreateVacancyDialog from './CreateVacancyDialog'
 import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
 import AsyncState from './AsyncState'
+import SectionStub from './SectionStub'
 import './VacancyList.css'
 
 const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
@@ -45,16 +54,32 @@ export default function VacancyList({ notify, onLogout, role }) {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const pollCycleRef = useRef(0)
+  const canSeeVacancies = canAccessVacancies(role)
+  const canSeeTasks = canAccessTasks(role)
+  const canSeeRanking = canAccessRanking(role)
+  const canSeeOntology = canAccessOntology(role)
+  const canSeeCandidates = canAccessCandidates(role)
+  const canSeeAdminUsers = canAccessAdminUsers(role)
   const canCreate = canCreateVacancy(role)
   const tabs = useMemo(() => ([
-    { id: 'vacancies', label: '📋 Вакансии' },
-    ...(canAccessTasks(role) ? [{ id: 'tasks', label: '📝 Задания' }] : []),
-    { id: 'ranking', label: '🏆 Ранжирование' },
-  ]), [role])
+    ...(canSeeVacancies ? [{ id: 'vacancies', label: '📋 Вакансии' }] : []),
+    ...(canSeeTasks ? [{ id: 'tasks', label: '📝 Задания' }] : []),
+    ...(canSeeRanking ? [{ id: 'ranking', label: '🏆 Ранжирование' }] : []),
+    ...(canSeeOntology ? [{ id: 'ontology', label: '🧩 Онтология' }] : []),
+    ...(canSeeCandidates ? [{ id: 'candidates', label: '👤 Кандидаты' }] : []),
+    ...(canSeeAdminUsers ? [{ id: 'admin-users', label: '🛡️ Пользователи' }] : []),
+  ]), [
+    canSeeVacancies,
+    canSeeTasks,
+    canSeeRanking,
+    canSeeOntology,
+    canSeeCandidates,
+    canSeeAdminUsers,
+  ])
 
   useEffect(() => {
     if (!tabs.some(tab => tab.id === activeTab)) {
-      setActiveTab('vacancies')
+      setActiveTab(tabs[0]?.id || 'vacancies')
     }
   }, [tabs, activeTab])
 
@@ -85,17 +110,23 @@ export default function VacancyList({ notify, onLogout, role }) {
   }, [notify])
 
   useEffect(() => {
+    if (!canSeeVacancies) {
+      setVacancies([])
+      setLoading(false)
+      return
+    }
     fetchVacancies()
-  }, [fetchVacancies])
+  }, [fetchVacancies, canSeeVacancies])
 
   useEffect(() => {
+    if (!canSeeVacancies) return
     fetchVacancies()
-  }, [location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.key, canSeeVacancies]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Умный polling: только когда есть pending, вкладка видима и пользователь в табе вакансий.
   useEffect(() => {
     const hasPending = vacancies.some(v => v.status === 'pending')
-    if (!hasPending || activeTab !== 'vacancies') {
+    if (!canSeeVacancies || !hasPending || activeTab !== 'vacancies') {
       pollCycleRef.current = 0
       return
     }
@@ -111,7 +142,7 @@ export default function VacancyList({ notify, onLogout, role }) {
       fetchVacancies({ silent: true })
     }, delayMs)
     return () => clearTimeout(timer)
-  }, [vacancies, fetchVacancies, activeTab])
+  }, [vacancies, fetchVacancies, activeTab, canSeeVacancies])
 
   const handleCreate = async (data) => {
     try {
@@ -242,6 +273,30 @@ export default function VacancyList({ notify, onLogout, role }) {
         {/* РАНЖИРОВАНИЕ */}
         {activeTab === 'ranking' && (
           <RankingTab vacancies={readyVacancies} notify={notify} />
+        )}
+
+        {/* ОНТОЛОГИЯ */}
+        {activeTab === 'ontology' && (
+          <SectionStub
+            title="🧩 Онтология"
+            hint="Каркас раздела создан в итерации 1. CRUD и редактор появятся в следующих итерациях."
+          />
+        )}
+
+        {/* КАНДИДАТЫ */}
+        {activeTab === 'candidates' && (
+          <SectionStub
+            title="👤 Кандидаты"
+            hint="Каркас раздела создан в итерации 1. Список, профили и операции будут добавлены далее."
+          />
+        )}
+
+        {/* ADMIN USERS */}
+        {activeTab === 'admin-users' && (
+          <SectionStub
+            title="🛡️ Управление пользователями"
+            hint="Каркас раздела создан в итерации 1. Полноценный user-management будет реализован далее."
+          />
         )}
       </div>
 
