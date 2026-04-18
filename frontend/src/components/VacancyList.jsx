@@ -1,28 +1,15 @@
 // frontend/src/components/VacancyList.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
-  Plus,
   Loader2,
   CheckCircle,
-  ExternalLink,
   AlertCircle,
-  LogOut,
   FileEdit,
-  Trash2,
-  RotateCcw,
-  ShieldAlert,
 } from 'lucide-react'
 import {
-  listVacancies,
-  listVacanciesForReview,
   createVacancy,
-  updateVacancyStatus,
-  deleteVacancy,
-  restoreVacancy,
-  hardDeleteVacancy,
 } from '../api/vacancies'
-import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
 import {
   canAccessAdminUsers,
@@ -42,9 +29,14 @@ import OntologyTab from './OntologyTab'
 import ConfirmDialog from './ConfirmDialog'
 import CandidatesTab from './CandidatesTab'
 import AdminUsersTab from './AdminUsersTab'
+import useVacanciesData from '../hooks/useVacanciesData'
+import useVacancyLifecycle from '../hooks/useVacancyLifecycle'
+import VacancyListHeader from './vacancy-list/VacancyListHeader'
+import VacancyTabs from './vacancy-list/VacancyTabs'
+import VacancyModeSwitch from './vacancy-list/VacancyModeSwitch'
+import RecentlyDeletedPanel from './vacancy-list/RecentlyDeletedPanel'
+import VacancyCardsGrid from './vacancy-list/VacancyCardsGrid'
 import './VacancyList.css'
-
-const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
 
 const STATUS_CONFIG = {
   pending: {
@@ -73,14 +65,8 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState('vacancies')
-  const [vacancies, setVacancies] = useState([])
-  const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [vacancyMode, setVacancyMode] = useState('all')
-  const [updatingStatusId, setUpdatingStatusId] = useState(null)
-  const [confirmAction, setConfirmAction] = useState(null)
-  const [recentlyDeleted, setRecentlyDeleted] = useState([])
-  const [allVacancies, setAllVacancies] = useState([])
   const [rankingNavigationTarget, setRankingNavigationTarget] = useState(null)
   const pollCycleRef = useRef(0)
   const canSeeVacancies = canAccessVacancies(role)
@@ -91,6 +77,26 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   const canSeeAdminUsers = canAccessAdminUsers(role)
   const canSeeReviewQueue = canAccessReviewQueue(role)
   const canCreate = canCreateVacancy(role)
+  const effectiveVacancyMode = canSeeReviewQueue ? vacancyMode : 'all'
+  const {
+    vacancies,
+    allVacancies,
+    loading,
+    fetchVacancies,
+    setLoading,
+    setVacancies,
+  } = useVacanciesData({ notify, vacancyMode: effectiveVacancyMode })
+  const {
+    updatingStatusId,
+    confirmAction,
+    recentlyDeleted,
+    setConfirmAction,
+    openDeleteConfirm,
+    openHardDeleteConfirm,
+    handleConfirmAction,
+    handleRestore,
+    handleStatusChange,
+  } = useVacancyLifecycle({ notify, fetchVacancies })
   const tabs = useMemo(() => ([
     ...(canSeeVacancies ? [{ id: 'vacancies', label: '📋 Вакансии' }] : []),
     ...(canSeeTasks ? [{ id: 'tasks', label: '📝 Задания' }] : []),
@@ -106,56 +112,9 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
     canSeeCandidates,
     canSeeAdminUsers,
   ])
-
-  useEffect(() => {
-    if (!tabs.some(tab => tab.id === activeTab)) {
-      setActiveTab(tabs[0]?.id || 'vacancies')
-    }
-  }, [tabs, activeTab])
-
-  useEffect(() => {
-    if (!canSeeReviewQueue && vacancyMode === 'review') {
-      setVacancyMode('all')
-    }
-  }, [canSeeReviewQueue, vacancyMode])
-
-  const fetchVacancies = useCallback(async (options = {}) => {
-    const { silent = false } = options
-    if (!silent) setLoading(true)
-    try {
-      if (vacancyMode === 'review') {
-        const { data } = await listVacanciesForReview()
-        const reviewItems = extractItems(data).sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at)
-        )
-        setVacancies(reviewItems)
-      } else {
-        const responses = await Promise.allSettled(
-          ALL_STATUSES.map(status => listVacancies(status))
-        )
-        const fulfilled = responses.filter(result => result.status === 'fulfilled')
-        const all = fulfilled
-          .flatMap(result => extractItems(result.value.data))
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        setVacancies(all)
-        setAllVacancies(all)
-
-        if (fulfilled.length === 0) {
-          notify('Ошибка загрузки вакансий', 'error')
-        } else if (fulfilled.length < ALL_STATUSES.length) {
-          notify('Часть вакансий не загрузилась, повторите позже', 'error')
-        }
-      }
-    } catch (error) {
-      setVacancies([])
-      if (vacancyMode !== 'review') {
-        setAllVacancies([])
-      }
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансий' }), 'error')
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [notify, vacancyMode])
+  const resolvedActiveTab = tabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : (tabs[0]?.id || 'vacancies')
 
   useEffect(() => {
     if (!canSeeVacancies) {
@@ -164,7 +123,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       return
     }
     fetchVacancies()
-  }, [fetchVacancies, canSeeVacancies])
+  }, [fetchVacancies, canSeeVacancies, setLoading, setVacancies])
 
   useEffect(() => {
     if (!canSeeVacancies) return
@@ -176,9 +135,9 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
     const hasPending = vacancies.some(v => v.status === 'pending')
     if (
       !canSeeVacancies
-      || vacancyMode !== 'all'
+      || effectiveVacancyMode !== 'all'
       || !hasPending
-      || activeTab !== 'vacancies'
+      || resolvedActiveTab !== 'vacancies'
     ) {
       pollCycleRef.current = 0
       return
@@ -195,7 +154,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       fetchVacancies({ silent: true })
     }, delayMs)
     return () => clearTimeout(timer)
-  }, [vacancies, fetchVacancies, activeTab, canSeeVacancies, vacancyMode])
+  }, [vacancies, fetchVacancies, resolvedActiveTab, canSeeVacancies, effectiveVacancyMode])
 
   const handleCreate = async (data) => {
     try {
@@ -209,76 +168,6 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       notify(`✅ Вакансия "${data.name}" создана, запущено извлечение компетенций`)
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка создания вакансии' }), 'error')
-    }
-  }
-
-  const handleStatusChange = async (vacancyId, nextStatus) => {
-    setUpdatingStatusId(vacancyId)
-    try {
-      await updateVacancyStatus(vacancyId, nextStatus)
-      notify('Статус вакансии обновлен')
-      await fetchVacancies({ silent: true })
-    } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка обновления статуса' }), 'error')
-    } finally {
-      setUpdatingStatusId(null)
-    }
-  }
-
-  const openDeleteConfirm = (vacancy) => {
-    setConfirmAction({
-      type: 'delete',
-      vacancy,
-      title: 'Удаление вакансии',
-      message: `Удалить вакансию "${vacancy.name}"? Вакансию можно будет восстановить из панели удаленных.`,
-      confirmLabel: 'Удалить',
-    })
-  }
-
-  const openHardDeleteConfirm = (vacancy) => {
-    setConfirmAction({
-      type: 'hard-delete',
-      vacancy,
-      title: 'Полное удаление вакансии',
-      message: `Полностью удалить "${vacancy.name}" без возможности восстановления?`,
-      confirmLabel: 'Удалить навсегда',
-      requireText: vacancy.name,
-      requireHint: `Для подтверждения введите точное название: ${vacancy.name}`,
-    })
-  }
-
-  const handleConfirmAction = async () => {
-    if (!confirmAction?.vacancy) return
-
-    const { type, vacancy } = confirmAction
-    try {
-      if (type === 'delete') {
-        await deleteVacancy(vacancy.id)
-        setRecentlyDeleted((prev) => [
-          { id: vacancy.id, name: vacancy.name, deletedAt: new Date().toISOString() },
-          ...prev.filter((item) => item.id !== vacancy.id),
-        ].slice(0, 5))
-        notify('Вакансия удалена')
-      } else if (type === 'hard-delete') {
-        await hardDeleteVacancy(vacancy.id)
-        setRecentlyDeleted((prev) => prev.filter((item) => item.id !== vacancy.id))
-        notify('Вакансия удалена без возможности восстановления')
-      }
-      setConfirmAction(null)
-      await fetchVacancies({ silent: true })
-    } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка выполнения операции' }), 'error')
-    }
-  }
-
-  const handleRestore = async (vacancy) => {
-    try {
-      await restoreVacancy(vacancy.id)
-      notify(`Вакансия "${vacancy.name}" восстановлена`)
-      setRecentlyDeleted((prev) => prev.filter((item) => item.id !== vacancy.id))
-      await fetchVacancies({ silent: true })
-    } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка восстановления вакансии' }), 'error')
     }
   }
 
@@ -309,8 +198,6 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
     }
   }
 
-  const isClickable = (status) => status === 'ready' || status === 'draft'
-
   const vacancyUniverse = allVacancies.length > 0 ? allVacancies : vacancies
 
   // Только ready вакансии для ранжирования
@@ -319,58 +206,27 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   return (
     <div className="vacancy-list">
       {/* ===== HEADER ===== */}
-      <div className="vacancy-list__header">
-        <div className="vacancy-list__title">
-          <h1>🎯 Competency Profiler</h1>
-          <p>Формирование компетентностного профиля специалиста</p>
-        </div>
-        <div className="vacancy-list__header-actions">
-          {activeTab === 'vacancies' && canCreate && (
-            <button className="btn-primary" onClick={() => setCreating(true)}>
-              <Plus size={18} /> Создать вакансию
-            </button>
-          )}
-          <button className="btn-secondary vacancy-list__logout" onClick={handleLogout}>
-            <LogOut size={18} />
-          </button>
-        </div>
-      </div>
+      <VacancyListHeader
+        activeTab={resolvedActiveTab}
+        canCreate={canCreate}
+        onCreate={() => setCreating(true)}
+        onLogout={handleLogout}
+      />
 
       {/* ===== ТАБЫ ===== */}
-      <div className="vacancy-list__tabs">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            className={`vacancy-list__tab ${activeTab === tab.id ? 'vacancy-list__tab--active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <VacancyTabs tabs={tabs} activeTab={resolvedActiveTab} onTabChange={setActiveTab} />
 
       {/* ===== КОНТЕНТ ===== */}
       <div className="vacancy-list__content">
 
         {/* ВАКАНСИИ */}
-        {activeTab === 'vacancies' && (
+        {resolvedActiveTab === 'vacancies' && (
             <>
-              <div className="vacancy-list__mode">
-                <button
-                  className={`vacancy-list__mode-btn ${vacancyMode === 'all' ? 'is-active' : ''}`}
-                  onClick={() => setVacancyMode('all')}
-                >
-                  Все вакансии
-                </button>
-                {canSeeReviewQueue && (
-                  <button
-                    className={`vacancy-list__mode-btn ${vacancyMode === 'review' ? 'is-active' : ''}`}
-                    onClick={() => setVacancyMode('review')}
-                  >
-                    Review queue
-                  </button>
-                )}
-              </div>
+              <VacancyModeSwitch
+                vacancyMode={effectiveVacancyMode}
+                canSeeReviewQueue={canSeeReviewQueue}
+                onModeChange={setVacancyMode}
+              />
 
               {loading ? (
                 <AsyncState kind="loading" title="Загрузка вакансий..." />
@@ -386,93 +242,26 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
                 />
               ) : (
                 <>
-                  {recentlyDeleted.length > 0 && (
-                <div className="vacancy-list__deleted-panel">
-                  <h4>
-                    <RotateCcw size={16} /> Недавно удаленные
-                  </h4>
-                  <div className="vacancy-list__deleted-list">
-                    {recentlyDeleted.map((item) => (
-                      <div key={item.id} className="vacancy-list__deleted-item">
-                        <span>{item.name}</span>
-                        <div className="vacancy-list__deleted-actions">
-                          <button className="btn-secondary" onClick={() => handleRestore(item)}>
-                            Восстановить
-                          </button>
-                          <button
-                            className="btn-danger"
-                            onClick={() => openHardDeleteConfirm(item)}
-                            title="Полное удаление без восстановления"
-                          >
-                            <ShieldAlert size={14} /> Hard delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                  )}
+                  <RecentlyDeletedPanel
+                    items={recentlyDeleted}
+                    onRestore={handleRestore}
+                    onHardDelete={openHardDeleteConfirm}
+                  />
 
-                  <div className="vacancy-list__grid">
-                    {vacancies.map(vac => {
-                      const config = STATUS_CONFIG[vac.status] || STATUS_CONFIG.pending
-                      const clickable = isClickable(vac.status)
-                      return (
-                        <div
-                          key={vac.id}
-                          className={`vacancy-card vacancy-card--${vac.status} ${clickable ? 'vacancy-card--clickable' : ''}`}
-                          onClick={() => handleOpen(vac)}
-                        >
-                          <div className="vacancy-card__header">
-                            <h3>{vac.name}</h3>
-                            <div className="vacancy-card__actions" onClick={(event) => event.stopPropagation()}>
-                              <button
-                                title="Удалить вакансию"
-                                onClick={() => openDeleteConfirm(vac)}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
-                          <div className="vacancy-card__status">
-                            <span className={`vacancy-card__badge vacancy-card__badge--${config.badge}`}>
-                              {config.icon(14)}
-                              {config.label}
-                            </span>
-                          </div>
-                          <div className="vacancy-card__footer">
-                            <span className="vacancy-card__date">
-                              {new Date(vac.created_at).toLocaleDateString('ru-RU')}
-                            </span>
-                            <div className="vacancy-card__controls" onClick={(event) => event.stopPropagation()}>
-                              <select
-                                value={vac.status}
-                                onChange={(event) => handleStatusChange(vac.id, event.target.value)}
-                                disabled={updatingStatusId === vac.id}
-                              >
-                                {Object.keys(STATUS_CONFIG).map((statusKey) => (
-                                  <option key={statusKey} value={statusKey}>
-                                    {statusKey}
-                                  </option>
-                                ))}
-                              </select>
-                              {clickable && (
-                                <span className="vacancy-card__open">
-                                  Открыть <ExternalLink size={14} />
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <VacancyCardsGrid
+                    vacancies={vacancies}
+                    statusConfig={STATUS_CONFIG}
+                    updatingStatusId={updatingStatusId}
+                    onOpen={handleOpen}
+                    onDelete={openDeleteConfirm}
+                    onStatusChange={handleStatusChange}
+                  />
                 </>
               )}
             </>
         )}
 
-        {activeTab === 'vacancies' && confirmAction && (
+        {resolvedActiveTab === 'vacancies' && confirmAction && (
           <ConfirmDialog
             title={confirmAction.title}
             message={confirmAction.message}
@@ -485,12 +274,12 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
         )}
 
         {/* ЗАДАНИЯ */}
-        {activeTab === 'tasks' && (
+        {resolvedActiveTab === 'tasks' && (
           <TasksTab notify={notify} />
         )}
 
         {/* РАНЖИРОВАНИЕ */}
-        {activeTab === 'ranking' && (
+        {resolvedActiveTab === 'ranking' && (
           <RankingTab
             vacancies={readyVacancies}
             notify={notify}
@@ -499,12 +288,12 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
         )}
 
         {/* ОНТОЛОГИЯ */}
-        {activeTab === 'ontology' && (
+        {resolvedActiveTab === 'ontology' && (
           <OntologyTab notify={notify} />
         )}
 
         {/* КАНДИДАТЫ */}
-        {activeTab === 'candidates' && (
+        {resolvedActiveTab === 'candidates' && (
           <CandidatesTab
             notify={notify}
             vacancies={vacancyUniverse}
@@ -514,7 +303,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
         )}
 
         {/* ADMIN USERS */}
-        {activeTab === 'admin-users' && (
+        {resolvedActiveTab === 'admin-users' && (
           <AdminUsersTab
             notify={notify}
             currentUserId={currentUser?.id || null}
