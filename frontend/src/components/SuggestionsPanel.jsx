@@ -1,17 +1,26 @@
 // frontend/src/components/SuggestionsPanel.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Check, X, CheckCheck, XCircle, Loader2, ChevronDown, ChevronRight, Save } from 'lucide-react'
-import { getSuggestions, decideSuggestionsBulk } from '../api/suggestions'
-import { getErrorMessage } from '../api/errors'
-import './SuggestionsPanel.css'
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Check,
+  X,
+  CheckCheck,
+  XCircle,
+  Loader2,
+  ChevronDown,
+  ChevronRight,
+  Save,
+} from 'lucide-react';
+import { getSuggestions, decideSuggestionsBulk } from '../api/suggestions';
+import { getErrorMessage } from '../api/errors';
+import './SuggestionsPanel.css';
 
 const STAGE_LABELS = {
   category: '📁 Категория',
   competency: '🎯 Компетенция',
   sub_competency: '🔹 Подкомпетенция',
-}
+};
 
-const STAGE_ORDER = ['category', 'competency', 'sub_competency']
+const STAGE_ORDER = ['category', 'competency', 'sub_competency'];
 
 export default function SuggestionsPanel({
   vacancyId,
@@ -20,101 +29,111 @@ export default function SuggestionsPanel({
   onApprove,
   notify,
 }) {
-  const [suggestions, setSuggestions] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [expanded, setExpanded] = useState(true)
-  const saveInFlightRef = useRef(false)
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  const saveInFlightRef = useRef(false);
   // id → 'approved' | 'rejected'
-  const [decisions, setDecisions] = useState({})
+  const [decisions, setDecisions] = useState({});
 
   const loadSuggestions = useCallback(async () => {
     try {
-      const { data } = await getSuggestions(vacancyId)
-      setSuggestions(data.filter(s => s.status === 'pending'))
-      setDecisions({})
+      const { data } = await getSuggestions(vacancyId);
+      setSuggestions(data.filter((s) => s.status === 'pending'));
+      setDecisions({});
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки предложений' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки предложений' }), 'error');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [vacancyId, notify])
+  }, [vacancyId, notify]);
 
   useEffect(() => {
-    loadSuggestions()
-  }, [loadSuggestions])
+    loadSuggestions();
+  }, [loadSuggestions]);
 
   // ===== ХЛЕБНЫЕ КРОШКИ =====
-  const getCategoryName = useCallback((categoryId) => {
-    if (!categoryId) return null
-    const node = categoryNodes.find(c => c.category_id === categoryId)
-    return node ? `${node.category_emoji || ''} ${node.category_name}`.trim() : null
-  }, [categoryNodes])
+  const getCategoryName = useCallback(
+    (categoryId) => {
+      if (!categoryId) return null;
+      const node = categoryNodes.find((c) => c.category_id === categoryId);
+      return node ? `${node.category_emoji || ''} ${node.category_name}`.trim() : null;
+    },
+    [categoryNodes]
+  );
 
-  const getCompetencyName = useCallback((competencyId) => {
-    if (!competencyId) return null
-    const node = competencyNodes.find(c => c.competency_id === competencyId)
-    return node ? node.competency_name : null
-  }, [competencyNodes])
+  const getCompetencyName = useCallback(
+    (competencyId) => {
+      if (!competencyId) return null;
+      const node = competencyNodes.find((c) => c.competency_id === competencyId);
+      return node ? node.competency_name : null;
+    },
+    [competencyNodes]
+  );
 
   // ===== ЛОКАЛЬНЫЕ РЕШЕНИЯ =====
   const decide = useCallback((suggestion, status) => {
-    setDecisions(prev => {
+    setDecisions((prev) => {
       // Повторный клик — снимаем решение
       if (prev[suggestion.id] === status) {
-        const next = { ...prev }
-        delete next[suggestion.id]
-        return next
+        const next = { ...prev };
+        delete next[suggestion.id];
+        return next;
       }
-      return { ...prev, [suggestion.id]: status }
-    })
-  }, [])
+      return { ...prev, [suggestion.id]: status };
+    });
+  }, []);
 
   const approveAll = useCallback(() => {
-    const next = {}
-    suggestions.forEach(s => { next[s.id] = 'approved' })
-    setDecisions(next)
-  }, [suggestions])
+    const next = {};
+    suggestions.forEach((s) => {
+      next[s.id] = 'approved';
+    });
+    setDecisions(next);
+  }, [suggestions]);
 
   const rejectAll = useCallback(() => {
-    const next = {}
-    suggestions.forEach(s => { next[s.id] = 'rejected' })
-    setDecisions(next)
-  }, [suggestions])
+    const next = {};
+    suggestions.forEach((s) => {
+      next[s.id] = 'rejected';
+    });
+    setDecisions(next);
+  }, [suggestions]);
 
   // ===== СОХРАНЕНИЕ ПРЕДЛОЖЕНИЙ =====
   const handleSaveDecisions = useCallback(async () => {
-    if (saveInFlightRef.current) return
-    saveInFlightRef.current = true
-    setSaving(true)
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
+    setSaving(true);
     try {
       const payload = suggestions
-        .filter(s => decisions[s.id])
-        .map(s => ({
+        .filter((s) => decisions[s.id])
+        .map((s) => ({
           suggestion_id: s.id,
           status: decisions[s.id],
-        }))
+        }));
 
-      if (payload.length === 0) return
+      if (payload.length === 0) return;
 
-      await decideSuggestionsBulk(vacancyId, payload)
+      await decideSuggestionsBulk(vacancyId, payload);
 
       // Обновляем граф один раз после всех запросов
-      await onApprove()
+      await onApprove();
 
-      const approvedCount = payload.filter(item => item.status === 'approved').length
-      const rejectedCount = payload.length - approvedCount
-      notify(`✅ Применено: ${approvedCount} одобрено, ${rejectedCount} отклонено`)
+      const approvedCount = payload.filter((item) => item.status === 'approved').length;
+      const rejectedCount = payload.length - approvedCount;
+      notify(`✅ Применено: ${approvedCount} одобрено, ${rejectedCount} отклонено`);
 
       // Перезагружаем suggestions — pending должны исчезнуть
-      await loadSuggestions()
+      await loadSuggestions();
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка при сохранении предложений' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка при сохранении предложений' }), 'error');
     } finally {
-      saveInFlightRef.current = false
-      setSaving(false)
+      saveInFlightRef.current = false;
+      setSaving(false);
     }
-  }, [vacancyId, suggestions, decisions, onApprove, notify, loadSuggestions])
+  }, [vacancyId, suggestions, decisions, onApprove, notify, loadSuggestions]);
 
   // ===== RENDER =====
   if (loading) {
@@ -124,27 +143,24 @@ export default function SuggestionsPanel({
           <Loader2 size={16} className="spin" /> Загрузка предложений...
         </div>
       </div>
-    )
+    );
   }
 
-  if (suggestions.length === 0) return null
+  if (suggestions.length === 0) return null;
 
   const grouped = STAGE_ORDER.reduce((acc, stage) => {
-    const items = suggestions.filter(s => s.stage === stage)
-    if (items.length > 0) acc[stage] = items
-    return acc
-  }, {})
+    const items = suggestions.filter((s) => s.stage === stage);
+    if (items.length > 0) acc[stage] = items;
+    return acc;
+  }, {});
 
-  const decidedCount = Object.keys(decisions).length
-  const allDecided = decidedCount === suggestions.length
-  const canSave = allDecided && !saving
+  const decidedCount = Object.keys(decisions).length;
+  const allDecided = decidedCount === suggestions.length;
+  const canSave = allDecided && !saving;
 
   return (
     <div className="suggestions-panel">
-      <div
-        className="suggestions-panel__header"
-        onClick={() => setExpanded(e => !e)}
-      >
+      <div className="suggestions-panel__header" onClick={() => setExpanded((e) => !e)}>
         <div className="suggestions-panel__header-left">
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           <span>✨ Предложения AI</span>
@@ -161,10 +177,7 @@ export default function SuggestionsPanel({
           )}
         </div>
 
-        <div
-          className="suggestions-panel__header-actions"
-          onClick={e => e.stopPropagation()}
-        >
+        <div className="suggestions-panel__header-actions" onClick={(e) => e.stopPropagation()}>
           <button
             className="suggestions-panel__btn suggestions-panel__btn--approve"
             onClick={approveAll}
@@ -187,10 +200,15 @@ export default function SuggestionsPanel({
             disabled={!canSave}
             title={!allDecided ? 'Отметьте все предложения' : 'Применить решения'}
           >
-            {saving
-              ? <><Loader2 size={14} className="spin" /> Сохранение...</>
-              : <><Save size={14} /> Сохранить предложения</>
-            }
+            {saving ? (
+              <>
+                <Loader2 size={14} className="spin" /> Сохранение...
+              </>
+            ) : (
+              <>
+                <Save size={14} /> Сохранить предложения
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -199,20 +217,21 @@ export default function SuggestionsPanel({
         <div className="suggestions-panel__body">
           {Object.entries(grouped).map(([stage, items]) => (
             <div key={stage} className="suggestions-panel__group">
-              <div className="suggestions-panel__group-label">
-                {STAGE_LABELS[stage]}
-              </div>
-              {items.map(s => {
-                const decision = decisions[s.id]
-                const categoryName = getCategoryName(s.parent_category_id)
-                const competencyName = getCompetencyName(s.parent_competency_id)
+              <div className="suggestions-panel__group-label">{STAGE_LABELS[stage]}</div>
+              {items.map((s) => {
+                const decision = decisions[s.id];
+                const categoryName = getCategoryName(s.parent_category_id);
+                const competencyName = getCompetencyName(s.parent_competency_id);
 
                 return (
                   <div
                     key={s.id}
                     className={`suggestions-panel__item ${
-                      decision === 'approved' ? 'suggestions-panel__item--approved' :
-                      decision === 'rejected' ? 'suggestions-panel__item--rejected' : ''
+                      decision === 'approved'
+                        ? 'suggestions-panel__item--approved'
+                        : decision === 'rejected'
+                          ? 'suggestions-panel__item--rejected'
+                          : ''
                     }`}
                   >
                     <div className="suggestions-panel__item-info">
@@ -220,9 +239,7 @@ export default function SuggestionsPanel({
 
                       {/* Хлебные крошки — только если нашли имя */}
                       {s.stage === 'competency' && categoryName && (
-                        <span className="suggestions-panel__item-meta">
-                          {categoryName}
-                        </span>
+                        <span className="suggestions-panel__item-meta">{categoryName}</span>
                       )}
                       {s.stage === 'sub_competency' && (competencyName || categoryName) && (
                         <span className="suggestions-panel__item-meta">
@@ -233,14 +250,10 @@ export default function SuggestionsPanel({
                       )}
 
                       {s.description && (
-                        <span className="suggestions-panel__item-desc">
-                          {s.description}
-                        </span>
+                        <span className="suggestions-panel__item-desc">{s.description}</span>
                       )}
                       {s.reason && (
-                        <span className="suggestions-panel__item-reason">
-                          💡 {s.reason}
-                        </span>
+                        <span className="suggestions-panel__item-reason">💡 {s.reason}</span>
                       )}
                     </div>
 
@@ -271,12 +284,12 @@ export default function SuggestionsPanel({
                       </button>
                     </div>
                   </div>
-                )
+                );
               })}
             </div>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,17 +1,17 @@
-import React from 'react'
-import AsyncState from './AsyncState'
-import EditCategoryDialog from './EditCategoryDialog'
-import AddCompetencyDialog from './AddCompetencyDialog'
-import EditCompetencyDialog from './EditCompetencyDialog'
-import AddSubDialog from './AddSubDialog'
-import NodeEditor from './NodeEditor'
-import ConfirmDialog from './ConfirmDialog'
-import OntologyToolbar from './ontology/OntologyToolbar'
-import OntologyTree from './ontology/OntologyTree'
-import OntologyDetails from './ontology/OntologyDetails'
-import { ENTITY_TYPE, useOntologyData } from '../hooks/useOntologyData'
-import { useOntologyCrud } from '../hooks/useOntologyCrud'
-import './OntologyTab.css'
+import React from 'react';
+import AsyncState from './AsyncState';
+import EditCategoryDialog from './EditCategoryDialog';
+import AddCompetencyDialog from './AddCompetencyDialog';
+import EditCompetencyDialog from './EditCompetencyDialog';
+import AddSubDialog from './AddSubDialog';
+import NodeEditor from './NodeEditor';
+import ConfirmDialog from './ConfirmDialog';
+import OntologyToolbar from './ontology/OntologyToolbar';
+import OntologyTree from './ontology/OntologyTree';
+import OntologyDetails from './ontology/OntologyDetails';
+import { ENTITY_TYPE, useOntologyData } from '../hooks/useOntologyData';
+import { useOntologyCrud } from '../hooks/useOntologyCrud';
+import './OntologyTab.css';
 
 export default function OntologyTab({ notify }) {
   const {
@@ -31,7 +31,7 @@ export default function OntologyTab({ notify }) {
     toggleCategory,
     toggleCompetency,
     resetSelection,
-  } = useOntologyData({ notify })
+  } = useOntologyData({ notify });
 
   const {
     editingCategory,
@@ -65,14 +65,14 @@ export default function OntologyTab({ notify }) {
     subCompetencies,
     refreshAndPreserveSelection,
     resetSelection,
-  })
+  });
 
   const handleSelect = (type, id) => {
-    setSelected({ type, id })
-  }
+    setSelected({ type, id });
+  };
 
   if (loading) {
-    return <AsyncState kind="loading" title="Загрузка онтологии..." />
+    return <AsyncState kind="loading" title="Загрузка онтологии..." />;
   }
 
   return (
@@ -100,7 +100,11 @@ export default function OntologyTab({ notify }) {
           onToggleCompetency={toggleCompetency}
         />
 
-        <OntologyDetails selected={selected} selectedDetails={selectedDetails} entityType={ENTITY_TYPE} />
+        <OntologyDetails
+          selected={selected}
+          selectedDetails={selectedDetails}
+          entityType={ENTITY_TYPE}
+        />
       </div>
 
       {editingCategory && (
@@ -108,7 +112,11 @@ export default function OntologyTab({ notify }) {
           category={editingCategory.payload}
           onSave={editingCategory.mode === 'create' ? handleCreateCategory : handleUpdateCategory}
           onClose={() => setEditingCategory(null)}
-          title={editingCategory.mode === 'create' ? '➕ Добавить категорию' : '✏️ Редактировать категорию'}
+          title={
+            editingCategory.mode === 'create'
+              ? '➕ Добавить категорию'
+              : '✏️ Редактировать категорию'
+          }
         />
       )}
 
@@ -153,5 +161,5 @@ export default function OntologyTab({ notify }) {
         />
       )}
     </div>
-  )
+  );
 }

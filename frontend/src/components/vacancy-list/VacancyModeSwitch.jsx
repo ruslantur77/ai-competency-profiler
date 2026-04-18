@@ -1,10 +1,6 @@
-import React from 'react'
+import React from 'react';
 
-export default function VacancyModeSwitch({
-  vacancyMode,
-  canSeeReviewQueue,
-  onModeChange,
-}) {
+export default function VacancyModeSwitch({ vacancyMode, canSeeReviewQueue, onModeChange }) {
   return (
     <div className="vacancy-list__mode">
       <button
@@ -22,5 +18,5 @@ export default function VacancyModeSwitch({
         </button>
       )}
     </div>
-  )
+  );
 }

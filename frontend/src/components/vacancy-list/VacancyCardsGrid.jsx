@@ -1,5 +1,5 @@
-import React from 'react'
-import { ExternalLink, Trash2 } from 'lucide-react'
+import React from 'react';
+import { ExternalLink, Trash2 } from 'lucide-react';
 
 export default function VacancyCardsGrid({
   vacancies,
@@ -9,13 +9,13 @@ export default function VacancyCardsGrid({
   onDelete,
   onStatusChange,
 }) {
-  const isClickable = (status) => status === 'ready' || status === 'draft'
+  const isClickable = (status) => status === 'ready' || status === 'draft';
 
   return (
     <div className="vacancy-list__grid">
       {vacancies.map((vacancy) => {
-        const config = statusConfig[vacancy.status] || statusConfig.pending
-        const clickable = isClickable(vacancy.status)
+        const config = statusConfig[vacancy.status] || statusConfig.pending;
+        const clickable = isClickable(vacancy.status);
         return (
           <div
             key={vacancy.id}
@@ -24,14 +24,8 @@ export default function VacancyCardsGrid({
           >
             <div className="vacancy-card__header">
               <h3>{vacancy.name}</h3>
-              <div
-                className="vacancy-card__actions"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  title="Удалить вакансию"
-                  onClick={() => onDelete(vacancy)}
-                >
+              <div className="vacancy-card__actions" onClick={(event) => event.stopPropagation()}>
+                <button title="Удалить вакансию" onClick={() => onDelete(vacancy)}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -46,10 +40,7 @@ export default function VacancyCardsGrid({
               <span className="vacancy-card__date">
                 {new Date(vacancy.created_at).toLocaleDateString('ru-RU')}
               </span>
-              <div
-                className="vacancy-card__controls"
-                onClick={(event) => event.stopPropagation()}
-              >
+              <div className="vacancy-card__controls" onClick={(event) => event.stopPropagation()}>
                 <select
                   value={vacancy.status}
                   onChange={(event) => onStatusChange(vacancy.id, event.target.value)}
@@ -69,8 +60,8 @@ export default function VacancyCardsGrid({
               </div>
             </div>
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

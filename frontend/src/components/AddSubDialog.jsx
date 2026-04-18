@@ -1,63 +1,58 @@
 // frontend/src/components/AddSubDialog.jsx
-import React, { useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import React, { useState } from 'react';
+import { X, Plus } from 'lucide-react';
 import {
   COMPETENCY_LEVEL_OPTIONS,
   normalizeTargetLevel,
   normalizeWeight,
-} from '../domain/competencyGraph'
-import './AddSubDialog.css'
+} from '../domain/competencyGraph';
+import './AddSubDialog.css';
 
-export default function AddSubDialog({
-  competencyName,
-  onAdd,
-  onClose,
-  existingOptions = [],
-}) {
-  const hasExisting = existingOptions.length > 0
-  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new')
-  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '')
+export default function AddSubDialog({ competencyName, onAdd, onClose, existingOptions = [] }) {
+  const hasExisting = existingOptions.length > 0;
+  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new');
+  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '');
   const [form, setForm] = useState({
     name: '',
     target_level: 2,
     description: '',
     weight: 1.0,
-  })
+  });
 
-  const selectedExisting = existingOptions.find((item) => item.id === selectedId) || null
+  const selectedExisting = existingOptions.find((item) => item.id === selectedId) || null;
 
   const handleAdd = () => {
     if (mode === 'existing') {
-      if (!selectedExisting) return
+      if (!selectedExisting) return;
       onAdd({
         mode: 'existing',
         id: selectedExisting.id,
         name: selectedExisting.name,
         description: selectedExisting.description || '',
-        target_level: normalizeTargetLevel(
-          selectedExisting.target_level ?? form.target_level
-        ),
+        target_level: normalizeTargetLevel(selectedExisting.target_level ?? form.target_level),
         weight: normalizeWeight(selectedExisting.weight ?? form.weight),
-      })
-      return
+      });
+      return;
     }
 
-    if (!form.name.trim()) return
+    if (!form.name.trim()) return;
     onAdd({
       mode: 'new',
       name: form.name.trim(),
       target_level: normalizeTargetLevel(form.target_level),
       description: form.description.trim(),
       weight: normalizeWeight(form.weight),
-    })
-  }
+    });
+  };
 
   return (
     <div className="add-dialog-overlay" onClick={onClose}>
-      <div className="add-dialog" onClick={e => e.stopPropagation()}>
+      <div className="add-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="add-dialog__header">
           <h3>➕ Добавить подкомпетенцию</h3>
-          <button onClick={onClose}><X size={20} /></button>
+          <button onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
 
         <div className="add-dialog__context">
@@ -99,7 +94,7 @@ export default function AddSubDialog({
               Название *
               <input
                 value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Например: Работа с индексами"
                 autoFocus
               />
@@ -110,10 +105,12 @@ export default function AddSubDialog({
             Уровень
             <select
               value={form.target_level}
-              onChange={e => setForm({ ...form, target_level: parseInt(e.target.value) })}
+              onChange={(e) => setForm({ ...form, target_level: parseInt(e.target.value) })}
             >
-              {COMPETENCY_LEVEL_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {COMPETENCY_LEVEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
             </select>
           </label>
@@ -122,7 +119,7 @@ export default function AddSubDialog({
             Описание
             <textarea
               value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Что конкретно нужно уметь..."
               rows={3}
             />
@@ -136,13 +133,15 @@ export default function AddSubDialog({
               max="1"
               step="0.1"
               value={form.weight}
-              onChange={e => setForm({ ...form, weight: e.target.value })}
+              onChange={(e) => setForm({ ...form, weight: e.target.value })}
             />
           </label>
         </div>
 
         <div className="add-dialog__footer">
-          <button className="btn-secondary" onClick={onClose}>Отмена</button>
+          <button className="btn-secondary" onClick={onClose}>
+            Отмена
+          </button>
           <button
             className="btn-primary"
             onClick={handleAdd}
@@ -153,5 +152,5 @@ export default function AddSubDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }

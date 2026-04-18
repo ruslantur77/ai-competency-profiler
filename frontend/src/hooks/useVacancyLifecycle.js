@@ -1,29 +1,29 @@
-import { useState } from 'react'
+import { useState } from 'react';
 import {
   updateVacancyStatus,
   deleteVacancy,
   restoreVacancy,
   hardDeleteVacancy,
-} from '../api/vacancies'
-import { getErrorMessage } from '../api/errors'
+} from '../api/vacancies';
+import { getErrorMessage } from '../api/errors';
 
 export default function useVacancyLifecycle({ notify, fetchVacancies }) {
-  const [updatingStatusId, setUpdatingStatusId] = useState(null)
-  const [confirmAction, setConfirmAction] = useState(null)
-  const [recentlyDeleted, setRecentlyDeleted] = useState([])
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [recentlyDeleted, setRecentlyDeleted] = useState([]);
 
   const handleStatusChange = async (vacancyId, nextStatus) => {
-    setUpdatingStatusId(vacancyId)
+    setUpdatingStatusId(vacancyId);
     try {
-      await updateVacancyStatus(vacancyId, nextStatus)
-      notify('Статус вакансии обновлен')
-      await fetchVacancies({ silent: true })
+      await updateVacancyStatus(vacancyId, nextStatus);
+      notify('Статус вакансии обновлен');
+      await fetchVacancies({ silent: true });
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка обновления статуса' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка обновления статуса' }), 'error');
     } finally {
-      setUpdatingStatusId(null)
+      setUpdatingStatusId(null);
     }
-  }
+  };
 
   const openDeleteConfirm = (vacancy) => {
     setConfirmAction({
@@ -32,8 +32,8 @@ export default function useVacancyLifecycle({ notify, fetchVacancies }) {
       title: 'Удаление вакансии',
       message: `Удалить вакансию "${vacancy.name}"? Вакансию можно будет восстановить из панели удаленных.`,
       confirmLabel: 'Удалить',
-    })
-  }
+    });
+  };
 
   const openHardDeleteConfirm = (vacancy) => {
     setConfirmAction({
@@ -44,43 +44,45 @@ export default function useVacancyLifecycle({ notify, fetchVacancies }) {
       confirmLabel: 'Удалить навсегда',
       requireText: vacancy.name,
       requireHint: `Для подтверждения введите точное название: ${vacancy.name}`,
-    })
-  }
+    });
+  };
 
   const handleConfirmAction = async () => {
-    if (!confirmAction?.vacancy) return
+    if (!confirmAction?.vacancy) return;
 
-    const { type, vacancy } = confirmAction
+    const { type, vacancy } = confirmAction;
     try {
       if (type === 'delete') {
-        await deleteVacancy(vacancy.id)
-        setRecentlyDeleted((prev) => [
-          { id: vacancy.id, name: vacancy.name, deletedAt: new Date().toISOString() },
-          ...prev.filter((item) => item.id !== vacancy.id),
-        ].slice(0, 5))
-        notify('Вакансия удалена')
+        await deleteVacancy(vacancy.id);
+        setRecentlyDeleted((prev) =>
+          [
+            { id: vacancy.id, name: vacancy.name, deletedAt: new Date().toISOString() },
+            ...prev.filter((item) => item.id !== vacancy.id),
+          ].slice(0, 5)
+        );
+        notify('Вакансия удалена');
       } else if (type === 'hard-delete') {
-        await hardDeleteVacancy(vacancy.id)
-        setRecentlyDeleted((prev) => prev.filter((item) => item.id !== vacancy.id))
-        notify('Вакансия удалена без возможности восстановления')
+        await hardDeleteVacancy(vacancy.id);
+        setRecentlyDeleted((prev) => prev.filter((item) => item.id !== vacancy.id));
+        notify('Вакансия удалена без возможности восстановления');
       }
-      setConfirmAction(null)
-      await fetchVacancies({ silent: true })
+      setConfirmAction(null);
+      await fetchVacancies({ silent: true });
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка выполнения операции' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка выполнения операции' }), 'error');
     }
-  }
+  };
 
   const handleRestore = async (vacancy) => {
     try {
-      await restoreVacancy(vacancy.id)
-      notify(`Вакансия "${vacancy.name}" восстановлена`)
-      setRecentlyDeleted((prev) => prev.filter((item) => item.id !== vacancy.id))
-      await fetchVacancies({ silent: true })
+      await restoreVacancy(vacancy.id);
+      notify(`Вакансия "${vacancy.name}" восстановлена`);
+      setRecentlyDeleted((prev) => prev.filter((item) => item.id !== vacancy.id));
+      await fetchVacancies({ silent: true });
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка восстановления вакансии' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка восстановления вакансии' }), 'error');
     }
-  }
+  };
 
   return {
     updatingStatusId,
@@ -92,5 +94,5 @@ export default function useVacancyLifecycle({ notify, fetchVacancies }) {
     handleConfirmAction,
     handleRestore,
     handleStatusChange,
-  }
+  };
 }

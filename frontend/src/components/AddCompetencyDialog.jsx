@@ -1,7 +1,7 @@
 // frontend/src/components/AddCompetencyDialog.jsx
-import React, { useState } from 'react'
-import { X, Plus } from 'lucide-react'
-import './AddCompetencyDialog.css'
+import React, { useState } from 'react';
+import { X, Plus } from 'lucide-react';
+import './AddCompetencyDialog.css';
 
 export default function AddCompetencyDialog({
   categoryName,
@@ -9,44 +9,46 @@ export default function AddCompetencyDialog({
   onClose,
   existingOptions = [],
 }) {
-  const hasExisting = existingOptions.length > 0
-  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new')
-  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '')
+  const hasExisting = existingOptions.length > 0;
+  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new');
+  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '');
   const [form, setForm] = useState({
     name: '',
     description: '',
     is_required: true,
-  })
+  });
 
-  const selectedExisting = existingOptions.find((item) => item.id === selectedId) || null
+  const selectedExisting = existingOptions.find((item) => item.id === selectedId) || null;
 
   const handleAdd = () => {
     if (mode === 'existing') {
-      if (!selectedExisting) return
+      if (!selectedExisting) return;
       onAdd({
         mode: 'existing',
         id: selectedExisting.id,
         name: selectedExisting.name,
         description: selectedExisting.description || '',
         is_required: form.is_required,
-      })
-      return
+      });
+      return;
     }
-    if (!form.name.trim()) return
+    if (!form.name.trim()) return;
     onAdd({
       mode: 'new',
       name: form.name.trim(),
       description: form.description.trim(),
       is_required: form.is_required,
-    })
-  }
+    });
+  };
 
   return (
     <div className="add-comp-overlay" onClick={onClose}>
-      <div className="add-comp" onClick={e => e.stopPropagation()}>
+      <div className="add-comp" onClick={(e) => e.stopPropagation()}>
         <div className="add-comp__header">
           <h3>➕ Добавить компетенцию</h3>
-          <button onClick={onClose}><X size={20} /></button>
+          <button onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
 
         <div className="add-comp__context">
@@ -75,10 +77,7 @@ export default function AddCompetencyDialog({
           {mode === 'existing' ? (
             <label>
               Компетенция из онтологии
-              <select
-                value={selectedId}
-                onChange={(event) => setSelectedId(event.target.value)}
-              >
+              <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
                 {existingOptions.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.name}
@@ -91,7 +90,7 @@ export default function AddCompetencyDialog({
               Название компетенции *
               <textarea
                 value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Например: SQL — аналитические функции, подзапросы"
                 rows={3}
                 autoFocus
@@ -103,7 +102,7 @@ export default function AddCompetencyDialog({
             Описание
             <textarea
               value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Подробнее о компетенции..."
               rows={2}
             />
@@ -113,14 +112,16 @@ export default function AddCompetencyDialog({
             <input
               type="checkbox"
               checked={form.is_required}
-              onChange={e => setForm({ ...form, is_required: e.target.checked })}
+              onChange={(e) => setForm({ ...form, is_required: e.target.checked })}
             />
             Обязательная компетенция
           </label>
         </div>
 
         <div className="add-comp__footer">
-          <button className="btn-secondary" onClick={onClose}>Отмена</button>
+          <button className="btn-secondary" onClick={onClose}>
+            Отмена
+          </button>
           <button
             className="btn-primary"
             onClick={handleAdd}
@@ -131,5 +132,5 @@ export default function AddCompetencyDialog({
         </div>
       </div>
     </div>
-  )
+  );
 }

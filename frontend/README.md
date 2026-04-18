@@ -42,15 +42,15 @@ npm run build
 
 Источник роли пользователя: `GET /auth/me`.
 
-| Feature | HR | EXPERT | ADMIN |
-|---------|----|--------|-------|
-| Vacancies list/read | ✅ | ✅ | ✅ |
-| Create vacancy | ❌ | ✅ | ✅ |
-| Open vacancy editor | ✅ (read-only outside mutate actions) | ✅ | ✅ |
-| Graph mutations (add/edit/delete/save) | ❌ | ✅ | ✅ |
-| Suggestions decisions | ❌ | ✅ | ✅ |
-| Tasks tab | ❌ | ✅ | ✅ |
-| Ranking tab | ✅ | ✅ | ✅ |
+| Feature                                | HR                                    | EXPERT | ADMIN |
+| -------------------------------------- | ------------------------------------- | ------ | ----- |
+| Vacancies list/read                    | ✅                                    | ✅     | ✅    |
+| Create vacancy                         | ❌                                    | ✅     | ✅    |
+| Open vacancy editor                    | ✅ (read-only outside mutate actions) | ✅     | ✅    |
+| Graph mutations (add/edit/delete/save) | ❌                                    | ✅     | ✅    |
+| Suggestions decisions                  | ❌                                    | ✅     | ✅    |
+| Tasks tab                              | ❌                                    | ✅     | ✅    |
+| Ranking tab                            | ✅                                    | ✅     | ✅    |
 
 ## UX/State conventions
 

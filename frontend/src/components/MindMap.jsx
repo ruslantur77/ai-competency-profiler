@@ -1,15 +1,13 @@
 // frontend/src/components/MindMap.jsx
-import React, { useState } from 'react'
-import {
-  ChevronRight, ChevronDown, Edit3, Trash2, Plus
-} from 'lucide-react'
-import NodeEditor from './NodeEditor'
-import ConfirmDialog from './ConfirmDialog'
-import AddSubDialog from './AddSubDialog'
-import EditCategoryDialog from './EditCategoryDialog'
-import EditCompetencyDialog from './EditCompetencyDialog'
-import AddCompetencyDialog from './AddCompetencyDialog'
-import './MindMap.css'
+import React, { useState } from 'react';
+import { ChevronRight, ChevronDown, Edit3, Trash2, Plus } from 'lucide-react';
+import NodeEditor from './NodeEditor';
+import ConfirmDialog from './ConfirmDialog';
+import AddSubDialog from './AddSubDialog';
+import EditCategoryDialog from './EditCategoryDialog';
+import EditCompetencyDialog from './EditCompetencyDialog';
+import AddCompetencyDialog from './AddCompetencyDialog';
+import './MindMap.css';
 
 // ===== КОНСТАНТЫ =====
 const LEVEL_CONFIG = {
@@ -19,26 +17,29 @@ const LEVEL_CONFIG = {
   3: { bg: '#fef9c3', border: '#eab308', text: '#854d0e', label: '🟡 Intermediate' },
   4: { bg: '#ffedd5', border: '#f97316', text: '#9a3412', label: '🟠 Advanced' },
   5: { bg: '#fae8ff', border: '#a855f7', text: '#7e22ce', label: '⭐ Expert' },
-}
+};
 
 const CAT_COLORS = [
-  '#4CAF50', '#2196F3', '#FF9800', '#E91E63',
-  '#9C27B0', '#00BCD4', '#FF5722', '#795548',
-]
+  '#4CAF50',
+  '#2196F3',
+  '#FF9800',
+  '#E91E63',
+  '#9C27B0',
+  '#00BCD4',
+  '#FF5722',
+  '#795548',
+];
 
 // ===== SUB COMPETENCY NODE =====
 function SubCompetencyNode({ sub, onEdit, onDelete }) {
-  const [expanded, setExpanded] = useState(false)
-  const level = sub.target_level ?? 2
-  const colors = LEVEL_CONFIG[level] || LEVEL_CONFIG[2]
+  const [expanded, setExpanded] = useState(false);
+  const level = sub.target_level ?? 2;
+  const colors = LEVEL_CONFIG[level] || LEVEL_CONFIG[2];
 
   return (
     <div className="mindmap__sub-node" style={{ borderLeftColor: colors.border }}>
       <div className="mindmap__sub-header">
-        <button
-          className="mindmap__expand-btn"
-          onClick={() => setExpanded(!expanded)}
-        >
+        <button className="mindmap__expand-btn" onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
 
@@ -51,9 +52,7 @@ function SubCompetencyNode({ sub, onEdit, onDelete }) {
 
         <span className="mindmap__sub-name">{sub.sub_competency_name}</span>
 
-        {sub.weight !== 1.0 && (
-          <span className="mindmap__weight-badge">×{sub.weight}</span>
-        )}
+        {sub.weight !== 1.0 && <span className="mindmap__weight-badge">×{sub.weight}</span>}
 
         {(onEdit || onDelete) && (
           <div className="mindmap__sub-actions">
@@ -73,35 +72,32 @@ function SubCompetencyNode({ sub, onEdit, onDelete }) {
 
       {expanded && sub.sub_competency_description && (
         <div className="mindmap__sub-details">
-          <p className="mindmap__sub-description">
-            {sub.sub_competency_description}
-          </p>
+          <p className="mindmap__sub-description">{sub.sub_competency_description}</p>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // ===== COMPETENCY NODE =====
 function CompetencyNode({
-  comp, subNodes,
-  onEditComp, onDeleteComp,
-  onEditSub, onDeleteSub, onAddSub,
+  comp,
+  subNodes,
+  onEditComp,
+  onDeleteComp,
+  onEditSub,
+  onDeleteSub,
+  onAddSub,
 }) {
-  const [expanded, setExpanded] = useState(true)
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <div className="mindmap__comp-node">
       <div className="mindmap__comp-header">
-        <div
-          className="mindmap__comp-header-left"
-          onClick={() => setExpanded(!expanded)}
-        >
+        <div className="mindmap__comp-header-left" onClick={() => setExpanded(!expanded)}>
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           <span className="mindmap__comp-name">{comp.competency_name}</span>
-          {!comp.is_required && (
-            <span className="mindmap__optional-badge">опц.</span>
-          )}
+          {!comp.is_required && <span className="mindmap__optional-badge">опц.</span>}
           <span className="mindmap__comp-count">{subNodes.length}</span>
         </div>
 
@@ -123,7 +119,7 @@ function CompetencyNode({
 
       {expanded && (
         <div className="mindmap__comp-children">
-          {subNodes.map(sub => (
+          {subNodes.map((sub) => (
             <SubCompetencyNode
               key={sub.sub_competency_id}
               sub={sub}
@@ -132,17 +128,14 @@ function CompetencyNode({
             />
           ))}
           {onAddSub && (
-            <button
-              className="mindmap__add-btn"
-              onClick={() => onAddSub(comp)}
-            >
+            <button className="mindmap__add-btn" onClick={() => onAddSub(comp)}>
               <Plus size={14} /> Добавить подкомпетенцию
             </button>
           )}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // ===== MAIN MINDMAP =====
@@ -164,34 +157,34 @@ export default function MindMap({
   ontologySubCompetencyOptions = [],
 }) {
   // Подкомпетенции
-  const [editingSub, setEditingSub] = useState(null)
-  const [deletingSub, setDeletingSub] = useState(null)
-  const [addingSubComp, setAddingSubComp] = useState(null) // объект comp
+  const [editingSub, setEditingSub] = useState(null);
+  const [deletingSub, setDeletingSub] = useState(null);
+  const [addingSubComp, setAddingSubComp] = useState(null); // объект comp
 
   // Категории
-  const [editingCat, setEditingCat] = useState(null)
-  const [deletingCat, setDeletingCat] = useState(null)
+  const [editingCat, setEditingCat] = useState(null);
+  const [deletingCat, setDeletingCat] = useState(null);
 
   // Компетенции
-  const [editingComp, setEditingComp] = useState(null)
-  const [deletingComp, setDeletingComp] = useState(null)
-  const [addingComp, setAddingComp] = useState(null) // объект cat
+  const [editingComp, setEditingComp] = useState(null);
+  const [deletingComp, setDeletingComp] = useState(null);
+  const [addingComp, setAddingComp] = useState(null); // объект cat
 
   // ===== HANDLERS — ПОДКОМПЕТЕНЦИИ =====
   const handleEditSubSave = (updated) => {
-    onUpdateSub(updated)
-    setEditingSub(null)
-  }
+    onUpdateSub(updated);
+    setEditingSub(null);
+  };
 
   const handleDeleteSubConfirm = () => {
-    onDeleteSub(deletingSub.sub_competency_id)
-    setDeletingSub(null)
-  }
+    onDeleteSub(deletingSub.sub_competency_id);
+    setDeletingSub(null);
+  };
 
   const handleAddSubSubmit = (newSub) => {
-    onAddSub(addingSubComp.competency_id, newSub)
-    setAddingSubComp(null)
-  }
+    onAddSub(addingSubComp.competency_id, newSub);
+    setAddingSubComp(null);
+  };
 
   // ===== HANDLERS — КАТЕГОРИИ =====
   const handleEditCatSave = (updated) => {
@@ -201,30 +194,30 @@ export default function MindMap({
       category_name: updated.name || updated.category_name,
       category_emoji: updated.emoji || updated.category_emoji,
       category_description: updated.description || updated.category_description,
-    })
-    setEditingCat(null)
-  }
+    });
+    setEditingCat(null);
+  };
 
   const handleDeleteCatConfirm = () => {
-    onDeleteCategory(deletingCat.category_id)
-    setDeletingCat(null)
-  }
+    onDeleteCategory(deletingCat.category_id);
+    setDeletingCat(null);
+  };
 
   // ===== HANDLERS — КОМПЕТЕНЦИИ =====
   const handleEditCompSave = (updated) => {
-    onUpdateCompetency(updated)
-    setEditingComp(null)
-  }
+    onUpdateCompetency(updated);
+    setEditingComp(null);
+  };
 
   const handleDeleteCompConfirm = () => {
-    onDeleteCompetency(deletingComp.competency_id)
-    setDeletingComp(null)
-  }
+    onDeleteCompetency(deletingComp.competency_id);
+    setDeletingComp(null);
+  };
 
   const handleAddCompSubmit = (newComp) => {
-    onAddCompetency(addingComp.category_id, newComp)
-    setAddingComp(null)
-  }
+    onAddCompetency(addingComp.category_id, newComp);
+    setAddingComp(null);
+  };
 
   return (
     <div className="mindmap">
@@ -246,9 +239,7 @@ export default function MindMap({
 
       <div className="mindmap__tree">
         {categoryNodes.map((cat, catIdx) => {
-          const catComps = competencyNodes.filter(
-            c => c.category_id === cat.category_id
-          )
+          const catComps = competencyNodes.filter((c) => c.category_id === cat.category_id);
 
           return (
             <div key={cat.category_id} className="mindmap__category">
@@ -256,28 +247,16 @@ export default function MindMap({
                 className="mindmap__category-header"
                 style={{ borderLeftColor: CAT_COLORS[catIdx % CAT_COLORS.length] }}
               >
-                <span className="mindmap__category-emoji">
-                  {cat.category_emoji}
-                </span>
-                <span className="mindmap__category-name">
-                  {cat.category_name}
-                </span>
-                <span className="mindmap__category-count">
-                  {catComps.length}
-                </span>
+                <span className="mindmap__category-emoji">{cat.category_emoji}</span>
+                <span className="mindmap__category-name">{cat.category_name}</span>
+                <span className="mindmap__category-count">{catComps.length}</span>
 
                 {!readOnly && (
                   <div className="mindmap__category-actions">
-                    <button
-                      title="Редактировать"
-                      onClick={() => setEditingCat(cat)}
-                    >
+                    <button title="Редактировать" onClick={() => setEditingCat(cat)}>
                       <Edit3 size={14} />
                     </button>
-                    <button
-                      title="Удалить категорию"
-                      onClick={() => setDeletingCat(cat)}
-                    >
+                    <button title="Удалить категорию" onClick={() => setDeletingCat(cat)}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -285,10 +264,10 @@ export default function MindMap({
               </div>
 
               <div className="mindmap__category-children">
-                {catComps.map(comp => {
+                {catComps.map((comp) => {
                   const compSubs = subCompetencyNodes.filter(
-                    s => s.competency_id === comp.competency_id
-                  )
+                    (s) => s.competency_id === comp.competency_id
+                  );
                   return (
                     <CompetencyNode
                       key={comp.competency_id}
@@ -300,19 +279,16 @@ export default function MindMap({
                       onDeleteSub={readOnly ? null : setDeletingSub}
                       onAddSub={readOnly ? null : setAddingSubComp}
                     />
-                  )
+                  );
                 })}
                 {!readOnly && (
-                  <button
-                    className="mindmap__add-btn"
-                    onClick={() => setAddingComp(cat)}
-                  >
+                  <button className="mindmap__add-btn" onClick={() => setAddingComp(cat)}>
                     <Plus size={14} /> Добавить компетенцию
                   </button>
                 )}
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
@@ -392,5 +368,5 @@ export default function MindMap({
         />
       )}
     </div>
-  )
+  );
 }

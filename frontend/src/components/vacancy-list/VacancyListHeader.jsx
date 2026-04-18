@@ -1,12 +1,7 @@
-import React from 'react'
-import { LogOut, Plus } from 'lucide-react'
+import React from 'react';
+import { LogOut, Plus } from 'lucide-react';
 
-export default function VacancyListHeader({
-  activeTab,
-  canCreate,
-  onCreate,
-  onLogout,
-}) {
+export default function VacancyListHeader({ activeTab, canCreate, onCreate, onLogout }) {
   return (
     <div className="vacancy-list__header">
       <div className="vacancy-list__title">
@@ -24,5 +19,5 @@ export default function VacancyListHeader({
         </button>
       </div>
     </div>
-  )
+  );
 }

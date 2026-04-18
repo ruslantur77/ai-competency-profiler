@@ -1,5 +1,5 @@
-import React from 'react'
-import AsyncState from '../AsyncState'
+import React from 'react';
+import AsyncState from '../AsyncState';
 
 export default function OntologyDetails({ selected, selectedDetails, entityType }) {
   if (!selected.type) {
@@ -11,7 +11,7 @@ export default function OntologyDetails({ selected, selectedDetails, entityType 
           hint="Слева выберите категорию, компетенцию или подкомпетенцию для просмотра деталей."
         />
       </section>
-    )
+    );
   }
 
   if (!selectedDetails) {
@@ -19,7 +19,7 @@ export default function OntologyDetails({ selected, selectedDetails, entityType 
       <section className="ontology__details">
         <AsyncState kind="loading" title="Загрузка деталей..." />
       </section>
-    )
+    );
   }
 
   return (
@@ -43,5 +43,5 @@ export default function OntologyDetails({ selected, selectedDetails, entityType 
         </div>
       </div>
     </section>
-  )
+  );
 }

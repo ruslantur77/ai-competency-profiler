@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export default function CandidateStats({ total, counters }) {
   return (
@@ -20,5 +20,5 @@ export default function CandidateStats({ total, counters }) {
         <span className="candidates-tab__stat-label">Failed (page)</span>
       </div>
     </div>
-  )
+  );
 }

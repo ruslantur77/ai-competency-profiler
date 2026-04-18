@@ -1,6 +1,6 @@
-import api from './base'
+import api from './base';
 
-export { login, logout } from './auth'
+export { login, logout } from './auth';
 export {
   listVacancies,
   listVacanciesForReview,
@@ -13,27 +13,17 @@ export {
   deleteVacancy,
   restoreVacancy,
   hardDeleteVacancy,
-} from './vacancies'
-export { getSuggestions, decideSuggestion } from './suggestions'
-export { getVacancyRankings, getCandidateProfile } from './ranking'
-export {
-  listCandidates,
-  getCandidate,
-  deleteCandidate,
-} from './candidates'
+} from './vacancies';
+export { getSuggestions, decideSuggestion } from './suggestions';
+export { getVacancyRankings, getCandidateProfile } from './ranking';
+export { listCandidates, getCandidate, deleteCandidate } from './candidates';
 export {
   listAdminUsers,
   createAdminUser,
   updateAdminUserRole,
   updateAdminUserStatus,
-} from './adminUsers'
-export {
-  listTasks,
-  getTask,
-  updateTaskGraph,
-  finalizeTaskGraph,
-  updateTaskStatus,
-} from './tasks'
+} from './adminUsers';
+export { listTasks, getTask, updateTaskGraph, finalizeTaskGraph, updateTaskStatus } from './tasks';
 export {
   listCategories,
   getCategory,
@@ -50,9 +40,9 @@ export {
   createSubCompetency,
   updateSubCompetency,
   deleteSubCompetency,
-} from './ontology'
-export { healthCheck } from './health'
-export { normalizePageResponse, extractItems } from './adapters'
-export { getErrorMessage } from './errors'
+} from './ontology';
+export { healthCheck } from './health';
+export { normalizePageResponse, extractItems } from './adapters';
+export { getErrorMessage } from './errors';
 
-export default api
+export default api;

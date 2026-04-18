@@ -1,37 +1,56 @@
 // frontend/src/components/EditCategoryDialog.jsx
-import React, { useState } from 'react'
-import { X, Save } from 'lucide-react'
-import './EditCategoryDialog.css'
+import React, { useState } from 'react';
+import { X, Save } from 'lucide-react';
+import './EditCategoryDialog.css';
 
-const EMOJI_OPTIONS = ['🔧', '📊', '🏢', '🤝', '💡', '📱', '🎨', '📈', '🔬', '🛠️', '📋', '🎯', '🧠', '💻', '📚', '⚙️']
+const EMOJI_OPTIONS = [
+  '🔧',
+  '📊',
+  '🏢',
+  '🤝',
+  '💡',
+  '📱',
+  '🎨',
+  '📈',
+  '🔬',
+  '🛠️',
+  '📋',
+  '🎯',
+  '🧠',
+  '💻',
+  '📚',
+  '⚙️',
+];
 
 const buildInitialForm = (category) => ({
   name: category?.name || '',
   emoji: category?.emoji || '📌',
   description: category?.description || '',
-})
+});
 
 export default function EditCategoryDialog({ category, onSave, onClose, title }) {
-  const [form, setForm] = useState(() => buildInitialForm(category))
+  const [form, setForm] = useState(() => buildInitialForm(category));
 
   const handleSave = () => {
-    if (!form.name.trim()) return
-    onSave({ ...category, ...form })
-  }
+    if (!form.name.trim()) return;
+    onSave({ ...category, ...form });
+  };
 
   return (
     <div className="edit-cat-overlay" onClick={onClose}>
-      <div className="edit-cat" onClick={e => e.stopPropagation()}>
+      <div className="edit-cat" onClick={(e) => e.stopPropagation()}>
         <div className="edit-cat__header">
           <h3>{title || '✏️ Редактирование категории'}</h3>
-          <button onClick={onClose}><X size={20} /></button>
+          <button onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
 
         <div className="edit-cat__body">
           <label>
             Эмодзи
             <div className="edit-cat__emoji-grid">
-              {EMOJI_OPTIONS.map(em => (
+              {EMOJI_OPTIONS.map((em) => (
                 <button
                   key={em}
                   type="button"
@@ -48,7 +67,7 @@ export default function EditCategoryDialog({ category, onSave, onClose, title })
             Название
             <input
               value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
             />
           </label>
@@ -57,19 +76,21 @@ export default function EditCategoryDialog({ category, onSave, onClose, title })
             Описание
             <textarea
               value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={2}
             />
           </label>
         </div>
 
         <div className="edit-cat__footer">
-          <button className="btn-secondary" onClick={onClose}>Отмена</button>
+          <button className="btn-secondary" onClick={onClose}>
+            Отмена
+          </button>
           <button className="btn-primary" onClick={handleSave} disabled={!form.name.trim()}>
             <Save size={16} /> Сохранить
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }

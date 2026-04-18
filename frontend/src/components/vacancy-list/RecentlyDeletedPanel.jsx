@@ -1,12 +1,8 @@
-import React from 'react'
-import { RotateCcw, ShieldAlert } from 'lucide-react'
+import React from 'react';
+import { RotateCcw, ShieldAlert } from 'lucide-react';
 
-export default function RecentlyDeletedPanel({
-  items,
-  onRestore,
-  onHardDelete,
-}) {
-  if (items.length === 0) return null
+export default function RecentlyDeletedPanel({ items, onRestore, onHardDelete }) {
+  if (items.length === 0) return null;
 
   return (
     <div className="vacancy-list__deleted-panel">
@@ -33,5 +29,5 @@ export default function RecentlyDeletedPanel({
         ))}
       </div>
     </div>
-  )
+  );
 }

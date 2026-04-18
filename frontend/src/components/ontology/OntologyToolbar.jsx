@@ -1,6 +1,6 @@
-import React from 'react'
-import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
-import SelectionBadge from './SelectionBadge'
+import React from 'react';
+import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import SelectionBadge from './SelectionBadge';
 
 export default function OntologyToolbar({
   selected,
@@ -28,7 +28,9 @@ export default function OntologyToolbar({
         <button
           className="btn-secondary"
           onClick={onCreateForSelection}
-          disabled={selected.type !== entityType.CATEGORY && selected.type !== entityType.COMPETENCY}
+          disabled={
+            selected.type !== entityType.CATEGORY && selected.type !== entityType.COMPETENCY
+          }
         >
           <Plus size={16} /> Добавить в выбранное
         </button>
@@ -40,5 +42,5 @@ export default function OntologyToolbar({
         </button>
       </div>
     </div>
-  )
+  );
 }

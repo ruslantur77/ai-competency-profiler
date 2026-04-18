@@ -1,20 +1,22 @@
-import React from 'react'
-import { Loader2 } from 'lucide-react'
+import React from 'react';
+import { Loader2 } from 'lucide-react';
 
-export default function AsyncState({
-  kind = 'empty',
-  title,
-  hint,
-  actionLabel,
-  onAction,
-}) {
+export default function AsyncState({ kind = 'empty', title, hint, actionLabel, onAction }) {
   if (kind === 'loading') {
     return (
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <div
+        style={{
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
         <Loader2 size={24} className="spin" />
         <p>{title || 'Загрузка...'}</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -27,5 +29,5 @@ export default function AsyncState({
         </button>
       )}
     </div>
-  )
+  );
 }

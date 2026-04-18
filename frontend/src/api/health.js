@@ -1,3 +1,3 @@
-import { api } from './base'
+import { api } from './base';
 
-export const healthCheck = () => api.get('/health')
+export const healthCheck = () => api.get('/health');

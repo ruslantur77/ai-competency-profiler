@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
-import { finalizeTaskGraph, listTasks } from '../api/tasks'
-import { fetchAllPages } from '../api/pagination'
-import { getErrorMessage } from '../api/errors'
-import ForbiddenState from './ForbiddenState'
-import AsyncState from './AsyncState'
-import TaskGraphDialog from './TaskGraphDialog'
-import TaskStats from './tasks/TaskStats'
-import './TasksTab.css'
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { finalizeTaskGraph, listTasks } from '../api/tasks';
+import { fetchAllPages } from '../api/pagination';
+import { getErrorMessage } from '../api/errors';
+import ForbiddenState from './ForbiddenState';
+import AsyncState from './AsyncState';
+import TaskGraphDialog from './TaskGraphDialog';
+import TaskStats from './tasks/TaskStats';
+import './TasksTab.css';
 
 const TASK_STATUS_CONFIG = {
   pending: {
@@ -30,19 +30,17 @@ const TASK_STATUS_CONFIG = {
     icon: (size) => <AlertCircle size={size} />,
     badge: 'failed',
   },
-}
+};
 
 const TASK_TYPE_LABELS = {
   code: '💻 Код',
   test: '📝 Тест',
-}
+};
 
 function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
-  const statusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending
-  const canFinalize = task.status === 'draft'
-  const createdAtLabel = task.created_at
-    ? new Date(task.created_at).toLocaleString('ru-RU')
-    : '—'
+  const statusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending;
+  const canFinalize = task.status === 'draft';
+  const createdAtLabel = task.created_at ? new Date(task.created_at).toLocaleString('ru-RU') : '—';
 
   return (
     <div className={`task-card task-card--${statusConfig.badge}`}>
@@ -88,69 +86,67 @@ function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function TasksTab({ notify }) {
-  const [tasks, setTasks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isForbidden, setIsForbidden] = useState(false)
-  const [selectedTaskId, setSelectedTaskId] = useState(null)
-  const [finalizingId, setFinalizingId] = useState(null)
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isForbidden, setIsForbidden] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [finalizingId, setFinalizingId] = useState(null);
 
   const fetchTasks = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const allPages = await fetchAllPages({
         fetchPage: async ({ limit, offset }) => {
-          const { data } = await listTasks({ limit, offset })
-          return data
+          const { data } = await listTasks({ limit, offset });
+          return data;
         },
-      })
-      setTasks(allPages.items)
-      setIsForbidden(false)
+      });
+      setTasks(allPages.items);
+      setIsForbidden(false);
     } catch (error) {
-      setTasks([])
-      setIsForbidden(error?.response?.status === 403)
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки заданий' }), 'error')
+      setTasks([]);
+      setIsForbidden(error?.response?.status === 403);
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки заданий' }), 'error');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [notify])
+  }, [notify]);
 
   useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+    fetchTasks();
+  }, [fetchTasks]);
 
   const handleFinalize = async (taskId) => {
-    setFinalizingId(taskId)
+    setFinalizingId(taskId);
     try {
-      const { data } = await finalizeTaskGraph(taskId)
-      setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, ...data } : task)))
-      notify('Граф задачи финализирован')
+      const { data } = await finalizeTaskGraph(taskId);
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, ...data } : task)));
+      notify('Граф задачи финализирован');
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка финализации графа задачи' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка финализации графа задачи' }), 'error');
     } finally {
-      setFinalizingId(null)
+      setFinalizingId(null);
     }
-  }
+  };
 
   const counters = useMemo(() => {
-    const pending = tasks.filter((task) => task.status === 'pending').length
-    const draft = tasks.filter((task) => task.status === 'draft').length
-    const ready = tasks.filter((task) => task.status === 'ready').length
-    const failed = tasks.filter((task) => task.status === 'failed').length
-    return { total: tasks.length, pending, draft, ready, failed }
-  }, [tasks])
+    const pending = tasks.filter((task) => task.status === 'pending').length;
+    const draft = tasks.filter((task) => task.status === 'draft').length;
+    const ready = tasks.filter((task) => task.status === 'ready').length;
+    const failed = tasks.filter((task) => task.status === 'failed').length;
+    return { total: tasks.length, pending, draft, ready, failed };
+  }, [tasks]);
 
   if (loading) {
-    return <AsyncState kind="loading" title="Загрузка заданий..." />
+    return <AsyncState kind="loading" title="Загрузка заданий..." />;
   }
 
   if (isForbidden) {
-    return (
-      <ForbiddenState hint="Раздел заданий доступен только ролям EXPERT и ADMIN." />
-    )
+    return <ForbiddenState hint="Раздел заданий доступен только ролям EXPERT и ADMIN." />;
   }
 
   if (tasks.length === 0) {
@@ -160,7 +156,7 @@ export default function TasksTab({ notify }) {
         title="📝 Заданий пока нет"
         hint="Задания появятся после синхронизации с тестирующей системой"
       />
-    )
+    );
   }
 
   return (
@@ -188,5 +184,5 @@ export default function TasksTab({ notify }) {
         />
       )}
     </div>
-  )
+  );
 }

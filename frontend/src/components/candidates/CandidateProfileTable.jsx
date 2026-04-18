@@ -1,8 +1,8 @@
-import React from 'react'
-import { formatPercent } from '../../utils/formatters'
+import React from 'react';
+import { formatPercent } from '../../utils/formatters';
 
 export default function CandidateProfileTable({ profile }) {
-  if (!profile) return null
+  if (!profile) return null;
 
   return (
     <div className="candidates-tab__profile">
@@ -35,5 +35,5 @@ export default function CandidateProfileTable({ profile }) {
         )}
       </div>
     </div>
-  )
+  );
 }

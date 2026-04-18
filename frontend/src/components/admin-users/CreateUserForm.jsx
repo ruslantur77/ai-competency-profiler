@@ -1,27 +1,27 @@
-import React, { useState } from 'react'
-import { UserPlus } from 'lucide-react'
+import React, { useState } from 'react';
+import { UserPlus } from 'lucide-react';
 
-const ROLE_OPTIONS = ['admin', 'expert', 'hr', 'system']
+const ROLE_OPTIONS = ['admin', 'expert', 'hr', 'system'];
 
 export default function CreateUserForm({ onSubmit, creating }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [role, setRole] = useState('hr')
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('hr');
 
-  const isValid = email.trim().length > 0 && password.trim().length >= 8
+  const isValid = email.trim().length > 0 && password.trim().length >= 8;
 
   const handleSubmit = (event) => {
-    event.preventDefault()
-    if (!isValid || creating) return
+    event.preventDefault();
+    if (!isValid || creating) return;
     onSubmit({
       email: email.trim(),
       password,
       role,
-    })
-    setEmail('')
-    setPassword('')
-    setRole('hr')
-  }
+    });
+    setEmail('');
+    setPassword('');
+    setRole('hr');
+  };
 
   return (
     <form className="admin-users__create" onSubmit={handleSubmit}>
@@ -47,7 +47,9 @@ export default function CreateUserForm({ onSubmit, creating }) {
         />
         <select value={role} onChange={(event) => setRole(event.target.value)}>
           {ROLE_OPTIONS.map((item) => (
-            <option key={item} value={item}>{item}</option>
+            <option key={item} value={item}>
+              {item}
+            </option>
           ))}
         </select>
         <button type="submit" className="btn-primary" disabled={!isValid || creating}>
@@ -55,5 +57,5 @@ export default function CreateUserForm({ onSubmit, creating }) {
         </button>
       </div>
     </form>
-  )
+  );
 }

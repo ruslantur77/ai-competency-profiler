@@ -1,6 +1,6 @@
-import React from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import AsyncState from '../AsyncState'
+import React from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import AsyncState from '../AsyncState';
 
 export default function OntologyTree({
   categories,
@@ -17,38 +17,42 @@ export default function OntologyTree({
       <aside className="ontology__tree">
         <AsyncState kind="empty" title="Онтология пока пуста" hint="Создайте первую категорию." />
       </aside>
-    )
+    );
   }
 
   return (
     <aside className="ontology__tree">
       {categories.map((category) => {
-        const categoryExpanded = expandedCategories.has(category.id)
+        const categoryExpanded = expandedCategories.has(category.id);
 
         return (
           <div key={category.id} className="ontology__category">
             <button
               className={`ontology__node ontology__node--category ${
-                selected.type === entityType.CATEGORY && selected.id === category.id ? 'is-selected' : ''
+                selected.type === entityType.CATEGORY && selected.id === category.id
+                  ? 'is-selected'
+                  : ''
               }`}
               onClick={() => onSelect(entityType.CATEGORY, category.id)}
             >
               <span
                 className="ontology__node-expand"
                 onClick={(event) => {
-                  event.stopPropagation()
-                  onToggleCategory(category.id)
+                  event.stopPropagation();
+                  onToggleCategory(category.id);
                 }}
               >
                 {categoryExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               </span>
-              <span>{category.emoji || '📋'} {category.name}</span>
+              <span>
+                {category.emoji || '📋'} {category.name}
+              </span>
             </button>
 
             {categoryExpanded && (
               <div className="ontology__children">
                 {(category.competencies || []).map((competency) => {
-                  const competencyExpanded = expandedCompetencies.has(competency.id)
+                  const competencyExpanded = expandedCompetencies.has(competency.id);
 
                   return (
                     <div key={competency.id} className="ontology__competency">
@@ -63,11 +67,15 @@ export default function OntologyTree({
                         <span
                           className="ontology__node-expand"
                           onClick={(event) => {
-                            event.stopPropagation()
-                            onToggleCompetency(competency.id)
+                            event.stopPropagation();
+                            onToggleCompetency(competency.id);
                           }}
                         >
-                          {competencyExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          {competencyExpanded ? (
+                            <ChevronDown size={14} />
+                          ) : (
+                            <ChevronRight size={14} />
+                          )}
                         </span>
                         <span>{competency.name}</span>
                       </button>
@@ -78,7 +86,8 @@ export default function OntologyTree({
                             <button
                               key={sub.id}
                               className={`ontology__node ontology__node--sub ${
-                                selected.type === entityType.SUB_COMPETENCY && selected.id === sub.id
+                                selected.type === entityType.SUB_COMPETENCY &&
+                                selected.id === sub.id
                                   ? 'is-selected'
                                   : ''
                               }`}
@@ -91,13 +100,13 @@ export default function OntologyTree({
                         </div>
                       )}
                     </div>
-                  )
+                  );
                 })}
               </div>
             )}
           </div>
-        )
+        );
       })}
     </aside>
-  )
+  );
 }

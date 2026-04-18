@@ -1,85 +1,85 @@
 /* frontend/src/components/LoginPage.css */
 .login-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-  }
-  
-  .login-card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 16px;
-    padding: 2.5rem;
-    width: 100%;
-    max-width: 420px;
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
-  
-  .login-card__header {
-    text-align: center;
-  }
-  
-  .login-card__header h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .login-card__header p {
-    color: #94a3b8;
-    font-size: 0.9rem;
-  }
-  
-  .login-card__form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
-  
-  .login-card__form label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: #94a3b8;
-  }
-  
-  .login-card__form input {
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    color: #f1f5f9;
-    font-size: 0.95rem;
-    transition: border-color 0.2s;
-    width: 100%;
-  }
-  
-  .login-card__form input:focus {
-    outline: none;
-    border-color: #3b82f6;
-  }
-  
-  .login-card__form input:disabled {
-    opacity: 0.5;
-  }
-  
-  .login-card__error {
-    background: #2d1515;
-    border: 1px solid #ef4444;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    color: #ef4444;
-    font-size: 0.9rem;
-  }
-  
-  .login-card__submit {
-    width: 100%;
-    justify-content: center;
-    padding: 0.75rem;
-    font-size: 1rem;
-    margin-top: 0.25rem;
-  }
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.login-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.login-card__header {
+  text-align: center;
+}
+
+.login-card__header h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.login-card__header p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.login-card__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.login-card__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.login-card__form input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.login-card__form input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.login-card__form input:disabled {
+  opacity: 0.5;
+}
+
+.login-card__error {
+  background: #2d1515;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: #ef4444;
+  font-size: 0.9rem;
+}
+
+.login-card__submit {
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem;
+  font-size: 1rem;
+  margin-top: 0.25rem;
+}

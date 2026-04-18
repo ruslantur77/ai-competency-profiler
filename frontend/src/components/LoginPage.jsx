@@ -1,39 +1,41 @@
 // frontend/src/components/LoginPage.jsx
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Loader2, LogIn } from 'lucide-react'
-import { login } from '../api/auth'
-import { getErrorMessage } from '../api/errors'
-import './LoginPage.css'
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, LogIn } from 'lucide-react';
+import { login } from '../api/auth';
+import { getErrorMessage } from '../api/errors';
+import './LoginPage.css';
 
 export default function LoginPage({ onLogin }) {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!email.trim() || !password.trim()) return
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) return;
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const { data } = await login(email.trim(), password)
-      localStorage.setItem('access_token', data.access_token)
-      await onLogin()
-      navigate('/')
+      const { data } = await login(email.trim(), password);
+      localStorage.setItem('access_token', data.access_token);
+      await onLogin();
+      navigate('/');
     } catch (err) {
-      setError(getErrorMessage(err, {
-        fallback: 'Ошибка сервера, попробуйте позже',
-        overrides: { 401: 'Неверный email или пароль' },
-      }))
+      setError(
+        getErrorMessage(err, {
+          fallback: 'Ошибка сервера, попробуйте позже',
+          overrides: { 401: 'Неверный email или пароль' },
+        })
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="login-page">
@@ -44,18 +46,14 @@ export default function LoginPage({ onLogin }) {
         </div>
 
         <form className="login-card__form" onSubmit={handleSubmit}>
-          {error && (
-            <div className="login-card__error">
-              {error}
-            </div>
-          )}
+          {error && <div className="login-card__error">{error}</div>}
 
           <label>
             Email
             <input
               type="email"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@example.com"
               disabled={loading}
               autoFocus
@@ -67,7 +65,7 @@ export default function LoginPage({ onLogin }) {
             <input
               type="password"
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               disabled={loading}
             />
@@ -78,13 +76,18 @@ export default function LoginPage({ onLogin }) {
             className="btn-primary login-card__submit"
             disabled={loading || !email.trim() || !password.trim()}
           >
-            {loading
-              ? <><Loader2 size={18} className="spin" /> Вход...</>
-              : <><LogIn size={18} /> Войти</>
-            }
+            {loading ? (
+              <>
+                <Loader2 size={18} className="spin" /> Вход...
+              </>
+            ) : (
+              <>
+                <LogIn size={18} /> Войти
+              </>
+            )}
           </button>
         </form>
       </div>
     </div>
-  )
+  );
 }

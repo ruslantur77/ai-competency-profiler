@@ -14,7 +14,9 @@
   animation: notification-slide-in 0.4s ease;
   max-width: 450px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  transition: transform 0.4s ease, opacity 0.4s ease;
+  transition:
+    transform 0.4s ease,
+    opacity 0.4s ease;
 }
 
 .notification--closing {

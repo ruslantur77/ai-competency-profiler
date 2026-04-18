@@ -1,8 +1,8 @@
-import React from 'react'
-import { Shield, UserX } from 'lucide-react'
-import { formatDateTime } from '../../utils/formatters'
+import React from 'react';
+import { Shield, UserX } from 'lucide-react';
+import { formatDateTime } from '../../utils/formatters';
 
-const ROLE_OPTIONS = ['admin', 'expert', 'hr', 'system']
+const ROLE_OPTIONS = ['admin', 'expert', 'hr', 'system'];
 
 export default function AdminUsersTable({
   users,
@@ -23,7 +23,7 @@ export default function AdminUsersTable({
         <span>Действия</span>
       </div>
       {users.map((user) => {
-        const isSelf = user.id === currentUserId
+        const isSelf = user.id === currentUserId;
         return (
           <div key={user.id} className="admin-users__table-row">
             <span className="admin-users__email">
@@ -38,12 +38,16 @@ export default function AdminUsersTable({
                 onChange={(event) => onRoleChange(user.id, event.target.value)}
               >
                 {ROLE_OPTIONS.map((item) => (
-                  <option key={item} value={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
             </span>
             <span>
-              <span className={`admin-users__status ${user.is_active ? 'is-active' : 'is-inactive'}`}>
+              <span
+                className={`admin-users__status ${user.is_active ? 'is-active' : 'is-inactive'}`}
+              >
                 {user.is_active ? 'active' : 'inactive'}
               </span>
             </span>
@@ -61,8 +65,8 @@ export default function AdminUsersTable({
               </button>
             </span>
           </div>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

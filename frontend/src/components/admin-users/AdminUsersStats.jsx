@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 export default function AdminUsersStats({ counters }) {
   return (
@@ -16,5 +16,5 @@ export default function AdminUsersStats({ counters }) {
         <span className="admin-users__stat-label">Неактивные</span>
       </div>
     </div>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-import React from 'react'
-import { getCandidateStatusMeta } from '../../domain/statusMeta'
-import { formatDateTime } from '../../utils/formatters'
+import React from 'react';
+import { getCandidateStatusMeta } from '../../domain/statusMeta';
+import { formatDateTime } from '../../utils/formatters';
 
 export default function CandidateRow({ candidate, selected, onSelect }) {
-  const statusMeta = getCandidateStatusMeta(candidate.status)
+  const statusMeta = getCandidateStatusMeta(candidate.status);
   return (
     <button
       className={`candidates-tab__row ${selected ? 'is-selected' : ''}`}
@@ -19,5 +19,5 @@ export default function CandidateRow({ candidate, selected, onSelect }) {
         <span>{formatDateTime(candidate.last_assessment_at)}</span>
       </div>
     </button>
-  )
+  );
 }

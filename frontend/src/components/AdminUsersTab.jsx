@@ -1,33 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createAdminUser,
   listAdminUsers,
   updateAdminUserRole,
   updateAdminUserStatus,
-} from '../api/adminUsers'
-import { getErrorMessage } from '../api/errors'
-import usePaginatedResource from '../hooks/usePaginatedResource'
-import ConfirmDialog from './ConfirmDialog'
-import AsyncState from './AsyncState'
-import CreateUserForm from './admin-users/CreateUserForm'
-import AdminUsersStats from './admin-users/AdminUsersStats'
-import AdminUsersTable from './admin-users/AdminUsersTable'
-import './AdminUsersTab.css'
+} from '../api/adminUsers';
+import { getErrorMessage } from '../api/errors';
+import usePaginatedResource from '../hooks/usePaginatedResource';
+import ConfirmDialog from './ConfirmDialog';
+import AsyncState from './AsyncState';
+import CreateUserForm from './admin-users/CreateUserForm';
+import AdminUsersStats from './admin-users/AdminUsersStats';
+import AdminUsersTable from './admin-users/AdminUsersTable';
+import './AdminUsersTab.css';
 
 const SELF_ACTION_GUARD_MESSAGE =
-  'Операция запрещена: нельзя изменять собственную роль или деактивировать свою учетную запись'
-const USERS_PAGE_LIMIT = 200
+  'Операция запрещена: нельзя изменять собственную роль или деактивировать свою учетную запись';
+const USERS_PAGE_LIMIT = 50;
 
 export default function AdminUsersTab({ notify, currentUserId }) {
-  const [creating, setCreating] = useState(false)
-  const [pendingAction, setPendingAction] = useState(null)
-  const [updatingRoleId, setUpdatingRoleId] = useState(null)
-  const [updatingStatusId, setUpdatingStatusId] = useState(null)
+  const [creating, setCreating] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
   const fetchUsersPage = useCallback(async ({ offset, limit }) => {
-    const { data } = await listAdminUsers({ limit, offset })
-    return data
-  }, [])
+    const { data } = await listAdminUsers({ limit, offset });
+    return data;
+  }, []);
 
   const {
     items: usersRaw,
@@ -39,49 +39,48 @@ export default function AdminUsersTab({ notify, currentUserId }) {
     fetchPage: fetchUsersPage,
     initialLimit: USERS_PAGE_LIMIT,
     initialOffset: 0,
-    onError: (error) => notify(
-      getErrorMessage(error, { fallback: 'Ошибка загрузки пользователей' }),
-      'error'
-    ),
-  })
+    onError: (error) =>
+      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки пользователей' }), 'error'),
+  });
 
   useEffect(() => {
-    loadUsersPage({ offset: 0, limit: USERS_PAGE_LIMIT })
-  }, [loadUsersPage])
+    loadUsersPage({ offset: 0, limit: USERS_PAGE_LIMIT });
+    console.log('effect triggered');
+  }, [loadUsersPage]);
 
   const users = useMemo(
     () => [...usersRaw].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
     [usersRaw]
-  )
+  );
 
   const counters = useMemo(() => {
-    const active = users.filter((user) => user.is_active).length
+    const active = users.filter((user) => user.is_active).length;
     return {
       total: usersTotal || users.length,
       active,
       inactive: (usersTotal || users.length) - active,
-    }
-  }, [users, usersTotal])
+    };
+  }, [users, usersTotal]);
 
   const handleCreateUser = async (payload) => {
-    setCreating(true)
+    setCreating(true);
     try {
-      await createAdminUser(payload)
-      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true })
-      notify(`Пользователь ${payload.email} создан`)
+      await createAdminUser(payload);
+      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true });
+      notify(`Пользователь ${payload.email} создан`);
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка создания пользователя' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка создания пользователя' }), 'error');
     } finally {
-      setCreating(false)
+      setCreating(false);
     }
-  }
+  };
 
   const handleRoleChange = async (userId, nextRole) => {
-    setUpdatingRoleId(userId)
+    setUpdatingRoleId(userId);
     try {
-      await updateAdminUserRole(userId, nextRole)
-      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true })
-      notify('Роль пользователя обновлена')
+      await updateAdminUserRole(userId, nextRole);
+      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true });
+      notify('Роль пользователя обновлена');
     } catch (error) {
       notify(
         getErrorMessage(error, {
@@ -92,11 +91,11 @@ export default function AdminUsersTab({ notify, currentUserId }) {
           },
         }),
         'error'
-      )
+      );
     } finally {
-      setUpdatingRoleId(null)
+      setUpdatingRoleId(null);
     }
-  }
+  };
 
   const handleStatusToggle = (user) => {
     setPendingAction({
@@ -106,19 +105,19 @@ export default function AdminUsersTab({ notify, currentUserId }) {
       message: user.is_active
         ? `Деактивировать ${user.email}? Пользователь потеряет доступ к системе.`
         : `Активировать ${user.email}?`,
-    })
-  }
+    });
+  };
 
   const handleStatusConfirm = async () => {
-    if (!pendingAction) return
-    const { user } = pendingAction
-    setUpdatingStatusId(user.id)
+    if (!pendingAction) return;
+    const { user } = pendingAction;
+    setUpdatingStatusId(user.id);
     try {
-      const nextStatus = !user.is_active
-      await updateAdminUserStatus(user.id, nextStatus)
-      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true })
-      notify(nextStatus ? 'Пользователь активирован' : 'Пользователь деактивирован')
-      setPendingAction(null)
+      const nextStatus = !user.is_active;
+      await updateAdminUserStatus(user.id, nextStatus);
+      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true });
+      notify(nextStatus ? 'Пользователь активирован' : 'Пользователь деактивирован');
+      setPendingAction(null);
     } catch (error) {
       notify(
         getErrorMessage(error, {
@@ -129,14 +128,14 @@ export default function AdminUsersTab({ notify, currentUserId }) {
           },
         }),
         'error'
-      )
+      );
     } finally {
-      setUpdatingStatusId(null)
+      setUpdatingStatusId(null);
     }
-  }
+  };
 
   if (loading) {
-    return <AsyncState kind="loading" title="Загрузка пользователей..." />
+    return <AsyncState kind="loading" title="Загрузка пользователей..." />;
   }
 
   return (
@@ -164,5 +163,5 @@ export default function AdminUsersTab({ notify, currentUserId }) {
         />
       )}
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 
 const STATS_CONFIG = [
   { key: 'total', label: 'Всего' },
@@ -6,7 +6,7 @@ const STATS_CONFIG = [
   { key: 'pending', label: 'Pending', className: 'tasks-tab__stat--pending' },
   { key: 'draft', label: 'Draft', className: 'tasks-tab__stat--draft' },
   { key: 'failed', label: 'Failed', className: 'tasks-tab__stat--failed' },
-]
+];
 
 export default function TaskStats({ counters }) {
   return (
@@ -18,5 +18,5 @@ export default function TaskStats({ counters }) {
         </div>
       ))}
     </div>
-  )
+  );
 }

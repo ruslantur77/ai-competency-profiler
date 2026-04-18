@@ -1,50 +1,52 @@
-import React, { useMemo, useState } from 'react'
-import { Plus, X } from 'lucide-react'
-import './AddCategoryDialog.css'
+import React, { useMemo, useState } from 'react';
+import { Plus, X } from 'lucide-react';
+import './AddCategoryDialog.css';
 
 export default function AddCategoryDialog({ onAdd, onClose, existingOptions = [] }) {
-  const hasExisting = existingOptions.length > 0
-  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new')
-  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '')
+  const hasExisting = existingOptions.length > 0;
+  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new');
+  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '');
   const [form, setForm] = useState({
     name: '',
     emoji: '📋',
     description: '',
-  })
+  });
 
   const selectedExisting = useMemo(
     () => existingOptions.find((option) => option.id === selectedId) || null,
     [existingOptions, selectedId]
-  )
+  );
 
   const handleSubmit = () => {
     if (mode === 'existing') {
-      if (!selectedExisting) return
+      if (!selectedExisting) return;
       onAdd({
         mode: 'existing',
         id: selectedExisting.id,
         name: selectedExisting.name,
         emoji: selectedExisting.emoji || '',
         description: selectedExisting.description || '',
-      })
-      return
+      });
+      return;
     }
 
-    if (!form.name.trim()) return
+    if (!form.name.trim()) return;
     onAdd({
       mode: 'new',
       name: form.name.trim(),
       emoji: form.emoji || '',
       description: form.description.trim(),
-    })
-  }
+    });
+  };
 
   return (
     <div className="add-category-overlay" onClick={onClose}>
       <div className="add-category" onClick={(event) => event.stopPropagation()}>
         <div className="add-category__header">
           <h3>➕ Добавить категорию</h3>
-          <button onClick={onClose}><X size={20} /></button>
+          <button onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
 
         <div className="add-category__mode">
@@ -73,7 +75,7 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
                 <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
                   {existingOptions.map((option) => (
                     <option key={option.id} value={option.id}>
-                      {(option.emoji || '📋')} {option.name}
+                      {option.emoji || '📋'} {option.name}
                     </option>
                   ))}
                 </select>
@@ -112,7 +114,9 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
         </div>
 
         <div className="add-category__footer">
-          <button className="btn-secondary" onClick={onClose}>Отмена</button>
+          <button className="btn-secondary" onClick={onClose}>
+            Отмена
+          </button>
           <button
             className="btn-primary"
             onClick={handleSubmit}
@@ -123,5 +127,5 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
         </div>
       </div>
     </div>
-  )
+  );
 }
