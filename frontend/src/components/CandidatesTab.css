@@ -204,7 +204,7 @@
 .candidates-tab__profile-header,
 .candidates-tab__profile-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 1.1fr 1.4fr 2fr 0.9fr 0.8fr;
   gap: 0.5rem;
   padding: 0.5rem 0.65rem;
   font-size: 0.82rem;
@@ -219,6 +219,10 @@
 .candidates-tab__profile-row {
   border-top: 1px solid #334155;
   color: #dbeafe;
+}
+
+.candidates-tab__profile-description {
+  color: #94a3b8;
 }
 
 .candidates-tab__profile-empty {

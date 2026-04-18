@@ -54,7 +54,9 @@ function CandidateProfile({ profile }) {
       </div>
       <div className="candidates-tab__profile-table">
         <div className="candidates-tab__profile-header">
+          <span>Категория</span>
           <span>Компетенция</span>
+          <span>Описание</span>
           <span>Уровень</span>
           <span>Confidence</span>
         </div>
@@ -63,7 +65,11 @@ function CandidateProfile({ profile }) {
         ) : (
           profile.competency_scores.map((item) => (
             <div key={item.competency_id} className="candidates-tab__profile-row">
-              <span>{item.competency_id}</span>
+              <span>{item.category_name || item.category_id || '—'}</span>
+              <span>{item.competency_name || item.competency_id}</span>
+              <span className="candidates-tab__profile-description">
+                {item.competency_description || '—'}
+              </span>
               <span>{item.level}</span>
               <span>{Math.round((item.confidence || 0) * 100)}%</span>
             </div>
