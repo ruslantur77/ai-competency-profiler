@@ -8,7 +8,15 @@ import {
 } from '../domain/competencyGraph'
 import './AddSubDialog.css'
 
-export default function AddSubDialog({ competencyName, onAdd, onClose }) {
+export default function AddSubDialog({
+  competencyName,
+  onAdd,
+  onClose,
+  existingOptions = [],
+}) {
+  const hasExisting = existingOptions.length > 0
+  const [mode, setMode] = useState(hasExisting ? 'existing' : 'new')
+  const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '')
   const [form, setForm] = useState({
     name: '',
     target_level: 2,
@@ -16,9 +24,27 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
     weight: 1.0,
   })
 
+  const selectedExisting = existingOptions.find((item) => item.id === selectedId) || null
+
   const handleAdd = () => {
+    if (mode === 'existing') {
+      if (!selectedExisting) return
+      onAdd({
+        mode: 'existing',
+        id: selectedExisting.id,
+        name: selectedExisting.name,
+        description: selectedExisting.description || '',
+        target_level: normalizeTargetLevel(
+          selectedExisting.target_level ?? form.target_level
+        ),
+        weight: normalizeWeight(selectedExisting.weight ?? form.weight),
+      })
+      return
+    }
+
     if (!form.name.trim()) return
     onAdd({
+      mode: 'new',
       name: form.name.trim(),
       target_level: normalizeTargetLevel(form.target_level),
       description: form.description.trim(),
@@ -38,16 +64,47 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
           Компетенция: <strong>{competencyName}</strong>
         </div>
 
+        <div className="add-dialog__mode">
+          <button
+            type="button"
+            className={`add-dialog__mode-btn ${mode === 'existing' ? 'active' : ''}`}
+            disabled={!hasExisting}
+            onClick={() => setMode('existing')}
+          >
+            Из онтологии
+          </button>
+          <button
+            type="button"
+            className={`add-dialog__mode-btn ${mode === 'new' ? 'active' : ''}`}
+            onClick={() => setMode('new')}
+          >
+            Новая
+          </button>
+        </div>
+
         <div className="add-dialog__body">
-          <label>
-            Название *
-            <input
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
-              placeholder="Например: Работа с индексами"
-              autoFocus
-            />
-          </label>
+          {mode === 'existing' ? (
+            <label>
+              Подкомпетенция из онтологии
+              <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+                {existingOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label>
+              Название *
+              <input
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                placeholder="Например: Работа с индексами"
+                autoFocus
+              />
+            </label>
+          )}
 
           <label>
             Уровень
@@ -89,7 +146,7 @@ export default function AddSubDialog({ competencyName, onAdd, onClose }) {
           <button
             className="btn-primary"
             onClick={handleAdd}
-            disabled={!form.name.trim()}
+            disabled={mode === 'existing' ? !selectedExisting : !form.name.trim()}
           >
             <Plus size={16} /> Добавить
           </button>

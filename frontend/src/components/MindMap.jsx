@@ -160,6 +160,8 @@ export default function MindMap({
   onUpdateSub,
   onDeleteSub,
   onAddSub,
+  ontologyCompetencyOptions = [],
+  ontologySubCompetencyOptions = [],
 }) {
   // Подкомпетенции
   const [editingSub, setEditingSub] = useState(null)
@@ -333,6 +335,9 @@ export default function MindMap({
       {addingSubComp && (
         <AddSubDialog
           competencyName={addingSubComp.competency_name}
+          existingOptions={ontologySubCompetencyOptions.filter(
+            (option) => option.competency_id === addingSubComp.competency_id
+          )}
           onAdd={handleAddSubSubmit}
           onClose={() => setAddingSubComp(null)}
         />
@@ -379,6 +384,9 @@ export default function MindMap({
       {addingComp && (
         <AddCompetencyDialog
           categoryName={addingComp.category_name}
+          existingOptions={ontologyCompetencyOptions.filter(
+            (option) => option.category_id === addingComp.category_id
+          )}
           onAdd={handleAddCompSubmit}
           onClose={() => setAddingComp(null)}
         />

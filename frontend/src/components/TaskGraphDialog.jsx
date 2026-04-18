@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, Save, CheckCircle2, X } from 'lucide-react'
+import AddCategoryDialog from './AddCategoryDialog'
 import MindMap from './MindMap'
-import EditCategoryDialog from './EditCategoryDialog'
 import AsyncState from './AsyncState'
+import { listCategories } from '../api/ontology'
 import {
   finalizeTaskGraph,
   getTask,
@@ -35,6 +36,7 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
   const [finalizing, setFinalizing] = useState(false)
   const [statusSaving, setStatusSaving] = useState(false)
   const [task, setTask] = useState(null)
+  const [ontologyCategories, setOntologyCategories] = useState([])
 
   const [categoryNodes, setCategoryNodes] = useState([])
   const [competencyNodes, setCompetencyNodes] = useState([])
@@ -42,6 +44,47 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
   const [originalNodes, setOriginalNodes] = useState(null)
   const [isDirty, setIsDirty] = useState(false)
   const [addingCategory, setAddingCategory] = useState(false)
+
+  const ontologyCategoryOptions = useMemo(
+    () =>
+      ontologyCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        emoji: category.emoji || '',
+        description: category.description || '',
+      })),
+    [ontologyCategories]
+  )
+
+  const ontologyCompetencyOptions = useMemo(
+    () =>
+      ontologyCategories.flatMap((category) =>
+        (category.competencies || []).map((competency) => ({
+          id: competency.id,
+          category_id: competency.category_id,
+          name: competency.name,
+          description: competency.description || '',
+        }))
+      ),
+    [ontologyCategories]
+  )
+
+  const ontologySubCompetencyOptions = useMemo(
+    () =>
+      ontologyCategories.flatMap((category) =>
+        (category.competencies || []).flatMap((competency) =>
+          (competency.sub_competencies || []).map((sub) => ({
+            id: sub.id,
+            competency_id: sub.competency_id,
+            name: sub.name,
+            description: sub.description || '',
+            target_level: sub.target_level,
+            weight: sub.weight,
+          }))
+        )
+      ),
+    [ontologyCategories]
+  )
 
   const applyTask = useCallback((data) => {
     const cats = markPersistedGraphNodes(data.category_nodes || [])
@@ -71,6 +114,18 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
   useEffect(() => {
     loadTask()
   }, [loadTask])
+
+  useEffect(() => {
+    const loadOntology = async () => {
+      try {
+        const { data } = await listCategories()
+        setOntologyCategories(Array.isArray(data) ? data : [])
+      } catch (error) {
+        notify(getErrorMessage(error, { fallback: 'Ошибка загрузки онтологии' }), 'error')
+      }
+    }
+    loadOntology()
+  }, [notify])
 
   const handleSave = async () => {
     setSaving(true)
@@ -148,6 +203,27 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
   }
 
   const handleAddCategorySubmit = (newCat) => {
+    if (newCat.mode === 'existing') {
+      const exists = categoryNodes.some((item) => item.category_id === newCat.id)
+      if (exists) {
+        notify('Категория уже добавлена в граф', 'error')
+        return
+      }
+      setCategoryNodes((prev) => [...prev, {
+        id: tempId(),
+        task_id: taskId,
+        category_id: newCat.id,
+        category_name: newCat.name,
+        category_emoji: newCat.emoji || '',
+        category_description: newCat.description || '',
+        position: nextPosition(prev),
+        _persisted: true,
+      }])
+      setAddingCategory(false)
+      markDirty()
+      return
+    }
+
     const id = tempId()
     setCategoryNodes((prev) => [...prev, {
       id,
@@ -177,6 +253,27 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
   }
 
   const handleAddCompetency = (categoryId, newComp) => {
+    if (newComp.mode === 'existing') {
+      const exists = competencyNodes.some((item) => item.competency_id === newComp.id)
+      if (exists) {
+        notify('Компетенция уже добавлена в граф', 'error')
+        return
+      }
+      setCompetencyNodes((prev) => [...prev, {
+        id: tempId(),
+        task_id: taskId,
+        competency_id: newComp.id,
+        category_id: categoryId,
+        competency_name: newComp.name,
+        competency_description: newComp.description || '',
+        is_required: newComp.is_required ?? true,
+        position: nextPosition(prev, (c) => c.category_id === categoryId),
+        _persisted: true,
+      }])
+      markDirty()
+      return
+    }
+
     const id = tempId()
     setCompetencyNodes((prev) => [...prev, {
       id,
@@ -214,6 +311,28 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
   }
 
   const handleAddSub = (competencyId, newSub) => {
+    if (newSub.mode === 'existing') {
+      const exists = subCompetencyNodes.some((item) => item.sub_competency_id === newSub.id)
+      if (exists) {
+        notify('Подкомпетенция уже добавлена в граф', 'error')
+        return
+      }
+      setSubCompetencyNodes((prev) => [...prev, {
+        id: tempId(),
+        task_id: taskId,
+        sub_competency_id: newSub.id,
+        competency_id: competencyId,
+        sub_competency_name: newSub.name,
+        sub_competency_description: newSub.description || '',
+        target_level: normalizeTargetLevel(newSub.target_level),
+        weight: normalizeWeight(newSub.weight),
+        position: nextPosition(prev, (s) => s.competency_id === competencyId),
+        _persisted: true,
+      }])
+      markDirty()
+      return
+    }
+
     const rawId = newSub.id || tempId()
     const id = isUuidLike(rawId) ? rawId : tempId()
     setSubCompetencyNodes((prev) => [...prev, {
@@ -295,6 +414,8 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
                 categoryNodes={categoryNodes}
                 competencyNodes={competencyNodes}
                 subCompetencyNodes={subCompetencyNodes}
+                ontologyCompetencyOptions={ontologyCompetencyOptions}
+                ontologySubCompetencyOptions={ontologySubCompetencyOptions}
                 onUpdateCategory={handleUpdateCategory}
                 onDeleteCategory={handleDeleteCategory}
                 onAddCategory={() => setAddingCategory(true)}
@@ -310,11 +431,10 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
         )}
 
         {addingCategory && (
-          <EditCategoryDialog
-            category={{ id: '', name: '', emoji: '📌', description: '' }}
-            onSave={handleAddCategorySubmit}
+          <AddCategoryDialog
+            existingOptions={ontologyCategoryOptions}
+            onAdd={handleAddCategorySubmit}
             onClose={() => setAddingCategory(false)}
-            title="➕ Добавить категорию"
           />
         )}
       </div>

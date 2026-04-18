@@ -50,6 +50,31 @@
   .add-comp__context strong {
     color: #e2e8f0;
   }
+
+  .add-comp__mode {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem 0;
+  }
+
+  .add-comp__mode-btn {
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #cbd5e1;
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .add-comp__mode-btn.active {
+    border-color: #60a5fa;
+    color: #dbeafe;
+  }
+
+  .add-comp__mode-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
   
   .add-comp__body {
     padding: 1.5rem;
@@ -78,6 +103,16 @@
   .add-comp__body textarea:focus {
     outline: none;
     border-color: #3b82f6;
+  }
+
+  .add-comp__body select {
+    padding: 10px 12px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    font-family: inherit;
   }
   
   .add-comp__footer {
