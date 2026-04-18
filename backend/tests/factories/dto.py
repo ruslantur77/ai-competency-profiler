@@ -86,6 +86,10 @@ class ApiDTOFactory:
             competency_scores=[
                 CompetencyScoreDTO(
                     competency_id=uuid4(),
+                    competency_name="Backend",
+                    competency_description="Backend competency",
+                    category_id=uuid4(),
+                    category_name="Engineering",
                     level=CompetencyLevel.ADVANCED,
                     confidence=0.8,
                 )

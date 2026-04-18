@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
+from uuid import UUID
+
 from competency_system.application.dtos.candidate import (
     CandidateProfileDTO,
     CompetencyScoreDTO,
@@ -41,7 +44,13 @@ from competency_system.domain.services.ranking_engine import (
 def candidate_profile_dto_from_scoring(
     candidate: Candidate,
     scores: list[CompetencyScore],
+    competencies: list[Competency] | None = None,
+    category_names_by_id: Mapping[UUID, str] | None = None,
 ) -> CandidateProfileDTO:
+    competencies_by_id: dict[UUID, Competency] = {
+        competency.id: competency for competency in (competencies or [])
+    }
+    category_names = category_names_by_id or {}
     total_score = (
         sum(s.confidence for s in scores) / len(scores) * 100 if scores else 0.0
     )
@@ -51,6 +60,26 @@ def candidate_profile_dto_from_scoring(
         competency_scores=[
             CompetencyScoreDTO(
                 competency_id=s.competency_id,
+                competency_name=(
+                    competencies_by_id[s.competency_id].name
+                    if s.competency_id in competencies_by_id
+                    else ""
+                ),
+                competency_description=(
+                    competencies_by_id[s.competency_id].description
+                    if s.competency_id in competencies_by_id
+                    else ""
+                ),
+                category_id=(
+                    competencies_by_id[s.competency_id].category_id
+                    if s.competency_id in competencies_by_id
+                    else None
+                ),
+                category_name=(
+                    category_names.get(competencies_by_id[s.competency_id].category_id, "")
+                    if s.competency_id in competencies_by_id
+                    else ""
+                ),
                 level=s.level,
                 confidence=s.confidence,
             )

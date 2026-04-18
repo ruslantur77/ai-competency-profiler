@@ -145,9 +145,18 @@ class WebhookEventOperation:
         scores = self._scorer.calculate_scores(
             candidate, vacancy.requirement_competencies
         )
+        category_names_by_id = {
+            node.category_id: node.category.name if node.category else ""
+            for node in vacancy.category_nodes
+        }
         raise _DuplicateWebhookEvent(
             CandidateAssessmentResultDTO(
-                candidate_profile=candidate_profile_dto_from_scoring(candidate, scores),
+                candidate_profile=candidate_profile_dto_from_scoring(
+                    candidate,
+                    scores,
+                    competencies=vacancy.requirement_competencies,
+                    category_names_by_id=category_names_by_id,
+                ),
                 test_result=test_result_dto_from_domain(test_result),
             )
         )
@@ -321,10 +330,19 @@ class CandidateScoringOperation:
             scores = self._scorer.calculate_scores(
                 candidate, vacancy.requirement_competencies
             )
+            category_names_by_id = {
+                node.category_id: node.category.name if node.category else ""
+                for node in vacancy.category_nodes
+            }
             await uow.commit()
 
         result_dto = CandidateAssessmentResultDTO(
-            candidate_profile=candidate_profile_dto_from_scoring(candidate, scores),
+            candidate_profile=candidate_profile_dto_from_scoring(
+                candidate,
+                scores,
+                competencies=vacancy.requirement_competencies,
+                category_names_by_id=category_names_by_id,
+            ),
             test_result=test_result_dto_from_domain(test_result),
         )
         return candidate, test_result, result_dto
@@ -549,7 +567,16 @@ class GetCandidateProfileUseCase:
             scores = self._scorer.calculate_scores(
                 candidate, vacancy.requirement_competencies
             )
-            return candidate_profile_dto_from_scoring(candidate, scores)
+            category_names_by_id = {
+                node.category_id: node.category.name if node.category else ""
+                for node in vacancy.category_nodes
+            }
+            return candidate_profile_dto_from_scoring(
+                candidate,
+                scores,
+                competencies=vacancy.requirement_competencies,
+                category_names_by_id=category_names_by_id,
+            )
 
 
 class ListVacancyCandidatesUseCase:

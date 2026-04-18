@@ -36,6 +36,10 @@ class CompetencyScoreDTO(BaseDTO):
     """DTO для оценки компетенции."""
 
     competency_id: UUID
+    competency_name: str = ""
+    competency_description: str = ""
+    category_id: UUID | None = None
+    category_name: str = ""
     level: CompetencyLevel
     confidence: float
 
