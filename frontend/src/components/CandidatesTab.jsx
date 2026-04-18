@@ -10,78 +10,14 @@ import { getErrorMessage } from '../api/errors'
 import usePaginatedResource from '../hooks/usePaginatedResource'
 import AsyncState from './AsyncState'
 import ConfirmDialog from './ConfirmDialog'
+import CandidateRow from './candidates/CandidateRow'
+import CandidateProfileTable from './candidates/CandidateProfileTable'
+import CandidateStats from './candidates/CandidateStats'
+import { getCandidateStatusMeta } from '../domain/statusMeta'
+import { formatDateTime } from '../utils/formatters'
 import './CandidatesTab.css'
 
 const PAGE_LIMIT = 20
-
-const STATUS_META = {
-  pending: { label: 'Ожидает оценки', badge: 'pending' },
-  completed: { label: 'Оценен', badge: 'completed' },
-  failed: { label: 'Ошибка оценки', badge: 'failed' },
-}
-
-const formatDateTime = (value) => {
-  if (!value) return '—'
-  return new Date(value).toLocaleString('ru-RU')
-}
-
-function CandidateRow({ candidate, selected, onSelect }) {
-  const statusMeta = STATUS_META[candidate.status] || STATUS_META.pending
-  return (
-    <button
-      className={`candidates-tab__row ${selected ? 'is-selected' : ''}`}
-      onClick={() => onSelect(candidate.id)}
-    >
-      <div className="candidates-tab__row-main">
-        <span className="candidates-tab__candidate-id">{candidate.external_id}</span>
-        <span className={`candidates-tab__status candidates-tab__status--${statusMeta.badge}`}>
-          {statusMeta.label}
-        </span>
-      </div>
-      <div className="candidates-tab__row-meta">
-        <span>{formatDateTime(candidate.last_assessment_at)}</span>
-      </div>
-    </button>
-  )
-}
-
-function CandidateProfile({ profile }) {
-  if (!profile) return null
-  const score = Math.round((profile.total_score || 0) * 100)
-
-  return (
-    <div className="candidates-tab__profile">
-      <div className="candidates-tab__profile-score">
-        <span className="candidates-tab__profile-score-label">Итоговый score</span>
-        <strong>{score}%</strong>
-      </div>
-      <div className="candidates-tab__profile-table">
-        <div className="candidates-tab__profile-header">
-          <span>Категория</span>
-          <span>Компетенция</span>
-          <span>Описание</span>
-          <span>Уровень</span>
-          <span>Confidence</span>
-        </div>
-        {profile.competency_scores.length === 0 ? (
-          <div className="candidates-tab__profile-empty">Нет оцененных компетенций</div>
-        ) : (
-          profile.competency_scores.map((item) => (
-            <div key={item.competency_id} className="candidates-tab__profile-row">
-              <span>{item.category_name || item.category_id || '—'}</span>
-              <span>{item.competency_name || item.competency_id}</span>
-              <span className="candidates-tab__profile-description">
-                {item.competency_description || '—'}
-              </span>
-              <span>{item.level}</span>
-              <span>{Math.round((item.confidence || 0) * 100)}%</span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  )
-}
 
 export default function CandidatesTab({
   notify,
@@ -232,27 +168,13 @@ export default function CandidatesTab({
   const selectedVacancy = selectedCandidate
     ? vacancyMap.get(selectedCandidate.vacancy_id)
     : null
+  const selectedStatusMeta = candidateDetail
+    ? getCandidateStatusMeta(candidateDetail.status)
+    : null
 
   return (
     <div className="candidates-tab">
-      <div className="candidates-tab__stats">
-        <div className="candidates-tab__stat">
-          <span className="candidates-tab__stat-value">{totalCandidates}</span>
-          <span className="candidates-tab__stat-label">Всего</span>
-        </div>
-        <div className="candidates-tab__stat candidates-tab__stat--completed">
-          <span className="candidates-tab__stat-value">{pageStatusCounters.completed}</span>
-          <span className="candidates-tab__stat-label">Completed (page)</span>
-        </div>
-        <div className="candidates-tab__stat candidates-tab__stat--pending">
-          <span className="candidates-tab__stat-value">{pageStatusCounters.pending}</span>
-          <span className="candidates-tab__stat-label">Pending (page)</span>
-        </div>
-        <div className="candidates-tab__stat candidates-tab__stat--failed">
-          <span className="candidates-tab__stat-value">{pageStatusCounters.failed}</span>
-          <span className="candidates-tab__stat-label">Failed (page)</span>
-        </div>
-      </div>
+      <CandidateStats total={totalCandidates} counters={pageStatusCounters} />
 
       <div className="candidates-tab__layout">
         <div className="candidates-tab__list-wrap">
@@ -296,7 +218,7 @@ export default function CandidatesTab({
 
               <div className="candidates-tab__detail-meta">
                 <span>
-                  Статус: {STATUS_META[candidateDetail.status]?.label || candidateDetail.status}
+                  Статус: {selectedStatusMeta?.label || candidateDetail.status}
                 </span>
                 <span>Последняя оценка: {formatDateTime(candidateDetail.last_assessment_at)}</span>
                 <span>
@@ -333,7 +255,7 @@ export default function CandidatesTab({
                 </button>
               </div>
 
-              <CandidateProfile profile={candidateProfile} />
+              <CandidateProfileTable profile={candidateProfile} />
             </>
           )}
         </div>
