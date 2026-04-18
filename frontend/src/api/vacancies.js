@@ -11,5 +11,8 @@ export const getGraph = (id) => api.get(`/vacancies/${id}/graph`)
 
 export const updateGraph = (id, data) => api.patch(`/vacancies/${id}/graph`, data)
 
+export const finalizeVacancyGraph = (id) =>
+  api.post(`/vacancies/${id}/graph/finalize`)
+
 export const updateVacancyStatus = (id, status) =>
   api.patch(`/vacancies/${id}/status`, { status })

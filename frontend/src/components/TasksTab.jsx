@@ -1,27 +1,32 @@
-// frontend/src/components/TasksTab.jsx
-import React, { useState, useEffect, useCallback } from 'react'
-import { CheckCircle, XCircle, Clock, RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
-import { listTasks, rebuildTaskMapping, validateTaskMapping } from '../api/tasks'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
+import { finalizeTaskGraph, listTasks } from '../api/tasks'
 import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
 import ForbiddenState from './ForbiddenState'
 import AsyncState from './AsyncState'
+import TaskGraphDialog from './TaskGraphDialog'
 import './TasksTab.css'
 
-const MAPPING_STATUS_CONFIG = {
+const TASK_STATUS_CONFIG = {
   pending: {
     label: 'Ожидает маппинга',
     icon: (size) => <Clock size={size} />,
     badge: 'pending',
   },
-  completed: {
-    label: 'Маппинг готов',
+  draft: {
+    label: 'Черновик графа',
+    icon: (size) => <ExternalLink size={size} />,
+    badge: 'draft',
+  },
+  ready: {
+    label: 'Граф готов',
     icon: (size) => <CheckCircle size={size} />,
     badge: 'completed',
   },
   failed: {
-    label: 'Ошибка маппинга',
-    icon: (size) => <XCircle size={size} />,
+    label: 'Ошибка обработки',
+    icon: (size) => <AlertCircle size={size} />,
     badge: 'failed',
   },
 }
@@ -31,83 +36,53 @@ const TASK_TYPE_LABELS = {
   test: '📝 Тест',
 }
 
-function TaskCard({ task, onRebuild, onValidate, rebuilding, validating }) {
-  const [expanded, setExpanded] = useState(false)
-  const statusConfig = MAPPING_STATUS_CONFIG[task.mapping_status] || MAPPING_STATUS_CONFIG.pending
+function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
+  const statusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending
+  const canFinalize = task.status === 'draft'
 
   return (
-    <div className={`task-card task-card--${task.mapping_status}`}>
-      <div className="task-card__header" onClick={() => setExpanded(e => !e)}>
+    <div className={`task-card task-card--${statusConfig.badge}`}>
+      <div className="task-card__header task-card__header--static">
         <div className="task-card__header-left">
-          <button className="task-card__expand">
-            {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
           <div className="task-card__info">
             <span className="task-card__title">{task.title}</span>
             <span className="task-card__type">{TASK_TYPE_LABELS[task.type] || task.type}</span>
           </div>
         </div>
-        <div className="task-card__header-right" onClick={e => e.stopPropagation()}>
+        <div className="task-card__header-right">
           <span className={`task-card__badge task-card__badge--${statusConfig.badge}`}>
             {statusConfig.icon(13)}
             {statusConfig.label}
           </span>
-          {task.mapping_validated && (
-            <span className="task-card__validated">✅ Валидировано</span>
-          )}
           <button
-            className="task-card__btn task-card__btn--rebuild"
-            onClick={() => onRebuild(task.id)}
-            disabled={rebuilding}
-            title="Перестроить маппинг"
+            className="task-card__btn"
+            onClick={() => onOpenGraph(task.id)}
+            title="Открыть граф задачи"
           >
-            {rebuilding ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
+            <ExternalLink size={14} />
+            Граф
           </button>
-          {task.mapping_status === 'completed' && !task.mapping_validated && (
+          {canFinalize && (
             <button
               className="task-card__btn task-card__btn--validate"
-              onClick={() => onValidate(task.id)}
-              disabled={validating}
-              title="Валидировать маппинг"
+              onClick={() => onFinalize(task.id)}
+              disabled={finalizing}
+              title="Finalize task graph"
             >
-              {validating ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-              Валидировать
+              {finalizing ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
+              Finalize
             </button>
           )}
         </div>
       </div>
 
-      {expanded && (
-        <div className="task-card__body">
-          {task.description && (
-            <p className="task-card__description">{task.description}</p>
-          )}
-
-          {task.mapping_error_message && (
-            <div className="task-card__error">
-              ⚠️ {task.mapping_error_message}
-            </div>
-          )}
-
-          {(task.competency_mappings || []).length > 0 ? (
-            <div className="task-card__mappings">
-              <span className="task-card__mappings-label">Маппинг компетенций:</span>
-              {(task.competency_mappings || []).map(m => (
-                <div key={m.sub_competency_id} className="task-card__mapping-item">
-                  <span className="task-card__mapping-id">
-                    {m.sub_competency_id}
-                  </span>
-                  <span className="task-card__mapping-weight">
-                    вес: {Number(m.weight ?? 0).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="task-card__no-mappings">Маппинг компетенций не задан</p>
-          )}
+      <div className="task-card__body">
+        <p className="task-card__description">{task.description || 'Описание не задано'}</p>
+        <div className="task-card__meta">
+          <span>ID: {task.external_id}</span>
+          <span>Создано: {new Date(task.created_at).toLocaleString('ru-RU')}</span>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -115,9 +90,9 @@ function TaskCard({ task, onRebuild, onValidate, rebuilding, validating }) {
 export default function TasksTab({ notify }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
-  const [rebuildingId, setRebuildingId] = useState(null)
-  const [validatingId, setValidatingId] = useState(null)
   const [isForbidden, setIsForbidden] = useState(false)
+  const [selectedTaskId, setSelectedTaskId] = useState(null)
+  const [finalizingId, setFinalizingId] = useState(null)
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -138,31 +113,26 @@ export default function TasksTab({ notify }) {
     fetchTasks()
   }, [fetchTasks])
 
-  const handleRebuild = async (taskId) => {
-    setRebuildingId(taskId)
+  const handleFinalize = async (taskId) => {
+    setFinalizingId(taskId)
     try {
-      const { data } = await rebuildTaskMapping(taskId)
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t))
-      notify('🔄 Маппинг перестроен')
+      const { data } = await finalizeTaskGraph(taskId)
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, ...data } : task)))
+      notify('Граф задачи финализирован')
     } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка перестройки маппинга' }), 'error')
+      notify(getErrorMessage(error, { fallback: 'Ошибка финализации графа задачи' }), 'error')
     } finally {
-      setRebuildingId(null)
+      setFinalizingId(null)
     }
   }
 
-  const handleValidate = async (taskId) => {
-    setValidatingId(taskId)
-    try {
-      const { data } = await validateTaskMapping(taskId)
-      setTasks(prev => prev.map(t => t.id === taskId ? data : t))
-      notify('✅ Маппинг валидирован')
-    } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка валидации маппинга' }), 'error')
-    } finally {
-      setValidatingId(null)
-    }
-  }
+  const counters = useMemo(() => {
+    const pending = tasks.filter((task) => task.status === 'pending').length
+    const draft = tasks.filter((task) => task.status === 'draft').length
+    const ready = tasks.filter((task) => task.status === 'ready').length
+    const failed = tasks.filter((task) => task.status === 'failed').length
+    return { pending, draft, ready, failed }
+  }, [tasks])
 
   if (loading) {
     return <AsyncState kind="loading" title="Загрузка заданий..." />
@@ -184,10 +154,6 @@ export default function TasksTab({ notify }) {
     )
   }
 
-  const pending = tasks.filter(t => t.mapping_status === 'pending')
-  const completed = tasks.filter(t => t.mapping_status === 'completed')
-  const failed = tasks.filter(t => t.mapping_status === 'failed')
-
   return (
     <div className="tasks-tab">
       <div className="tasks-tab__stats">
@@ -196,31 +162,43 @@ export default function TasksTab({ notify }) {
           <span className="tasks-tab__stat-label">Всего</span>
         </div>
         <div className="tasks-tab__stat tasks-tab__stat--completed">
-          <span className="tasks-tab__stat-value">{completed.length}</span>
-          <span className="tasks-tab__stat-label">Готово</span>
+          <span className="tasks-tab__stat-value">{counters.ready}</span>
+          <span className="tasks-tab__stat-label">Ready</span>
         </div>
         <div className="tasks-tab__stat tasks-tab__stat--pending">
-          <span className="tasks-tab__stat-value">{pending.length}</span>
-          <span className="tasks-tab__stat-label">Ожидает</span>
+          <span className="tasks-tab__stat-value">{counters.pending}</span>
+          <span className="tasks-tab__stat-label">Pending</span>
+        </div>
+        <div className="tasks-tab__stat tasks-tab__stat--draft">
+          <span className="tasks-tab__stat-value">{counters.draft}</span>
+          <span className="tasks-tab__stat-label">Draft</span>
         </div>
         <div className="tasks-tab__stat tasks-tab__stat--failed">
-          <span className="tasks-tab__stat-value">{failed.length}</span>
-          <span className="tasks-tab__stat-label">Ошибка</span>
+          <span className="tasks-tab__stat-value">{counters.failed}</span>
+          <span className="tasks-tab__stat-label">Failed</span>
         </div>
       </div>
 
       <div className="tasks-tab__list">
-        {tasks.map(task => (
+        {tasks.map((task) => (
           <TaskCard
             key={task.id}
             task={task}
-            onRebuild={handleRebuild}
-            onValidate={handleValidate}
-            rebuilding={rebuildingId === task.id}
-            validating={validatingId === task.id}
+            onOpenGraph={setSelectedTaskId}
+            onFinalize={handleFinalize}
+            finalizing={finalizingId === task.id}
           />
         ))}
       </div>
+
+      {selectedTaskId && (
+        <TaskGraphDialog
+          taskId={selectedTaskId}
+          notify={notify}
+          onClose={() => setSelectedTaskId(null)}
+          onUpdated={fetchTasks}
+        />
+      )}
     </div>
   )
 }

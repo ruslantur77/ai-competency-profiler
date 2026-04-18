@@ -5,7 +5,7 @@ import { Plus, Loader2, CheckCircle, ExternalLink, AlertCircle, LogOut, FileEdit
 import { listVacancies, createVacancy } from '../api/vacancies'
 import { extractItems } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
-import { canAccessTasks, canEditGraph } from '../api/roles'
+import { canAccessTasks, canCreateVacancy } from '../api/roles'
 import CreateVacancyDialog from './CreateVacancyDialog'
 import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
@@ -26,7 +26,7 @@ const STATUS_CONFIG = {
     icon: (size) => <FileEdit size={size} />,
   },
   ready: {
-    label: 'Готово к редактированию',
+    label: 'Граф финализирован',
     badge: 'ready',
     icon: (size) => <CheckCircle size={size} />,
   },
@@ -45,7 +45,7 @@ export default function VacancyList({ notify, onLogout, role }) {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const pollCycleRef = useRef(0)
-  const canEdit = canEditGraph(role)
+  const canCreate = canCreateVacancy(role)
   const tabs = useMemo(() => ([
     { id: 'vacancies', label: '📋 Вакансии' },
     ...(canAccessTasks(role) ? [{ id: 'tasks', label: '📝 Задания' }] : []),
@@ -115,7 +115,7 @@ export default function VacancyList({ notify, onLogout, role }) {
 
   const handleCreate = async (data) => {
     try {
-      if (!canEdit) {
+      if (!canCreate) {
         notify('Недостаточно прав для создания вакансии', 'error')
         return
       }
@@ -156,7 +156,7 @@ export default function VacancyList({ notify, onLogout, role }) {
           <p>Формирование компетентностного профиля специалиста</p>
         </div>
         <div className="vacancy-list__header-actions">
-          {activeTab === 'vacancies' && canEdit && (
+          {activeTab === 'vacancies' && canCreate && (
             <button className="btn-primary" onClick={() => setCreating(true)}>
               <Plus size={18} /> Создать вакансию
             </button>
@@ -191,11 +191,11 @@ export default function VacancyList({ notify, onLogout, role }) {
             <AsyncState
               kind="empty"
               title="📋 Вакансий пока нет"
-              hint={canEdit
+              hint={canCreate
                 ? 'Создайте первую вакансию для формирования профиля компетенций'
                 : 'Вакансий пока нет'}
-              actionLabel={canEdit ? 'Создать вакансию' : undefined}
-              onAction={canEdit ? () => setCreating(true) : undefined}
+              actionLabel={canCreate ? 'Создать вакансию' : undefined}
+              onAction={canCreate ? () => setCreating(true) : undefined}
             />
           ) : (
             <div className="vacancy-list__grid">
@@ -245,7 +245,7 @@ export default function VacancyList({ notify, onLogout, role }) {
         )}
       </div>
 
-      {creating && canEdit && (
+      {creating && canCreate && (
         <CreateVacancyDialog
           onClose={() => setCreating(false)}
           onCreate={handleCreate}

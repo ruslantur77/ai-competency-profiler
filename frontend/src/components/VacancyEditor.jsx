@@ -1,31 +1,31 @@
 // frontend/src/components/VacancyEditor.jsx
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, RotateCcw, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, RotateCcw, Loader2, CheckCircle2 } from 'lucide-react'
 import VacancySidebar from './VacancySidebar'
 import MindMap from './MindMap'
 import EditCategoryDialog from './EditCategoryDialog'
 import SuggestionsPanel from './SuggestionsPanel'
 import ForbiddenState from './ForbiddenState'
-import { getVacancy, updateGraph } from '../api/vacancies'
+import { finalizeVacancyGraph, getVacancy, updateGraph } from '../api/vacancies'
 import { getErrorMessage } from '../api/errors'
 import { canEditGraph, canUseSuggestions } from '../api/roles'
 import {
   buildVacancyGraphDTO,
   isUuidLike,
+  markPersistedGraphNodes,
   nextPosition,
   normalizeTargetLevel,
   normalizeWeight,
 } from '../domain/competencyGraph'
 import './VacancyEditor.css'
 
-// ===== HELPERS =====
 const tempId = () => crypto.randomUUID()
 const EDITABLE_STATUSES = new Set(['draft', 'ready'])
 const VACANCY_STATUS_LABELS = {
   pending: 'Извлечение компетенций',
   draft: 'Черновик',
-  ready: 'Готово',
+  ready: 'Финализировано',
   failed: 'Ошибка обработки',
 }
 
@@ -35,6 +35,7 @@ export default function VacancyEditor({ notify, role }) {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [finalizing, setFinalizing] = useState(false)
   const [vacancy, setVacancy] = useState(null)
 
   const [categoryNodes, setCategoryNodes] = useState([])
@@ -48,21 +49,26 @@ export default function VacancyEditor({ notify, role }) {
   const canEdit = canEditGraph(role)
   const isEditableStatus = EDITABLE_STATUSES.has(vacancy?.status)
   const canMutateGraph = canEdit && isEditableStatus
+  const canFinalize = canEdit && vacancy?.status === 'draft' && !isDirty
   const canReviewSuggestions = canUseSuggestions(role) && vacancy?.status === 'draft'
 
-  // ===== ЗАГРУЗКА =====
+  const applyVacancyData = useCallback((data) => {
+    const cats = markPersistedGraphNodes(data.category_nodes || [])
+    const comps = markPersistedGraphNodes(data.competency_nodes || [])
+    const subs = markPersistedGraphNodes(data.sub_competency_nodes || [])
+
+    setVacancy(data)
+    setCategoryNodes(cats)
+    setCompetencyNodes(comps)
+    setSubCompetencyNodes(subs)
+    setOriginalNodes({ cats, comps, subs })
+    setIsDirty(false)
+  }, [])
+
   const loadVacancy = useCallback(async () => {
     try {
       const { data } = await getVacancy(vacancyId)
-      setVacancy(data)
-      const cats = data.category_nodes || []
-      const comps = data.competency_nodes || []
-      const subs = data.sub_competency_nodes || []
-      setCategoryNodes(cats)
-      setCompetencyNodes(comps)
-      setSubCompetencyNodes(subs)
-      setOriginalNodes({ cats, comps, subs })
-      setIsDirty(false)
+      applyVacancyData(data)
       setIsForbidden(false)
     } catch (error) {
       const forbidden = error?.response?.status === 403
@@ -74,13 +80,12 @@ export default function VacancyEditor({ notify, role }) {
     } finally {
       setLoading(false)
     }
-  }, [vacancyId, notify, navigate])
+  }, [vacancyId, applyVacancyData, notify, navigate])
 
   useEffect(() => {
     loadVacancy()
   }, [loadVacancy])
 
-  // ===== СОХРАНЕНИЕ ГРАФА =====
   const handleSave = async () => {
     if (!canMutateGraph) {
       notify('Недостаточно прав для редактирования графа', 'error')
@@ -90,20 +95,10 @@ export default function VacancyEditor({ notify, role }) {
     try {
       const dto = buildVacancyGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes)
       await updateGraph(vacancyId, dto)
-  
-      // Читаем свежие данные с именами через GET, не из ответа PATCH
+
       const { data: fresh } = await getVacancy(vacancyId)
-      const cats = fresh.category_nodes || []
-      const comps = fresh.competency_nodes || []
-      const subs = fresh.sub_competency_nodes || []
-  
-      setVacancy(fresh)
-      setCategoryNodes(cats)
-      setCompetencyNodes(comps)
-      setSubCompetencyNodes(subs)
-      setOriginalNodes({ cats, comps, subs })
-      setIsDirty(false)
-      notify('✅ Граф компетенций сохранён')
+      applyVacancyData(fresh)
+      notify('Граф компетенций сохранен')
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка сохранения' }), 'error')
     } finally {
@@ -111,69 +106,65 @@ export default function VacancyEditor({ notify, role }) {
     }
   }
 
-  // ===== ОТМЕНА =====
+  const handleFinalize = async () => {
+    if (!canFinalize) return
+    setFinalizing(true)
+    try {
+      await finalizeVacancyGraph(vacancyId)
+      const { data: fresh } = await getVacancy(vacancyId)
+      applyVacancyData(fresh)
+      notify('Вакансия переведена в статус ready')
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка финализации графа' }), 'error')
+    } finally {
+      setFinalizing(false)
+    }
+  }
+
   const handleDiscard = () => {
     if (!originalNodes) return
     setCategoryNodes(originalNodes.cats)
     setCompetencyNodes(originalNodes.comps)
     setSubCompetencyNodes(originalNodes.subs)
     setIsDirty(false)
-    notify('↩️ Изменения отменены')
+    notify('Изменения отменены')
   }
 
   const markDirty = () => setIsDirty(true)
 
-  // ===== SUGGESTIONS =====
-  // Вызывается после того как SuggestionsPanel отправила все decisions на бек
-  // Перечитываем граф — бек уже добавил approved узлы
-// Вызывается после того как SuggestionsPanel отправила все decisions
-const handleSuggestionsApplied = useCallback(async () => {
-  try {
-    // 1. Читаем граф — бек уже добавил approved узлы
-    const { data } = await getVacancy(vacancyId)
-    const cats = data.category_nodes || []
-    const comps = data.competency_nodes || []
-    const subs = data.sub_competency_nodes || []
+  const handleSuggestionsApplied = useCallback(async () => {
+    try {
+      const { data } = await getVacancy(vacancyId)
+      const cats = markPersistedGraphNodes(data.category_nodes || [])
+      const comps = markPersistedGraphNodes(data.competency_nodes || [])
+      const subs = markPersistedGraphNodes(data.sub_competency_nodes || [])
 
-    // 2. Сохраняем граф → бек переводит статус в ready
-    await updateGraph(vacancyId, buildVacancyGraphDTO(cats, comps, subs))
+      await updateGraph(vacancyId, buildVacancyGraphDTO(cats, comps, subs))
 
-    // 3. Читаем ЕЩЁ РАЗ — теперь с заполненными именами
-    const { data: fresh } = await getVacancy(vacancyId)
-    const freshCats = fresh.category_nodes || []
-    const freshComps = fresh.competency_nodes || []
-    const freshSubs = fresh.sub_competency_nodes || []
+      const { data: fresh } = await getVacancy(vacancyId)
+      applyVacancyData(fresh)
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка обновления графа' }), 'error')
+    }
+  }, [vacancyId, applyVacancyData, notify])
 
-    setVacancy(fresh)
-    setCategoryNodes(freshCats)
-    setCompetencyNodes(freshComps)
-    setSubCompetencyNodes(freshSubs)
-    setOriginalNodes({ cats: freshCats, comps: freshComps, subs: freshSubs })
-    setIsDirty(false)
-
-  } catch (error) {
-    notify(getErrorMessage(error, { fallback: 'Ошибка обновления графа' }), 'error')
-  }
-}, [vacancyId, notify])
-
-  // ===== КАТЕГОРИИ =====
   const handleUpdateCategory = (updated) => {
     if (!canMutateGraph) return
-    setCategoryNodes(prev => prev.map(c =>
+    setCategoryNodes((prev) => prev.map((c) => (
       c.category_id === updated.category_id ? { ...c, ...updated } : c
-    ))
+    )))
     markDirty()
   }
 
   const handleDeleteCategory = (categoryId) => {
     if (!canMutateGraph) return
     const removedCompIds = competencyNodes
-      .filter(c => c.category_id === categoryId)
-      .map(c => c.competency_id)
-    setCategoryNodes(prev => prev.filter(c => c.category_id !== categoryId))
-    setCompetencyNodes(prev => prev.filter(c => c.category_id !== categoryId))
-    setSubCompetencyNodes(prev =>
-      prev.filter(s => !removedCompIds.includes(s.competency_id))
+      .filter((c) => c.category_id === categoryId)
+      .map((c) => c.competency_id)
+    setCategoryNodes((prev) => prev.filter((c) => c.category_id !== categoryId))
+    setCompetencyNodes((prev) => prev.filter((c) => c.category_id !== categoryId))
+    setSubCompetencyNodes((prev) =>
+      prev.filter((s) => !removedCompIds.includes(s.competency_id))
     )
     markDirty()
   }
@@ -181,7 +172,7 @@ const handleSuggestionsApplied = useCallback(async () => {
   const handleAddCategorySubmit = (newCat) => {
     if (!canMutateGraph) return
     const id = tempId()
-    setCategoryNodes(prev => [...prev, {
+    setCategoryNodes((prev) => [...prev, {
       id,
       vacancy_id: vacancyId,
       category_id: id,
@@ -189,31 +180,31 @@ const handleSuggestionsApplied = useCallback(async () => {
       category_emoji: newCat.emoji || '',
       category_description: newCat.description || '',
       position: nextPosition(prev),
+      _persisted: false,
     }])
     setAddingCategory(false)
     markDirty()
   }
 
-  // ===== КОМПЕТЕНЦИИ =====
   const handleUpdateCompetency = (updated) => {
     if (!canMutateGraph) return
-    setCompetencyNodes(prev => prev.map(c =>
+    setCompetencyNodes((prev) => prev.map((c) => (
       c.competency_id === updated.competency_id ? { ...c, ...updated } : c
-    ))
+    )))
     markDirty()
   }
 
   const handleDeleteCompetency = (competencyId) => {
     if (!canMutateGraph) return
-    setCompetencyNodes(prev => prev.filter(c => c.competency_id !== competencyId))
-    setSubCompetencyNodes(prev => prev.filter(s => s.competency_id !== competencyId))
+    setCompetencyNodes((prev) => prev.filter((c) => c.competency_id !== competencyId))
+    setSubCompetencyNodes((prev) => prev.filter((s) => s.competency_id !== competencyId))
     markDirty()
   }
 
   const handleAddCompetency = (categoryId, newComp) => {
     if (!canMutateGraph) return
     const id = tempId()
-    setCompetencyNodes(prev => [...prev, {
+    setCompetencyNodes((prev) => [...prev, {
       id,
       vacancy_id: vacancyId,
       competency_id: id,
@@ -221,15 +212,15 @@ const handleSuggestionsApplied = useCallback(async () => {
       competency_name: newComp.name,
       competency_description: newComp.description || '',
       is_required: newComp.is_required ?? true,
-      position: nextPosition(prev, c => c.category_id === categoryId),
+      position: nextPosition(prev, (c) => c.category_id === categoryId),
+      _persisted: false,
     }])
     markDirty()
   }
 
-  // ===== ПОДКОМПЕТЕНЦИИ =====
   const handleUpdateSub = (updatedSub) => {
     if (!canMutateGraph) return
-    setSubCompetencyNodes(prev => prev.map(s =>
+    setSubCompetencyNodes((prev) => prev.map((s) => (
       s.sub_competency_id === updatedSub.sub_competency_id
         ? {
           ...s,
@@ -238,14 +229,14 @@ const handleSuggestionsApplied = useCallback(async () => {
           weight: normalizeWeight(updatedSub.weight),
         }
         : s
-    ))
+    )))
     markDirty()
   }
 
   const handleDeleteSub = (subCompetencyId) => {
     if (!canMutateGraph) return
-    setSubCompetencyNodes(prev =>
-      prev.filter(s => s.sub_competency_id !== subCompetencyId)
+    setSubCompetencyNodes((prev) =>
+      prev.filter((s) => s.sub_competency_id !== subCompetencyId)
     )
     markDirty()
   }
@@ -254,7 +245,7 @@ const handleSuggestionsApplied = useCallback(async () => {
     if (!canMutateGraph) return
     const rawId = newSub.id || tempId()
     const id = isUuidLike(rawId) ? rawId : tempId()
-    setSubCompetencyNodes(prev => [...prev, {
+    setSubCompetencyNodes((prev) => [...prev, {
       id,
       vacancy_id: vacancyId,
       sub_competency_id: id,
@@ -263,12 +254,12 @@ const handleSuggestionsApplied = useCallback(async () => {
       sub_competency_description: newSub.description || '',
       target_level: normalizeTargetLevel(newSub.target_level),
       weight: normalizeWeight(newSub.weight),
-      position: nextPosition(prev, s => s.competency_id === competencyId),
+      position: nextPosition(prev, (s) => s.competency_id === competencyId),
+      _persisted: false,
     }])
     markDirty()
   }
 
-  // ===== RENDER =====
   if (loading) {
     return (
       <div className="loading-state">
@@ -322,6 +313,17 @@ const handleSuggestionsApplied = useCallback(async () => {
               {saving
                 ? <><Loader2 size={16} className="spin" /> Сохранение...</>
                 : <><Save size={16} /> Сохранить</>
+              }
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={handleFinalize}
+              disabled={!canFinalize || finalizing}
+              title={isDirty ? 'Сначала сохраните изменения графа' : 'Перевести в статус ready'}
+            >
+              {finalizing
+                ? <><Loader2 size={16} className="spin" /> Финализация...</>
+                : <><CheckCircle2 size={16} /> Finalize</>
               }
             </button>
           </div>

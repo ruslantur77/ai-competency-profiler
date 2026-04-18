@@ -1,0 +1,99 @@
+.task-graph-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  z-index: 70;
+  padding: 1.25rem;
+}
+
+.task-graph-dialog {
+  width: min(1280px, 100%);
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.task-graph-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #334155;
+}
+
+.task-graph-dialog__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.task-graph-dialog__header p {
+  margin: 0.2rem 0 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.task-graph-dialog__close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.task-graph-dialog__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #334155;
+  padding: 0.9rem 1.25rem;
+}
+
+.task-graph-dialog__actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+.task-graph-dialog__actions select {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 0.4rem 0.5rem;
+}
+
+.task-graph-dialog__buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.task-graph-dialog__body {
+  overflow: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .task-graph-dialog__overlay {
+    padding: 0.5rem;
+  }
+
+  .task-graph-dialog__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .task-graph-dialog__buttons {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}

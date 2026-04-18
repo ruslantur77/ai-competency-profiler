@@ -5,6 +5,9 @@ export const ROLES = {
   SYSTEM: 'system',
 }
 
+export const canCreateVacancy = (role) =>
+  role === ROLES.ADMIN || role === ROLES.EXPERT || role === ROLES.HR
+
 export const canAccessTasks = (role) => role === ROLES.ADMIN || role === ROLES.EXPERT
 export const canEditGraph = (role) => role === ROLES.ADMIN || role === ROLES.EXPERT
 export const canUseSuggestions = (role) => role === ROLES.ADMIN || role === ROLES.EXPERT

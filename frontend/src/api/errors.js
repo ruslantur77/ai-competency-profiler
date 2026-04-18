@@ -12,6 +12,18 @@ const STATUS_MESSAGES = {
   504: 'Сервер не ответил вовремя',
 }
 
+const normalizeValidationDetails = (details) => {
+  if (!Array.isArray(details)) return null
+  return details
+    .map((item) => {
+      if (typeof item === 'string') return item
+      const path = Array.isArray(item?.loc) ? item.loc.join('.') : null
+      return path && item?.msg ? `${path}: ${item.msg}` : item?.msg
+    })
+    .filter(Boolean)
+    .join('; ')
+}
+
 const normalizeDetail = (detail) => {
   if (!detail) return null
   if (typeof detail === 'string') return detail
@@ -31,18 +43,25 @@ const normalizeDetail = (detail) => {
 export const getErrorMessage = (error, options = {}) => {
   const { fallback = 'Ошибка запроса', overrides = {} } = options
   const status = error?.response?.status
+  const payload = error?.response?.data
   const localMessage = typeof error?.message === 'string' ? error.message.trim() : ''
 
   if (status && overrides[status]) {
     return overrides[status]
   }
 
+  const envelopeMessage = typeof payload?.message === 'string' ? payload.message.trim() : ''
+  const envelopeDetails = normalizeValidationDetails(payload?.details)
+
   if (status === 422) {
-    const detail422 = normalizeDetail(error?.response?.data?.detail)
-    return detail422 || overrides[422] || STATUS_MESSAGES[422]
+    return envelopeDetails || envelopeMessage || overrides[422] || STATUS_MESSAGES[422]
   }
 
-  const detail = normalizeDetail(error?.response?.data?.detail)
+  if (envelopeMessage && status && status < 500) {
+    return envelopeMessage
+  }
+
+  const detail = normalizeDetail(payload?.detail)
   if (detail && status && status < 500) {
     return detail
   }

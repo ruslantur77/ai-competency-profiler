@@ -7,11 +7,18 @@ export {
   getVacancy,
   getGraph,
   updateGraph,
+  finalizeVacancyGraph,
   updateVacancyStatus,
 } from './vacancies'
 export { getSuggestions, decideSuggestion } from './suggestions'
 export { getVacancyRankings, getCandidateProfile } from './ranking'
-export { listTasks, getTask, rebuildTaskMapping, validateTaskMapping } from './tasks'
+export {
+  listTasks,
+  getTask,
+  updateTaskGraph,
+  finalizeTaskGraph,
+  updateTaskStatus,
+} from './tasks'
 export { healthCheck } from './health'
 export { normalizePageResponse, extractItems } from './adapters'
 export { getErrorMessage } from './errors'
