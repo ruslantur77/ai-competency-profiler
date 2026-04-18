@@ -1,7 +1,6 @@
 import { api } from './base'
 
-export const listTasks = (status_filter) =>
-  api.get('/tasks', { params: { status_filter } })
+export const listTasks = (params = {}) => api.get('/tasks', { params })
 
 export const getTask = (taskId) => api.get(`/tasks/${taskId}`)
 

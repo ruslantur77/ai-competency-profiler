@@ -1,4 +1,6 @@
 export const normalizePageResponse = (payload) => {
+  const source = payload?.data && !Array.isArray(payload?.data) ? payload.data : payload
+
   if (Array.isArray(payload)) {
     return {
       items: payload,
@@ -8,11 +10,32 @@ export const normalizePageResponse = (payload) => {
     }
   }
 
+  const items = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(source?.results)
+      ? source.results
+      : []
+  const total = Number.isFinite(source?.total)
+    ? source.total
+    : Number.isFinite(source?.count)
+      ? source.count
+      : items.length
+  const limit = Number.isFinite(source?.limit)
+    ? source.limit
+    : Number.isFinite(source?.page_size)
+      ? source.page_size
+      : items.length
+  const offset = Number.isFinite(source?.offset)
+    ? source.offset
+    : Number.isFinite(source?.skip)
+      ? source.skip
+      : 0
+
   return {
-    items: Array.isArray(payload?.items) ? payload.items : [],
-    total: Number.isFinite(payload?.total) ? payload.total : 0,
-    limit: Number.isFinite(payload?.limit) ? payload.limit : 0,
-    offset: Number.isFinite(payload?.offset) ? payload.offset : 0,
+    items,
+    total,
+    limit,
+    offset,
   }
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { listVacancies, listVacanciesForReview } from '../api/vacancies'
-import { extractItems } from '../api/adapters'
+import { fetchAllPages } from '../api/pagination'
 import { getErrorMessage } from '../api/errors'
 
 const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
@@ -14,18 +14,32 @@ export default function useVacanciesData({ notify, vacancyMode }) {
     if (!silent) setLoading(true)
     try {
       if (vacancyMode === 'review') {
-        const { data } = await listVacanciesForReview()
-        const reviewItems = extractItems(data).sort(
+        const reviewPages = await fetchAllPages({
+          fetchPage: async ({ limit, offset }) => {
+            const { data } = await listVacanciesForReview({ limit, offset })
+            return data
+          },
+        })
+        const reviewItems = reviewPages.items.sort(
           (a, b) => new Date(b.created_at) - new Date(a.created_at)
         )
         setVacancies(reviewItems)
       } else {
         const responses = await Promise.allSettled(
-          ALL_STATUSES.map((status) => listVacancies(status))
+          ALL_STATUSES.map((status) => fetchAllPages({
+            fetchPage: async ({ limit, offset }) => {
+              const { data } = await listVacancies({
+                status_filter: status,
+                limit,
+                offset,
+              })
+              return data
+            },
+          }))
         )
         const fulfilled = responses.filter((result) => result.status === 'fulfilled')
         const all = fulfilled
-          .flatMap((result) => extractItems(result.value.data))
+          .flatMap((result) => result.value.items)
           .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
         setVacancies(all)

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
 import { finalizeTaskGraph, listTasks } from '../api/tasks'
-import { extractItems } from '../api/adapters'
+import { fetchAllPages } from '../api/pagination'
 import { getErrorMessage } from '../api/errors'
 import ForbiddenState from './ForbiddenState'
 import AsyncState from './AsyncState'
@@ -101,8 +101,13 @@ export default function TasksTab({ notify }) {
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     try {
-      const { data } = await listTasks()
-      setTasks(extractItems(data))
+      const allPages = await fetchAllPages({
+        fetchPage: async ({ limit, offset }) => {
+          const { data } = await listTasks({ limit, offset })
+          return data
+        },
+      })
+      setTasks(allPages.items)
       setIsForbidden(false)
     } catch (error) {
       setTasks([])

@@ -1,10 +1,9 @@
 import { api } from './base'
 
-export const listVacancies = (status_filter) =>
-  api.get('/vacancies', { params: { status_filter } })
+export const listVacancies = (params = {}) => api.get('/vacancies', { params })
 
-export const listVacanciesForReview = (limit = 200, offset = 0) =>
-  api.get('/vacancies/review-queue', { params: { limit, offset } })
+export const listVacanciesForReview = (params = {}) =>
+  api.get('/vacancies/review-queue', { params })
 
 export const createVacancy = (data) => api.post('/vacancies', data)
 
