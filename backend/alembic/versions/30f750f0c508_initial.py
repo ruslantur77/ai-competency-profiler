@@ -1,8 +1,8 @@
 """initial.
 
-Revision ID: dbf5d903c225
+Revision ID: 30f750f0c508
 Revises:
-Create Date: 2026-04-05 13:19:58.554366
+Create Date: 2026-04-18 15:31:46.555524
 
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "dbf5d903c225"
+revision = "30f750f0c508"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -54,14 +54,13 @@ def upgrade() -> None:
             server_default="code",
             nullable=False,
         ),
-        sa.Column("mapping_validated", sa.Boolean(), nullable=False),
         sa.Column(
-            "mapping_status",
-            sa.Enum("pending", "completed", "failed", name="task_mapping_status"),
+            "status",
+            sa.Enum("pending", "draft", "ready", "failed", name="task_status"),
             server_default="pending",
             nullable=False,
         ),
-        sa.Column("mapping_error_message", sa.String(length=1000), nullable=True),
+        sa.Column("error_message", sa.String(length=1000), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -116,6 +115,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("error_message", sa.String(length=1000), nullable=True),
+        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -142,6 +142,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("last_assessment_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -218,6 +219,18 @@ def upgrade() -> None:
         sa.UniqueConstraint("token_hash"),
     )
     op.create_table(
+        "task_category_nodes",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("task_id", sa.Uuid(), nullable=False),
+        sa.Column("category_id", sa.Uuid(), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("task_id", "category_id", name="uq_task_category_node"),
+        sa.UniqueConstraint("task_id", "position", name="uq_task_category_position"),
+    )
+    op.create_table(
         "vacancy_category_nodes",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("vacancy_id", sa.Uuid(), nullable=False),
@@ -269,6 +282,23 @@ def upgrade() -> None:
             ["competency_id"], ["competencies.id"], ondelete="CASCADE"
         ),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_table(
+        "task_competency_nodes",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("task_id", sa.Uuid(), nullable=False),
+        sa.Column("competency_id", sa.Uuid(), nullable=False),
+        sa.Column("category_id", sa.Uuid(), nullable=False),
+        sa.Column("is_required", sa.Boolean(), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(["category_id"], ["categories.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(
+            ["competency_id"], ["competencies.id"], ondelete="CASCADE"
+        ),
+        sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("task_id", "competency_id", name="uq_task_competency_node"),
+        sa.UniqueConstraint("task_id", "position", name="uq_task_competency_position"),
     )
     op.create_table(
         "test_results",
@@ -405,20 +435,27 @@ def upgrade() -> None:
         ),
     )
     op.create_table(
-        "task_sub_competency_mappings",
+        "task_sub_competency_nodes",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("task_id", sa.Uuid(), nullable=False),
         sa.Column("sub_competency_id", sa.Uuid(), nullable=False),
+        sa.Column("competency_id", sa.Uuid(), nullable=False),
+        sa.Column("target_level", sa.Integer(), nullable=False),
         sa.Column("weight", sa.Float(), nullable=False),
         sa.Column("position", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["competency_id"], ["competencies.id"], ondelete="CASCADE"
+        ),
         sa.ForeignKeyConstraint(
             ["sub_competency_id"], ["sub_competencies.id"], ondelete="CASCADE"
         ),
         sa.ForeignKeyConstraint(["task_id"], ["tasks.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("task_id", "position", name="uq_task_mapping_position"),
         sa.UniqueConstraint(
-            "task_id", "sub_competency_id", name="uq_task_sub_competency_mapping"
+            "task_id", "position", name="uq_task_subcompetency_position"
+        ),
+        sa.UniqueConstraint(
+            "task_id", "sub_competency_id", name="uq_task_sub_competency_node"
         ),
     )
     op.create_table(
@@ -571,13 +608,15 @@ def downgrade() -> None:
     op.drop_table("vacancy_sub_competency_nodes")
     op.drop_table("test_result_question_answers")
     op.drop_table("test_result_llm_assessments")
-    op.drop_table("task_sub_competency_mappings")
+    op.drop_table("task_sub_competency_nodes")
     op.drop_table("candidate_sub_competency_achievements")
     op.drop_table("vacancy_graph_suggestions")
     op.drop_table("vacancy_competency_nodes")
     op.drop_table("test_results")
+    op.drop_table("task_competency_nodes")
     op.drop_table("sub_competencies")
     op.drop_table("vacancy_category_nodes")
+    op.drop_table("task_category_nodes")
     op.drop_table("refresh_tokens")
     op.drop_table("ranking_snapshots")
     op.drop_table("competencies")

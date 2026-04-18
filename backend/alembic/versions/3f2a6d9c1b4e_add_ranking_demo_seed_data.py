@@ -8,6 +8,7 @@ Create Date: 2026-04-15 21:30:00.000000
 
 from __future__ import annotations
 
+import json
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -90,15 +91,29 @@ VACANCY_SUBCOMPETENCY_NODE_IDS = [
     UUID("43000000-0000-0000-0000-000000000008"),
 ]
 
-TASK_MAPPING_IDS = [
+TASK_CATEGORY_NODE_IDS = [
     UUID("61000000-0000-0000-0000-000000000001"),
     UUID("61000000-0000-0000-0000-000000000002"),
     UUID("61000000-0000-0000-0000-000000000003"),
     UUID("61000000-0000-0000-0000-000000000004"),
-    UUID("61000000-0000-0000-0000-000000000005"),
-    UUID("61000000-0000-0000-0000-000000000006"),
-    UUID("61000000-0000-0000-0000-000000000007"),
-    UUID("61000000-0000-0000-0000-000000000008"),
+]
+
+TASK_COMPETENCY_NODE_IDS = [
+    UUID("62000000-0000-0000-0000-000000000001"),
+    UUID("62000000-0000-0000-0000-000000000002"),
+    UUID("62000000-0000-0000-0000-000000000003"),
+    UUID("62000000-0000-0000-0000-000000000004"),
+]
+
+TASK_SUBCOMPETENCY_NODE_IDS = [
+    UUID("63000000-0000-0000-0000-000000000001"),
+    UUID("63000000-0000-0000-0000-000000000002"),
+    UUID("63000000-0000-0000-0000-000000000003"),
+    UUID("63000000-0000-0000-0000-000000000004"),
+    UUID("63000000-0000-0000-0000-000000000005"),
+    UUID("63000000-0000-0000-0000-000000000006"),
+    UUID("63000000-0000-0000-0000-000000000007"),
+    UUID("63000000-0000-0000-0000-000000000008"),
 ]
 
 TEST_RESULT_IDS = [
@@ -298,15 +313,32 @@ def upgrade() -> None:
         sa.column("title", sa.String(length=200)),
         sa.column("description", sa.String(length=5000)),
         sa.column("type", sa.String(length=20)),
-        sa.column("mapping_validated", sa.Boolean()),
-        sa.column("mapping_status", sa.String(length=20)),
-        sa.column("mapping_error_message", sa.String(length=1000)),
+        sa.column("status", sa.String(length=20)),
+        sa.column("error_message", sa.String(length=1000)),
     )
-    task_mappings_table = sa.table(
-        "task_sub_competency_mappings",
+    task_category_nodes_table = sa.table(
+        "task_category_nodes",
+        sa.column("id", sa.UUID(as_uuid=True)),
+        sa.column("task_id", sa.UUID(as_uuid=True)),
+        sa.column("category_id", sa.UUID(as_uuid=True)),
+        sa.column("position", sa.Integer()),
+    )
+    task_competency_nodes_table = sa.table(
+        "task_competency_nodes",
+        sa.column("id", sa.UUID(as_uuid=True)),
+        sa.column("task_id", sa.UUID(as_uuid=True)),
+        sa.column("competency_id", sa.UUID(as_uuid=True)),
+        sa.column("category_id", sa.UUID(as_uuid=True)),
+        sa.column("is_required", sa.Boolean()),
+        sa.column("position", sa.Integer()),
+    )
+    task_sub_competency_nodes_table = sa.table(
+        "task_sub_competency_nodes",
         sa.column("id", sa.UUID(as_uuid=True)),
         sa.column("task_id", sa.UUID(as_uuid=True)),
         sa.column("sub_competency_id", sa.UUID(as_uuid=True)),
+        sa.column("competency_id", sa.UUID(as_uuid=True)),
+        sa.column("target_level", sa.Integer()),
         sa.column("weight", sa.Float()),
         sa.column("position", sa.Integer()),
     )
@@ -339,13 +371,6 @@ def upgrade() -> None:
         sa.column("candidate_id", sa.UUID(as_uuid=True)),
         sa.column("sub_competency_id", sa.UUID(as_uuid=True)),
     )
-    ranking_snapshots_table = sa.table(
-        "ranking_snapshots",
-        sa.column("id", sa.UUID(as_uuid=True)),
-        sa.column("vacancy_id", sa.UUID(as_uuid=True)),
-        sa.column("payload", sa.JSON()),
-    )
-
     op.bulk_insert(
         competencies_table,
         [
@@ -579,9 +604,8 @@ def upgrade() -> None:
                 "title": "API Contract and Security",
                 "description": "Design REST contract and secure endpoints.",
                 "type": "code",
-                "mapping_validated": True,
-                "mapping_status": "completed",
-                "mapping_error_message": None,
+                "status": "ready",
+                "error_message": None,
             },
             {
                 "id": TASK_IDS["python"],
@@ -589,9 +613,8 @@ def upgrade() -> None:
                 "title": "Async Python Service",
                 "description": "Implement async worker and typed module boundaries.",
                 "type": "code",
-                "mapping_validated": True,
-                "mapping_status": "completed",
-                "mapping_error_message": None,
+                "status": "ready",
+                "error_message": None,
             },
             {
                 "id": TASK_IDS["sql"],
@@ -599,9 +622,8 @@ def upgrade() -> None:
                 "title": "SQL Performance Tuning",
                 "description": "Improve query plans with indexes and join strategy.",
                 "type": "test",
-                "mapping_validated": True,
-                "mapping_status": "completed",
-                "mapping_error_message": None,
+                "status": "ready",
+                "error_message": None,
             },
             {
                 "id": TASK_IDS["system"],
@@ -609,69 +631,152 @@ def upgrade() -> None:
                 "title": "System Design Case",
                 "description": "Propose scalable architecture and justify trade-offs.",
                 "type": "test",
-                "mapping_validated": True,
-                "mapping_status": "completed",
-                "mapping_error_message": None,
+                "status": "ready",
+                "error_message": None,
             },
         ],
     )
 
     op.bulk_insert(
-        task_mappings_table,
+        task_category_nodes_table,
         [
             {
-                "id": TASK_MAPPING_IDS[0],
+                "id": TASK_CATEGORY_NODE_IDS[0],
+                "task_id": TASK_IDS["api"],
+                "category_id": CATEGORY_IDS["backend_dev"],
+                "position": 1,
+            },
+            {
+                "id": TASK_CATEGORY_NODE_IDS[1],
+                "task_id": TASK_IDS["python"],
+                "category_id": CATEGORY_IDS["backend_dev"],
+                "position": 1,
+            },
+            {
+                "id": TASK_CATEGORY_NODE_IDS[2],
+                "task_id": TASK_IDS["sql"],
+                "category_id": CATEGORY_IDS["data_storage"],
+                "position": 1,
+            },
+            {
+                "id": TASK_CATEGORY_NODE_IDS[3],
+                "task_id": TASK_IDS["system"],
+                "category_id": CATEGORY_IDS["backend_dev"],
+                "position": 1,
+            },
+        ],
+    )
+
+    op.bulk_insert(
+        task_competency_nodes_table,
+        [
+            {
+                "id": TASK_COMPETENCY_NODE_IDS[0],
+                "task_id": TASK_IDS["api"],
+                "competency_id": EXISTING_COMPETENCY_IDS["api_design"],
+                "category_id": CATEGORY_IDS["backend_dev"],
+                "is_required": True,
+                "position": 1,
+            },
+            {
+                "id": TASK_COMPETENCY_NODE_IDS[1],
+                "task_id": TASK_IDS["python"],
+                "competency_id": EXISTING_COMPETENCY_IDS["python_backend"],
+                "category_id": CATEGORY_IDS["backend_dev"],
+                "is_required": True,
+                "position": 1,
+            },
+            {
+                "id": TASK_COMPETENCY_NODE_IDS[2],
+                "task_id": TASK_IDS["sql"],
+                "competency_id": EXISTING_COMPETENCY_IDS["sql_modeling"],
+                "category_id": CATEGORY_IDS["data_storage"],
+                "is_required": True,
+                "position": 1,
+            },
+            {
+                "id": TASK_COMPETENCY_NODE_IDS[3],
+                "task_id": TASK_IDS["system"],
+                "competency_id": ADDED_COMPETENCY_IDS["system_design"],
+                "category_id": CATEGORY_IDS["backend_dev"],
+                "is_required": True,
+                "position": 1,
+            },
+        ],
+    )
+
+    op.bulk_insert(
+        task_sub_competency_nodes_table,
+        [
+            {
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[0],
                 "task_id": TASK_IDS["api"],
                 "sub_competency_id": EXISTING_SUB_COMPETENCY_IDS["rest"],
+                "competency_id": EXISTING_COMPETENCY_IDS["api_design"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 1,
             },
             {
-                "id": TASK_MAPPING_IDS[1],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[1],
                 "task_id": TASK_IDS["api"],
                 "sub_competency_id": EXISTING_SUB_COMPETENCY_IDS["auth"],
+                "competency_id": EXISTING_COMPETENCY_IDS["api_design"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 2,
             },
             {
-                "id": TASK_MAPPING_IDS[2],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[2],
                 "task_id": TASK_IDS["python"],
                 "sub_competency_id": EXISTING_SUB_COMPETENCY_IDS["async_python"],
+                "competency_id": EXISTING_COMPETENCY_IDS["python_backend"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 1,
             },
             {
-                "id": TASK_MAPPING_IDS[3],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[3],
                 "task_id": TASK_IDS["python"],
                 "sub_competency_id": EXISTING_SUB_COMPETENCY_IDS["typing"],
+                "competency_id": EXISTING_COMPETENCY_IDS["python_backend"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 2,
             },
             {
-                "id": TASK_MAPPING_IDS[4],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[4],
                 "task_id": TASK_IDS["sql"],
                 "sub_competency_id": EXISTING_SUB_COMPETENCY_IDS["sql_indexes"],
+                "competency_id": EXISTING_COMPETENCY_IDS["sql_modeling"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 1,
             },
             {
-                "id": TASK_MAPPING_IDS[5],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[5],
                 "task_id": TASK_IDS["sql"],
                 "sub_competency_id": EXISTING_SUB_COMPETENCY_IDS["sql_joins"],
+                "competency_id": EXISTING_COMPETENCY_IDS["sql_modeling"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 2,
             },
             {
-                "id": TASK_MAPPING_IDS[6],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[6],
                 "task_id": TASK_IDS["system"],
                 "sub_competency_id": ADDED_SUB_COMPETENCY_IDS["tradeoffs"],
+                "competency_id": ADDED_COMPETENCY_IDS["system_design"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 1,
             },
             {
-                "id": TASK_MAPPING_IDS[7],
+                "id": TASK_SUBCOMPETENCY_NODE_IDS[7],
                 "task_id": TASK_IDS["system"],
                 "sub_competency_id": ADDED_SUB_COMPETENCY_IDS["scalability"],
+                "competency_id": ADDED_COMPETENCY_IDS["system_design"],
+                "target_level": 3,
                 "weight": 1.0,
                 "position": 2,
             },
@@ -779,16 +884,16 @@ def upgrade() -> None:
         ],
     )
 
-    op.bulk_insert(
-        ranking_snapshots_table,
-        [
-            {
-                "id": RANKING_SNAPSHOT_ID,
-                "vacancy_id": VACANCY_ID,
-                "payload": _ranking_payload(),
-            }
-        ],
+    payload_json = json.dumps(_ranking_payload())
+    statement = sa.text(
+        "INSERT INTO ranking_snapshots (id, vacancy_id, payload) "
+        "VALUES (:id, :vacancy_id, CAST(:payload AS jsonb))"
+    ).bindparams(
+        id=str(RANKING_SNAPSHOT_ID),
+        vacancy_id=str(VACANCY_ID),
+        payload=payload_json,
     )
+    op.execute(statement)
 
 
 def downgrade() -> None:
@@ -828,9 +933,19 @@ def downgrade() -> None:
     op.execute(
         sa.delete(
             sa.table(
-                "task_sub_competency_mappings", sa.column("id", sa.UUID(as_uuid=True))
+                "task_sub_competency_nodes", sa.column("id", sa.UUID(as_uuid=True))
             )
-        ).where(sa.column("id").in_(TASK_MAPPING_IDS))
+        ).where(sa.column("id").in_(TASK_SUBCOMPETENCY_NODE_IDS))
+    )
+    op.execute(
+        sa.delete(
+            sa.table("task_competency_nodes", sa.column("id", sa.UUID(as_uuid=True)))
+        ).where(sa.column("id").in_(TASK_COMPETENCY_NODE_IDS))
+    )
+    op.execute(
+        sa.delete(
+            sa.table("task_category_nodes", sa.column("id", sa.UUID(as_uuid=True)))
+        ).where(sa.column("id").in_(TASK_CATEGORY_NODE_IDS))
     )
     op.execute(
         sa.delete(tasks_table).where(sa.column("id").in_(list(TASK_IDS.values())))

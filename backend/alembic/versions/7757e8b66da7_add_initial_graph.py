@@ -1,7 +1,7 @@
 """add_initial_graph.
 
 Revision ID: 7757e8b66da7
-Revises: dbf5d903c225
+Revises: 30f750f0c508
 Create Date: 2026-04-05 13:23:11.201684
 
 """
@@ -16,7 +16,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "7757e8b66da7"
-down_revision = "dbf5d903c225"
+down_revision = "30f750f0c508"
 branch_labels = None
 depends_on = None
 
