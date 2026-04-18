@@ -6,8 +6,8 @@ import {
   getCandidateProfile,
   listCandidates,
 } from '../api/candidates'
-import { normalizePageResponse } from '../api/adapters'
 import { getErrorMessage } from '../api/errors'
+import usePaginatedResource from '../hooks/usePaginatedResource'
 import AsyncState from './AsyncState'
 import ConfirmDialog from './ConfirmDialog'
 import './CandidatesTab.css'
@@ -89,10 +89,6 @@ export default function CandidatesTab({
   onOpenVacancy,
   onOpenRanking,
 }) {
-  const [candidates, setCandidates] = useState([])
-  const [totalCandidates, setTotalCandidates] = useState(0)
-  const [pageOffset, setPageOffset] = useState(0)
-  const [loading, setLoading] = useState(true)
   const [selectedCandidateId, setSelectedCandidateId] = useState(null)
   const [candidateDetail, setCandidateDetail] = useState(null)
   const [candidateProfile, setCandidateProfile] = useState(null)
@@ -109,31 +105,38 @@ export default function CandidatesTab({
     [candidates, selectedCandidateId]
   )
 
-  const fetchCandidates = useCallback(async (nextOffset = 0) => {
-    setLoading(true)
-    try {
-      const { data } = await listCandidates({ limit: PAGE_LIMIT, offset: nextOffset })
-      const page = normalizePageResponse(data)
-      const items = page.items || []
-      setCandidates(items)
-      setTotalCandidates(page.total || 0)
-      setPageOffset(nextOffset)
-      setSelectedCandidateId((prev) => {
-        if (prev && items.some((item) => item.id === prev)) return prev
-        return items[0]?.id || null
-      })
-    } catch (error) {
-      setCandidates([])
-      setTotalCandidates(0)
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки кандидатов' }), 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [notify])
+  const fetchCandidatesPage = useCallback(async ({ offset, limit }) => {
+    const { data } = await listCandidates({ limit, offset })
+    return data
+  }, [])
+
+  const {
+    items: candidates,
+    total: totalCandidates,
+    offset: pageOffset,
+    limit: pageLimit,
+    loading,
+    loadPage: loadCandidatesPage,
+  } = usePaginatedResource({
+    fetchPage: fetchCandidatesPage,
+    initialLimit: PAGE_LIMIT,
+    initialOffset: 0,
+    onError: (error) => notify(
+      getErrorMessage(error, { fallback: 'Ошибка загрузки кандидатов' }),
+      'error'
+    ),
+  })
 
   useEffect(() => {
-    fetchCandidates(0)
-  }, [fetchCandidates])
+    loadCandidatesPage({ offset: 0, limit: PAGE_LIMIT })
+  }, [loadCandidatesPage])
+
+  useEffect(() => {
+    setSelectedCandidateId((prev) => {
+      if (prev && candidates.some((item) => item.id === prev)) return prev
+      return candidates[0]?.id || null
+    })
+  }, [candidates])
 
   useEffect(() => {
     if (!selectedCandidateId) {
@@ -178,20 +181,20 @@ export default function CandidatesTab({
     )
   }, [candidates])
 
-  const currentPage = Math.floor(pageOffset / PAGE_LIMIT) + 1
-  const totalPages = Math.max(1, Math.ceil(totalCandidates / PAGE_LIMIT))
+  const currentPage = Math.floor(pageOffset / pageLimit) + 1
+  const totalPages = Math.max(1, Math.ceil(totalCandidates / pageLimit))
   const canGoPrev = pageOffset > 0
-  const canGoNext = pageOffset + PAGE_LIMIT < totalCandidates
+  const canGoNext = pageOffset + pageLimit < totalCandidates
 
   const goPrevPage = () => {
     if (!canGoPrev) return
-    const nextOffset = Math.max(0, pageOffset - PAGE_LIMIT)
-    fetchCandidates(nextOffset)
+    const nextOffset = Math.max(0, pageOffset - pageLimit)
+    loadCandidatesPage({ offset: nextOffset, limit: pageLimit })
   }
 
   const goNextPage = () => {
     if (!canGoNext) return
-    fetchCandidates(pageOffset + PAGE_LIMIT)
+    loadCandidatesPage({ offset: pageOffset + pageLimit, limit: pageLimit })
   }
 
   const handleDeleteCandidate = async () => {
@@ -200,11 +203,11 @@ export default function CandidatesTab({
       await deleteCandidate(confirmDelete.id)
       const nextTotal = Math.max(0, totalCandidates - 1)
       const lastValidOffset = nextTotal > 0
-        ? Math.floor((nextTotal - 1) / PAGE_LIMIT) * PAGE_LIMIT
+        ? Math.floor((nextTotal - 1) / pageLimit) * pageLimit
         : 0
       const nextOffset = Math.min(pageOffset, lastValidOffset)
 
-      await fetchCandidates(nextOffset)
+      await loadCandidatesPage({ offset: nextOffset, limit: pageLimit, silent: true })
       setConfirmDelete(null)
       notify(`Кандидат "${confirmDelete.external_id}" удален`)
     } catch (error) {

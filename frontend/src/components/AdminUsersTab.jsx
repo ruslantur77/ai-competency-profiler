@@ -7,7 +7,7 @@ import {
   updateAdminUserStatus,
 } from '../api/adminUsers'
 import { getErrorMessage } from '../api/errors'
-import { extractItems } from '../api/adapters'
+import usePaginatedResource from '../hooks/usePaginatedResource'
 import ConfirmDialog from './ConfirmDialog'
 import AsyncState from './AsyncState'
 import './AdminUsersTab.css'
@@ -15,6 +15,7 @@ import './AdminUsersTab.css'
 const ROLE_OPTIONS = ['admin', 'expert', 'hr', 'system']
 const SELF_ACTION_GUARD_MESSAGE =
   'Операция запрещена: нельзя изменять собственную роль или деактивировать свою учетную запись'
+const USERS_PAGE_LIMIT = 200
 
 const formatDateTime = (value) => {
   if (!value) return '—'
@@ -77,47 +78,55 @@ function CreateUserForm({ onSubmit, creating }) {
 }
 
 export default function AdminUsersTab({ notify, currentUserId }) {
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [updatingRoleId, setUpdatingRoleId] = useState(null)
   const [updatingStatusId, setUpdatingStatusId] = useState(null)
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data } = await listAdminUsers({ limit: 200, offset: 0 })
-      const items = extractItems(data).sort(
-        (a, b) => new Date(b.created_at) - new Date(a.created_at)
-      )
-      setUsers(items)
-    } catch (error) {
-      setUsers([])
-      notify(getErrorMessage(error, { fallback: 'Ошибка загрузки пользователей' }), 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [notify])
+  const fetchUsersPage = useCallback(async ({ offset, limit }) => {
+    const { data } = await listAdminUsers({ limit, offset })
+    return data
+  }, [])
+
+  const {
+    items: usersRaw,
+    total: usersTotal,
+    limit: usersLimit,
+    loading,
+    loadPage: loadUsersPage,
+  } = usePaginatedResource({
+    fetchPage: fetchUsersPage,
+    initialLimit: USERS_PAGE_LIMIT,
+    initialOffset: 0,
+    onError: (error) => notify(
+      getErrorMessage(error, { fallback: 'Ошибка загрузки пользователей' }),
+      'error'
+    ),
+  })
 
   useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers])
+    loadUsersPage({ offset: 0, limit: USERS_PAGE_LIMIT })
+  }, [loadUsersPage])
+
+  const users = useMemo(
+    () => [...usersRaw].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
+    [usersRaw]
+  )
 
   const counters = useMemo(() => {
     const active = users.filter((user) => user.is_active).length
     return {
-      total: users.length,
+      total: usersTotal || users.length,
       active,
-      inactive: users.length - active,
+      inactive: (usersTotal || users.length) - active,
     }
-  }, [users])
+  }, [users, usersTotal])
 
   const handleCreateUser = async (payload) => {
     setCreating(true)
     try {
-      const { data } = await createAdminUser(payload)
-      setUsers((prev) => [data, ...prev])
+      await createAdminUser(payload)
+      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true })
       notify(`Пользователь ${payload.email} создан`)
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка создания пользователя' }), 'error')
@@ -129,8 +138,8 @@ export default function AdminUsersTab({ notify, currentUserId }) {
   const handleRoleChange = async (userId, nextRole) => {
     setUpdatingRoleId(userId)
     try {
-      const { data } = await updateAdminUserRole(userId, nextRole)
-      setUsers((prev) => prev.map((item) => (item.id === userId ? data : item)))
+      await updateAdminUserRole(userId, nextRole)
+      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true })
       notify('Роль пользователя обновлена')
     } catch (error) {
       notify(
@@ -153,9 +162,10 @@ export default function AdminUsersTab({ notify, currentUserId }) {
     const { user } = pendingAction
     setUpdatingStatusId(user.id)
     try {
-      const { data } = await updateAdminUserStatus(user.id, !user.is_active)
-      setUsers((prev) => prev.map((item) => (item.id === user.id ? data : item)))
-      notify(data.is_active ? 'Пользователь активирован' : 'Пользователь деактивирован')
+      const nextStatus = !user.is_active
+      await updateAdminUserStatus(user.id, nextStatus)
+      await loadUsersPage({ offset: 0, limit: usersLimit, silent: true })
+      notify(nextStatus ? 'Пользователь активирован' : 'Пользователь деактивирован')
       setPendingAction(null)
     } catch (error) {
       notify(
