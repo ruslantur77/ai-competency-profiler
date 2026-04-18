@@ -10,6 +10,7 @@ from competency_system.application.dtos.candidate import (
     CandidateListItemDto,
     CandidateProfileDTO,
 )
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.mappers import (
     candidate_profile_dto_from_scoring,
     test_result_dto_from_domain,
@@ -608,10 +609,14 @@ class ListCandidatesUseCase:
 
     async def execute(
         self,
-    ) -> list[CandidateListItemDto]:
+        *,
+        limit: int,
+        offset: int,
+    ) -> PaginatedItemsDTO[CandidateListItemDto]:
         async with self._uow as uow:
-            candidates = await uow.candidates.get_list()
-            return [
+            candidates = await uow.candidates.get_list(limit=limit, offset=offset)
+            total = await uow.candidates.count()
+            items = [
                 CandidateListItemDto(
                     id=item.id,
                     external_id=item.external_id,
@@ -622,6 +627,12 @@ class ListCandidatesUseCase:
                 )
                 for item in candidates
             ]
+            return PaginatedItemsDTO[CandidateListItemDto](
+                items=items,
+                total=total,
+                limit=limit,
+                offset=offset,
+            )
 
 
 class GetCandidateUseCase:

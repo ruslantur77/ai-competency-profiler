@@ -665,7 +665,7 @@ def test_candidates_and_ranking_routes_contract(
         _StaticUseCase(profile)
     )
     app.dependency_overrides[get_list_candidates_use_case] = lambda: _StaticUseCase(
-        [candidate]
+        SimpleNamespace(items=[candidate], total=1, limit=50, offset=0)
     )
     app.dependency_overrides[get_get_candidate_use_case] = lambda: _StaticUseCase(
         candidate
@@ -683,7 +683,9 @@ def test_candidates_and_ranking_routes_contract(
     with TestClient(app) as client:
         candidates = client.get("/api/v1/candidates")
         assert candidates.status_code == 200
-        assert len(candidates.json()) == 1
+        payload = candidates.json()
+        assert payload["total"] == 1
+        assert len(payload["items"]) == 1
 
         candidate_detail = client.get(f"/api/v1/candidates/{profile.candidate_id}")
         assert candidate_detail.status_code == 200

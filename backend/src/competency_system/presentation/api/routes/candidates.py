@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from fastapi_pagination.limit_offset import LimitOffsetPage, LimitOffsetParams
 
 from competency_system.application.dtos.candidate import (
     CandidateListItemDto,
@@ -26,12 +27,18 @@ from competency_system.presentation.api.dependencies import (
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
 
-@router.get("", response_model=list[CandidateListItemDto])
+@router.get("", response_model=LimitOffsetPage[CandidateListItemDto])
 async def list_candidates(
     _: Annotated[None, Depends(require_hr_expert_admin)],
     use_case: Annotated[ListCandidatesUseCase, Depends(get_list_candidates_use_case)],
-) -> list[CandidateListItemDto]:
-    return await use_case.execute()
+    params: Annotated[LimitOffsetParams, Depends()],
+) -> LimitOffsetPage[CandidateListItemDto]:
+    result = await use_case.execute(limit=params.limit, offset=params.offset)
+    return LimitOffsetPage.create(
+        items=result.items,
+        total=result.total,
+        params=params,
+    )
 
 
 @router.get("/{candidate_id}", response_model=CandidateListItemDto)
