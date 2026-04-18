@@ -1,0 +1,154 @@
+.admin-users {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.admin-users__stats {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin-users__stat {
+  border: 1px solid #334155;
+  background: #111827;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-users__stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.admin-users__stat-label {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.admin-users__stat--active {
+  border-color: #166534;
+}
+
+.admin-users__stat--inactive {
+  border-color: #9f1239;
+}
+
+.admin-users__create {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-users__create h3 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.admin-users__create-grid {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr auto;
+  gap: 0.55rem;
+}
+
+.admin-users__create-grid input,
+.admin-users__create-grid select,
+.admin-users__table-row select {
+  width: 100%;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #111827;
+  color: #e2e8f0;
+  padding: 0.5rem 0.55rem;
+}
+
+.admin-users__table-wrap {
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-users__table-header,
+.admin-users__table-row {
+  display: grid;
+  grid-template-columns: 2.3fr 1.1fr 1fr 1.4fr 1.4fr 1.2fr;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.admin-users__table-header {
+  background: #1e293b;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.admin-users__table-row {
+  border-top: 1px solid #334155;
+}
+
+.admin-users__table-row:nth-child(odd) {
+  background: #0b1220;
+}
+
+.admin-users__email {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  word-break: break-all;
+}
+
+.admin-users__status {
+  display: inline-flex;
+  padding: 0.18rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  border: 1px solid transparent;
+}
+
+.admin-users__status.is-active {
+  color: #4ade80;
+  background: #052e16;
+  border-color: #14532d;
+}
+
+.admin-users__status.is-inactive {
+  color: #fca5a5;
+  background: #450a0a;
+  border-color: #7f1d1d;
+}
+
+.admin-users__toggle {
+  padding: 0.42rem 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+@media (max-width: 1200px) {
+  .admin-users__create-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-users__table-wrap {
+    overflow-x: auto;
+  }
+
+  .admin-users__table-header,
+  .admin-users__table-row {
+    min-width: 960px;
+  }
+}

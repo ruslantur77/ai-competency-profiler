@@ -39,9 +39,9 @@ import RankingTab from './RankingTab'
 import TasksTab from './TasksTab'
 import AsyncState from './AsyncState'
 import OntologyTab from './OntologyTab'
-import SectionStub from './SectionStub'
 import ConfirmDialog from './ConfirmDialog'
 import CandidatesTab from './CandidatesTab'
+import AdminUsersTab from './AdminUsersTab'
 import './VacancyList.css'
 
 const ALL_STATUSES = ['pending', 'draft', 'ready', 'failed']
@@ -69,7 +69,7 @@ const STATUS_CONFIG = {
   },
 }
 
-export default function VacancyList({ notify, onLogout, role }) {
+export default function VacancyList({ notify, onLogout, role, currentUser }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState('vacancies')
@@ -515,9 +515,9 @@ export default function VacancyList({ notify, onLogout, role }) {
 
         {/* ADMIN USERS */}
         {activeTab === 'admin-users' && (
-          <SectionStub
-            title="🛡️ Управление пользователями"
-            hint="Каркас раздела создан в итерации 1. Полноценный user-management будет реализован далее."
+          <AdminUsersTab
+            notify={notify}
+            currentUserId={currentUser?.id || null}
           />
         )}
       </div>

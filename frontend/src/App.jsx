@@ -130,6 +130,7 @@ export default function App() {
                 notify={notify}
                 onLogout={handleLogout}
                 role={currentUser?.role}
+                currentUser={currentUser}
               />
             </PrivateRoute>
           }

@@ -22,6 +22,12 @@ export {
   deleteCandidate,
 } from './candidates'
 export {
+  listAdminUsers,
+  createAdminUser,
+  updateAdminUserRole,
+  updateAdminUserStatus,
+} from './adminUsers'
+export {
   listTasks,
   getTask,
   updateTaskGraph,
