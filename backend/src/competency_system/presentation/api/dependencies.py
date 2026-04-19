@@ -58,10 +58,7 @@ from competency_system.application.use_cases.ontology import (
     UpdateCompetencyUseCase,
     UpdateSubCompetencyUseCase,
 )
-from competency_system.application.use_cases.ranking import (
-    GetVacancyRankingUseCase,
-    RecalculateRankingUseCase,
-)
+from competency_system.application.use_cases.ranking import GetVacancyRankingUseCase
 from competency_system.application.use_cases.task import (
     FinalizeTaskGraphUseCase,
     GetTaskGraphUseCase,
@@ -410,12 +407,6 @@ def get_list_vacancy_candidates_use_case(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ListVacancyCandidatesUseCase:
     return ListVacancyCandidatesUseCase(uow)
-
-
-def get_recalculate_ranking_use_case(
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> RecalculateRankingUseCase:
-    return RecalculateRankingUseCase(uow)
 
 
 def get_get_vacancy_ranking_use_case(
