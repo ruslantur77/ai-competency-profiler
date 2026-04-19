@@ -29,6 +29,7 @@ from competency_system.application.dtos.vacancy import (
 )
 from competency_system.domain.entities import (
     Candidate,
+    Competency,
     CompetencyScore,
     Task,
     TestResult,
@@ -76,7 +77,9 @@ def candidate_profile_dto_from_scoring(
                     else None
                 ),
                 category_name=(
-                    category_names.get(competencies_by_id[s.competency_id].category_id, "")
+                    category_names.get(
+                        competencies_by_id[s.competency_id].category_id, ""
+                    )
                     if s.competency_id in competencies_by_id
                     else ""
                 ),

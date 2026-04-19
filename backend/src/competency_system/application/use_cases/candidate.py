@@ -10,11 +10,11 @@ from competency_system.application.dtos.candidate import (
     CandidateListItemDto,
     CandidateProfileDTO,
 )
-from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.mappers import (
     candidate_profile_dto_from_scoring,
     test_result_dto_from_domain,
 )
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.task import (
     CandidateTaskAssessmentDTO,
     LLMCodeAssessmentDTO,
