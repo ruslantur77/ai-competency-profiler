@@ -24,7 +24,11 @@ from competency_system.application.dtos.webhooks import (
     WebhookEventPayload,
     WebhookEventStatus,
 )
-from competency_system.application.errors import ConflictError, NotFoundError
+from competency_system.application.errors import (
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+)
 from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
 )
@@ -118,11 +122,11 @@ class WebhookEventOperation:
         command: CandidateTaskAssessmentDTO,
     ) -> None:
         if existing.status == WebhookEventStatus.PROCESSING:
-            raise ValueError(f"Webhook event {command.event_id} is processing")
+            raise ConflictError(f"Webhook event {command.event_id} is processing")
         if existing.status != WebhookEventStatus.PROCESSED:
-            raise ValueError(f"Webhook event {command.event_id} already handled")
+            raise ConflictError(f"Webhook event {command.event_id} already handled")
         if existing.candidate_id is None or existing.test_result_id is None:
-            raise ValueError("Stored webhook event references missing result")
+            raise ValidationError("Stored webhook event references missing result")
 
         candidate = await uow.candidates.get(
             existing.candidate_id, include={CandidateInclude.ACHIEVEMENTS}
@@ -135,7 +139,7 @@ class WebhookEventOperation:
             },
         )
         if candidate is None or test_result is None:
-            raise ValueError("Stored webhook event references missing result")
+            raise ValidationError("Stored webhook event references missing result")
 
         vacancy = await uow.vacancies.get(
             existing.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
