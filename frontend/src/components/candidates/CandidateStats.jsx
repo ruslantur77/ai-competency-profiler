@@ -9,15 +9,15 @@ export default function CandidateStats({ total, counters }) {
       </div>
       <div className="candidates-tab__stat candidates-tab__stat--completed">
         <span className="candidates-tab__stat-value">{counters.completed}</span>
-        <span className="candidates-tab__stat-label">Completed (page)</span>
+        <span className="candidates-tab__stat-label">Оцененные</span>
       </div>
       <div className="candidates-tab__stat candidates-tab__stat--pending">
         <span className="candidates-tab__stat-value">{counters.pending}</span>
-        <span className="candidates-tab__stat-label">Pending (page)</span>
+        <span className="candidates-tab__stat-label">Ожидают оценки</span>
       </div>
       <div className="candidates-tab__stat candidates-tab__stat--failed">
         <span className="candidates-tab__stat-value">{counters.failed}</span>
-        <span className="candidates-tab__stat-label">Failed (page)</span>
+        <span className="candidates-tab__stat-label">Ошибка оценки</span>
       </div>
     </div>
   );

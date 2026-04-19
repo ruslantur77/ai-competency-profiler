@@ -2,10 +2,10 @@ import React from 'react';
 
 const STATS_CONFIG = [
   { key: 'total', label: 'Всего' },
-  { key: 'ready', label: 'Ready', className: 'tasks-tab__stat--completed' },
-  { key: 'pending', label: 'Pending', className: 'tasks-tab__stat--pending' },
-  { key: 'draft', label: 'Draft', className: 'tasks-tab__stat--draft' },
-  { key: 'failed', label: 'Failed', className: 'tasks-tab__stat--failed' },
+  { key: 'ready', label: 'Готово', className: 'tasks-tab__stat--completed' },
+  { key: 'pending', label: 'Ожидает маппинга', className: 'tasks-tab__stat--pending' },
+  { key: 'draft', label: 'Черновик графа', className: 'tasks-tab__stat--draft' },
+  { key: 'failed', label: 'Ошибка обработки', className: 'tasks-tab__stat--failed' },
 ];
 
 export default function TaskStats({ counters }) {
