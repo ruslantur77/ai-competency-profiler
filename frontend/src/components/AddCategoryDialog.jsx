@@ -1,6 +1,12 @@
+// frontend/src/components/AddCategoryDialog.jsx
 import React, { useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import './AddCategoryDialog.css';
+
+const EMOJI_OPTIONS = [
+  '🔧', '📊', '🏢', '🤝', '💡', '📱', '🎨', '📈',
+  '🔬', '🛠️', '📋', '🎯', '🧠', '💻', '📚', '⚙️',
+];
 
 export default function AddCategoryDialog({ onAdd, onClose, existingOptions = [] }) {
   const hasExisting = existingOptions.length > 0;
@@ -41,7 +47,7 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
 
   return (
     <div className="add-category-overlay" onClick={onClose}>
-      <div className="add-category" onClick={(event) => event.stopPropagation()}>
+      <div className="add-category" onClick={(e) => e.stopPropagation()}>
         <div className="add-category__header">
           <h3>➕ Добавить категорию</h3>
           <button onClick={onClose}>
@@ -72,7 +78,10 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
             <>
               <label>
                 Категория из онтологии
-                <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+                <select
+                  value={selectedId}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                >
                   {existingOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.emoji || '📋'} {option.name}
@@ -81,31 +90,43 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
                 </select>
               </label>
               {!hasExisting && (
-                <p className="add-category__hint">В онтологии нет доступных категорий.</p>
+                <p className="add-category__hint">
+                  В онтологии нет доступных категорий.
+                </p>
               )}
             </>
           ) : (
             <>
               <label>
+                Эмодзи
+                <div className="add-category__emoji-grid">
+                  {EMOJI_OPTIONS.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      className={`add-category__emoji-btn ${form.emoji === em ? 'active' : ''}`}
+                      onClick={() => setForm({ ...form, emoji: em })}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </label>
+
+              <label>
                 Название категории *
                 <input
                   value={form.name}
-                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
                   autoFocus
                 />
               </label>
-              <label>
-                Emoji
-                <input
-                  value={form.emoji}
-                  onChange={(event) => setForm({ ...form, emoji: event.target.value })}
-                />
-              </label>
+
               <label>
                 Описание
                 <textarea
                   value={form.description}
-                  onChange={(event) => setForm({ ...form, description: event.target.value })}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={3}
                 />
               </label>
