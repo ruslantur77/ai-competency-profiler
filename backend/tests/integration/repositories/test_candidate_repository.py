@@ -14,7 +14,7 @@ from competency_system.infrastructure.persistence.repositories import (
     CategoryRepository,
     VacancyRepository,
 )
-from tests.fixtures.domain_graph import build_taxonomy
+from tests.fixtures.domain_graph import build_taxonomy, build_vacancy_with_graph
 
 pytestmark = pytest.mark.integration_repo
 
@@ -112,3 +112,29 @@ async def test_candidate_repository_soft_delete_hides_default(
     visible = await repo.get(candidate.id, include_deleted=True)
     assert visible is not None
     assert visible.deleted_at is not None
+
+
+async def test_candidate_repository_loads_vacancy_subcompetencies(
+    pg_session: AsyncSession,
+) -> None:
+    category_repo = CategoryRepository(pg_session)
+    vacancy_repo = VacancyRepository(pg_session)
+    repo = CandidateRepository(pg_session)
+
+    vacancy, category, _, _, _ = build_vacancy_with_graph()
+    await category_repo.add(category)
+    await vacancy_repo.add(vacancy)
+
+    candidate = Candidate(external_id="cand-with-graph", vacancy_id=vacancy.id)
+    await repo.add(candidate)
+    await pg_session.commit()
+
+    loaded = await repo.get(
+        candidate.id,
+        include={CandidateInclude.VACANCY_SUBCOMPETENCIES},
+    )
+
+    assert loaded is not None
+    assert loaded.vacancy is not None
+    assert len(loaded.vacancy.competency_nodes) > 0
+    assert len(loaded.vacancy.sub_competency_nodes) > 0

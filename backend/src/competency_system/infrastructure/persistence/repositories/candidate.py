@@ -89,9 +89,14 @@ class CandidateRepository(
             options.append(joinedload(CandidateOrm.vacancy))
         if CandidateInclude.VACANCY_SUBCOMPETENCIES in includes:
             options.append(
-                joinedload(CandidateOrm.vacancy)
-                .selectinload(VacancyOrm.competency_nodes)
-                .selectinload(VacancyOrm.sub_competency_nodes)
+                joinedload(CandidateOrm.vacancy).selectinload(
+                    VacancyOrm.competency_nodes
+                )
+            )
+            options.append(
+                joinedload(CandidateOrm.vacancy).selectinload(
+                    VacancyOrm.sub_competency_nodes
+                )
             )
         return tuple(options)
 
