@@ -74,7 +74,6 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   const { vacancies, allVacancies, loading, fetchVacancies, setLoading, setVacancies } =
     useVacanciesData({ notify, vacancyMode: effectiveVacancyMode });
   const {
-    updatingStatusId,
     confirmAction,
     recentlyDeleted,
     setConfirmAction,
@@ -82,25 +81,17 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
     openHardDeleteConfirm,
     handleConfirmAction,
     handleRestore,
-    handleStatusChange,
   } = useVacancyLifecycle({ notify, fetchVacancies });
   const tabs = useMemo(
     () => [
-      ...(canSeeVacancies ? [{ id: 'vacancies', label: '📋 Вакансии' }] : []),
-      ...(canSeeTasks ? [{ id: 'tasks', label: '📝 Задания' }] : []),
-      ...(canSeeRanking ? [{ id: 'ranking', label: '🏆 Ранжирование' }] : []),
-      ...(canSeeOntology ? [{ id: 'ontology', label: '🧩 Онтология' }] : []),
-      ...(canSeeCandidates ? [{ id: 'candidates', label: '👤 Кандидаты' }] : []),
+      ...(canSeeVacancies  ? [{ id: 'vacancies',   label: '📋 Вакансии' }]    : []),
+      ...(canSeeOntology   ? [{ id: 'ontology',    label: '🧩 Онтология' }]   : []),
+      ...(canSeeTasks      ? [{ id: 'tasks',        label: '📝 Задания' }]     : []),
+      ...(canSeeCandidates ? [{ id: 'candidates',  label: '👤 Кандидаты' }]   : []),
+      ...(canSeeRanking    ? [{ id: 'ranking',     label: '🏆 Ранжирование' }] : []),
       ...(canSeeAdminUsers ? [{ id: 'admin-users', label: '🛡️ Пользователи' }] : []),
     ],
-    [
-      canSeeVacancies,
-      canSeeTasks,
-      canSeeRanking,
-      canSeeOntology,
-      canSeeCandidates,
-      canSeeAdminUsers,
-    ]
+    [canSeeVacancies, canSeeOntology, canSeeTasks, canSeeRanking, canSeeCandidates, canSeeAdminUsers]
   );
   const resolvedActiveTab = tabs.some((tab) => tab.id === activeTab)
     ? activeTab
@@ -239,14 +230,13 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
                   onHardDelete={openHardDeleteConfirm}
                 />
 
-                <VacancyCardsGrid
+<VacancyCardsGrid
                   vacancies={vacancies}
                   statusConfig={STATUS_CONFIG}
-                  updatingStatusId={updatingStatusId}
                   onOpen={handleOpen}
                   onDelete={openDeleteConfirm}
-                  onStatusChange={handleStatusChange}
                 />
+
               </>
             )}
           </>

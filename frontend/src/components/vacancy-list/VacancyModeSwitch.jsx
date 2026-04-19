@@ -14,7 +14,7 @@ export default function VacancyModeSwitch({ vacancyMode, canSeeReviewQueue, onMo
           className={`vacancy-list__mode-btn ${vacancyMode === 'review' ? 'is-active' : ''}`}
           onClick={() => onModeChange('review')}
         >
-          Review queue
+          Ожидают проверки
         </button>
       )}
     </div>
