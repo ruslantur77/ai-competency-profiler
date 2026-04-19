@@ -661,7 +661,7 @@ class UpdateTaskStatusUseCase:
 
     async def execute(self, task_id: UUID, command: TaskStatusUpdateDTO) -> TaskDTO:
         async with self._uow as uow:
-            task = await uow.tasks.get(task_id)
+            task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
             allowed = self._ALLOWED_TRANSITIONS.get(task.status, set())
