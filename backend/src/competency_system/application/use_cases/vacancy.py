@@ -1001,7 +1001,9 @@ class UpdateVacancyStatusUseCase:
         command: VacancyStatusUpdateDTO,
     ) -> VacancyDTO:
         async with self._uow as uow:
-            vacancy = await _get_vacancy_for_mutation(uow, vacancy_id)
+            vacancy = await _get_vacancy_for_mutation(
+                uow, vacancy_id, include_graph=True
+            )
             allowed = self._ALLOWED_TRANSITIONS.get(vacancy.status, set())
             if command.status != vacancy.status and command.status not in allowed:
                 raise ValidationError(
