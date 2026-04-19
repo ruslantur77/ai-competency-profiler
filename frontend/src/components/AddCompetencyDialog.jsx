@@ -109,13 +109,13 @@ export default function AddCompetencyDialog({
           </label>
 
           <label className="add-comp__checkbox-label">
-            <input
-              type="checkbox"
-              checked={form.is_required}
-              onChange={(e) => setForm({ ...form, is_required: e.target.checked })}
-            />
-            Обязательная компетенция
-          </label>
+          <input
+            type="checkbox"
+            checked={form.is_required}
+            onChange={(e) => setForm({ ...form, is_required: e.target.checked })}
+          />
+          Обязательная компетенция
+        </label>
         </div>
 
         <div className="add-comp__footer">

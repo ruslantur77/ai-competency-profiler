@@ -14,7 +14,7 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
   const [selectedId, setSelectedId] = useState(existingOptions[0]?.id || '');
   const [form, setForm] = useState({
     name: '',
-    emoji: '📋',
+    emoji: EMOJI_OPTIONS[0],
     description: '',
   });
 
@@ -100,16 +100,16 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
               <label>
                 Эмодзи
                 <div className="add-category__emoji-grid">
-                  {EMOJI_OPTIONS.map((em) => (
-                    <button
-                      key={em}
-                      type="button"
-                      className={`add-category__emoji-btn ${form.emoji === em ? 'active' : ''}`}
-                      onClick={() => setForm({ ...form, emoji: em })}
-                    >
-                      {em}
-                    </button>
-                  ))}
+                {EMOJI_OPTIONS.map((em, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`add-category__emoji-btn ${form.emoji === em ? 'active' : ''}`}
+                    onClick={() => setForm({ ...form, emoji: em })}
+                  >
+                    {em}
+                  </button>
+                ))}
                 </div>
               </label>
 

@@ -133,10 +133,16 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 0.75rem;
 }
 
-.add-comp__checkbox-label input {
+.add-comp__checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
   cursor: pointer;
+  accent-color: #3b82f6;
+  flex-shrink: 0;
 }

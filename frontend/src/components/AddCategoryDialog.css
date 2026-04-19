@@ -102,10 +102,12 @@
   justify-content: flex-end;
 }
 
+
 .add-category__emoji-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 6px;
 }
 
 .add-category__emoji-btn {
