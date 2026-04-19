@@ -10,6 +10,7 @@ from competency_system.application.dtos.task import (
     LLMCodeAssessmentDTO,
     LLMFeedbackItemDTO,
 )
+from competency_system.application.errors import ConflictError, NotFoundError
 from competency_system.application.use_cases.candidate import CandidateScoringOperation
 from competency_system.domain.services.candidate_scorer import CandidateScorer
 from competency_system.domain.value_objects.enums import LLMFeedbackType, TaskType
@@ -92,7 +93,7 @@ async def test_candidate_scoring_operation_raises_when_task_not_found(
     mock_uow.candidates.get_by_external_id.return_value = None
     mock_uow.tasks.get_by_external_id.return_value = None
 
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(NotFoundError, match="not found"):
         await operation.run(command)
 
 
@@ -105,7 +106,7 @@ async def test_candidate_scoring_operation_raises_on_candidate_vacancy_mismatch(
         {"vacancy_id": other_vacancy_id}
     )
 
-    with pytest.raises(ValueError, match="another vacancy"):
+    with pytest.raises(ConflictError, match="another vacancy"):
         await operation.run(command)
 
 
@@ -117,7 +118,7 @@ async def test_candidate_scoring_operation_raises_when_vacancy_not_found(
     mock_uow.tasks.get_by_external_id.return_value = task
     mock_uow.vacancies.get.return_value = None
 
-    with pytest.raises(ValueError, match="Vacancy"):
+    with pytest.raises(NotFoundError, match="Vacancy"):
         await operation.run(command)
 
 

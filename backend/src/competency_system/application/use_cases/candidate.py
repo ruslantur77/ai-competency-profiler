@@ -141,7 +141,7 @@ class WebhookEventOperation:
             existing.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
         )
         if vacancy is None:
-            raise ValueError(f"Vacancy {existing.vacancy_id} not found")
+            raise NotFoundError(f"Vacancy {existing.vacancy_id} not found")
 
         scores = self._scorer.calculate_scores(
             candidate, vacancy.requirement_competencies
@@ -309,7 +309,7 @@ class CandidateScoringOperation:
                 include={TaskInclude.NORMALIZED_GRAPH},
             )
             if task is None:
-                raise ValueError(f"Task {command.task_external_id} not found")
+                raise NotFoundError(f"Task {command.task_external_id} not found")
 
             test_result = self._build_test_result(command, task, candidate.id)
 
@@ -325,7 +325,7 @@ class CandidateScoringOperation:
                 command.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {command.vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {command.vacancy_id} not found")
 
             scores = self._scorer.calculate_scores(
                 candidate, vacancy.requirement_competencies
@@ -417,7 +417,7 @@ class CandidateScoringOperation:
         if candidate.deleted_at is not None:
             raise ConflictError("Candidate is deleted")
         if candidate.vacancy_id != command.vacancy_id:
-            raise ValueError("Candidate is already assigned to another vacancy")
+            raise ConflictError("Candidate is already assigned to another vacancy")
         return candidate
 
     def _build_test_result(
