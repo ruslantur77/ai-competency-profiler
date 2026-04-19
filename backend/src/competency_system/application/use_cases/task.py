@@ -519,6 +519,14 @@ class UpdateTaskStatusUseCase:
                     "Invalid status transition: "
                     f"{task.status.value} -> {command.status.value}"
                 )
+            if (
+                task.status != TaskStatus.READY
+                and command.status == TaskStatus.READY
+                and not task.sub_competency_nodes
+            ):
+                raise ValidationError(
+                    "Task graph must contain at least one sub-competency"
+                )
             task.status = command.status
             if command.status != TaskStatus.FAILED:
                 task.error_message = None

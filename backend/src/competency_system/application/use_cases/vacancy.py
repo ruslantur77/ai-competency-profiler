@@ -446,6 +446,7 @@ class SaveVacancyGraphUseCase:
             vacancy.category_nodes = category_nodes
             vacancy.competency_nodes = competency_nodes
             vacancy.sub_competency_nodes = sub_competency_nodes
+            vacancy.status = VacancyStatus.DRAFT
             vacancy.error_message = graph.error_message
 
             for category in resolved.categories_to_create:
@@ -470,8 +471,13 @@ class FinalizeVacancyGraphUseCase:
                 vacancy_id,
                 include_graph=True,
             )
+            if not vacancy.sub_competency_nodes:
+                raise ValidationError(
+                    "Vacancy graph must contain at least one sub-competency"
+                )
 
             vacancy.status = VacancyStatus.READY
+            vacancy.error_message = None
             await uow.vacancies.add(vacancy)
             await uow.commit()
             return vacancy_dto_from_domain(vacancy)
@@ -868,6 +874,14 @@ class UpdateVacancyStatusUseCase:
                 raise ValidationError(
                     "Invalid status transition: "
                     f"{vacancy.status.value} -> {command.status.value}"
+                )
+            if (
+                vacancy.status != VacancyStatus.READY
+                and command.status == VacancyStatus.READY
+                and not vacancy.sub_competency_nodes
+            ):
+                raise ValidationError(
+                    "Vacancy graph must contain at least one sub-competency"
                 )
             vacancy.status = command.status
             if command.status != VacancyStatus.FAILED:

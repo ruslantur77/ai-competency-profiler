@@ -15,7 +15,12 @@ from competency_system.application.use_cases.vacancy import (
     FinalizeVacancyGraphUseCase,
     SaveVacancyGraphUseCase,
 )
-from competency_system.domain.entities import Category, Competency, SubCompetency
+from competency_system.domain.entities import (
+    Category,
+    Competency,
+    SubCompetency,
+    VacancySubCompetencyNode,
+)
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import VacancyStatus
 from tests.factories import VacancyFactory
@@ -106,16 +111,43 @@ async def test_finalize_vacancy_graph_use_case_does_not_touch_suggestions(
     mock_uow.vacancy_suggestions.add.assert_not_awaited()
 
 
+async def test_save_vacancy_graph_use_case_moves_ready_back_to_draft(
+    use_case: SaveVacancyGraphUseCase, mock_uow, graph_update: VacancyGraphUpdateDTO
+) -> None:
+    vacancy = VacancyFactory().make({"status": VacancyStatus.READY})
+    mock_uow.vacancies.get.return_value = vacancy
+
+    result = await use_case.execute(vacancy.id, graph_update)
+
+    assert result.status == VacancyStatus.DRAFT
+    assert vacancy.status == VacancyStatus.DRAFT
+
+
 async def test_finalize_vacancy_graph_use_case_sets_ready_status(
     finalize_use_case: FinalizeVacancyGraphUseCase,
     mock_uow,
 ) -> None:
-    vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
+    vacancy = VacancyFactory().make(
+        {"status": VacancyStatus.DRAFT, "error_message": "LLM timeout"}
+    )
+    vacancy.sub_competency_nodes = [
+        VacancySubCompetencyNode(
+            id=uuid4(),
+            vacancy_id=vacancy.id,
+            sub_competency_id=uuid4(),
+            competency_id=uuid4(),
+            target_level=CompetencyLevel.BEGINNER,
+            weight=1.0,
+            position=0,
+        )
+    ]
     mock_uow.vacancies.get.return_value = vacancy
 
     result = await finalize_use_case.execute(vacancy.id)
 
     assert result.status == VacancyStatus.READY
+    assert result.error_message is None
+    assert vacancy.error_message is None
     mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
     mock_uow.commit.assert_awaited_once()
 
@@ -128,6 +160,18 @@ async def test_finalize_vacancy_graph_use_case_raises_when_vacancy_missing_on_fi
 
     with pytest.raises(NotFoundError, match="not found"):
         await finalize_use_case.execute(uuid4())
+
+
+async def test_finalize_vacancy_graph_use_case_requires_sub_competency_nodes(
+    finalize_use_case: FinalizeVacancyGraphUseCase,
+    mock_uow,
+) -> None:
+    vacancy = VacancyFactory().make({"status": VacancyStatus.DRAFT})
+    vacancy.sub_competency_nodes = []
+    mock_uow.vacancies.get.return_value = vacancy
+
+    with pytest.raises(ValidationError, match="at least one sub-competency"):
+        await finalize_use_case.execute(vacancy.id)
 
 
 async def test_save_graph_accepts_mixed_existing_and_new_nodes(
