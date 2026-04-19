@@ -103,6 +103,39 @@ body {
   color: white;
 }
 
+.btn-success {
+  padding: 8px 20px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.btn-success:hover {
+  background: #15803d;
+}
+
+.btn-success:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
   width: 8px;

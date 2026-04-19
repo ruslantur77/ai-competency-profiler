@@ -1,7 +1,7 @@
 /* frontend/src/components/MindMap.css */
 
 .mindmap {
-  max-width: 1000px;
+  width: 100%;
 }
 
 .mindmap__header {
