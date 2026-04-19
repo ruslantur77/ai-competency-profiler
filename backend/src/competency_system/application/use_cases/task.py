@@ -47,6 +47,10 @@ from competency_system.application.ports.repositories import (
 )
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.graph_builder import GraphEntityResolver
+from competency_system.application.use_cases.status_transitions import (
+    validate_ready_graph_requirement,
+    validate_status_transition,
+)
 from competency_system.domain.entities import (
     Category,
     Competency,
@@ -513,20 +517,18 @@ class UpdateTaskStatusUseCase:
             task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
-            allowed = self._ALLOWED_TRANSITIONS.get(task.status, set())
-            if command.status != task.status and command.status not in allowed:
-                raise ValidationError(
-                    "Invalid status transition: "
-                    f"{task.status.value} -> {command.status.value}"
-                )
-            if (
-                task.status != TaskStatus.READY
-                and command.status == TaskStatus.READY
-                and not task.sub_competency_nodes
-            ):
-                raise ValidationError(
-                    "Task graph must contain at least one sub-competency"
-                )
+            validate_status_transition(
+                current=task.status,
+                target=command.status,
+                allowed_transitions=self._ALLOWED_TRANSITIONS,
+            )
+            validate_ready_graph_requirement(
+                current=task.status,
+                target=command.status,
+                ready_status=TaskStatus.READY,
+                has_sub_competency_nodes=bool(task.sub_competency_nodes),
+                entity_name="Task",
+            )
             task.status = command.status
             if command.status != TaskStatus.FAILED:
                 task.error_message = None

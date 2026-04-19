@@ -51,6 +51,10 @@ from competency_system.application.ports.repositories import (
 )
 from competency_system.application.ports.uow import UnitOfWork
 from competency_system.application.use_cases.graph_builder import GraphEntityResolver
+from competency_system.application.use_cases.status_transitions import (
+    validate_ready_graph_requirement,
+    validate_status_transition,
+)
 from competency_system.application.use_cases.vacancy_suggestions import (
     VacancySuggestionApprovalHelper,
 )
@@ -697,20 +701,18 @@ class UpdateVacancyStatusUseCase:
             vacancy = await _get_vacancy_for_mutation(
                 uow, vacancy_id, include_graph=True
             )
-            allowed = self._ALLOWED_TRANSITIONS.get(vacancy.status, set())
-            if command.status != vacancy.status and command.status not in allowed:
-                raise ValidationError(
-                    "Invalid status transition: "
-                    f"{vacancy.status.value} -> {command.status.value}"
-                )
-            if (
-                vacancy.status != VacancyStatus.READY
-                and command.status == VacancyStatus.READY
-                and not vacancy.sub_competency_nodes
-            ):
-                raise ValidationError(
-                    "Vacancy graph must contain at least one sub-competency"
-                )
+            validate_status_transition(
+                current=vacancy.status,
+                target=command.status,
+                allowed_transitions=self._ALLOWED_TRANSITIONS,
+            )
+            validate_ready_graph_requirement(
+                current=vacancy.status,
+                target=command.status,
+                ready_status=VacancyStatus.READY,
+                has_sub_competency_nodes=bool(vacancy.sub_competency_nodes),
+                entity_name="Vacancy",
+            )
             vacancy.status = command.status
             if command.status != VacancyStatus.FAILED:
                 vacancy.error_message = None
