@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, RotateCcw, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, RotateCcw, Loader2, CheckCircle2, FileEdit } from 'lucide-react';
 import VacancySidebar from './VacancySidebar';
 import MindMap from './MindMap';
 import AddCategoryDialog from './AddCategoryDialog';
 import SuggestionsPanel from './SuggestionsPanel';
 import ForbiddenState from './ForbiddenState';
 import AsyncState from './AsyncState';
-import { finalizeVacancyGraph, getVacancy, updateGraph } from '../api/vacancies';
+import ConfirmDialog from './ConfirmDialog';
+import { finalizeVacancyGraph, getVacancy, updateGraph, updateVacancyStatus } from '../api/vacancies';
 import { listCategories } from '../api/ontology';
 import { getErrorMessage } from '../api/errors';
 import { canEditGraph, canUseSuggestions } from '../api/roles';
@@ -48,10 +49,15 @@ export default function VacancyEditor({ notify, role }) {
   const [isDirty, setIsDirty] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
   const [isForbidden, setIsForbidden] = useState(false);
+
+  // Состояние confirm-диалога для "Вернуть в черновик"
+  const [draftConfirmOpen, setDraftConfirmOpen] = useState(false);
+
   const canEdit = canEditGraph(role);
   const isEditableStatus = EDITABLE_STATUSES.has(vacancy?.status);
   const canMutateGraph = canEdit && isEditableStatus;
   const canFinalize = canEdit && vacancy?.status === 'draft' && !isDirty;
+  const canSendToDraft = canEdit && vacancy?.status === 'ready';
   const canReviewSuggestions = canUseSuggestions(role) && vacancy?.status === 'draft';
 
   const ontologyCategoryOptions = useMemo(
@@ -150,10 +156,9 @@ export default function VacancyEditor({ notify, role }) {
     try {
       const dto = buildVacancyGraphDTO(categoryNodes, competencyNodes, subCompetencyNodes);
       await updateGraph(vacancyId, dto);
-
       const { data: fresh } = await getVacancy(vacancyId);
       applyVacancyData(fresh);
-      notify('Граф компетенций сохранен');
+      notify('Граф компетенций сохранён');
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка сохранения' }), 'error');
     } finally {
@@ -168,9 +173,25 @@ export default function VacancyEditor({ notify, role }) {
       await finalizeVacancyGraph(vacancyId);
       const { data: fresh } = await getVacancy(vacancyId);
       applyVacancyData(fresh);
-      notify('Вакансия переведена в статус ready');
+      notify('Вакансия финализирована');
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка финализации графа' }), 'error');
+    } finally {
+      setFinalizing(false);
+    }
+  };
+
+  // Вызывается после подтверждения в ConfirmDialog
+  const handleSendToDraft = async () => {
+    setDraftConfirmOpen(false);
+    setFinalizing(true);
+    try {
+      await updateVacancyStatus(vacancyId, 'draft');
+      const { data: fresh } = await getVacancy(vacancyId);
+      applyVacancyData(fresh);
+      notify('Вакансия возвращена в черновик');
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка смены статуса' }), 'error');
     } finally {
       setFinalizing(false);
     }
@@ -399,6 +420,41 @@ export default function VacancyEditor({ notify, role }) {
     return <AsyncState kind="loading" title="Загрузка вакансии..." />;
   }
 
+  // Рендер кнопки финализации / возврата в черновик
+  const renderFinalizeButton = () => {
+    if (vacancy?.status === 'ready') {
+      return (
+        <button
+          className="btn-secondary"
+          onClick={() => setDraftConfirmOpen(true)}
+          disabled={finalizing || !canSendToDraft}
+          title="Вернуть вакансию в черновик для редактирования"
+        >
+          {finalizing ? (
+            <><Loader2 size={16} className="spin" /> Обработка...</>
+          ) : (
+            <><FileEdit size={16} /> Вернуть в черновик</>
+          )}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        className="btn-success"
+        onClick={handleFinalize}
+        disabled={!canFinalize || finalizing}
+        title={isDirty ? 'Сначала сохраните изменения графа' : 'Финализировать вакансию'}
+      >
+        {finalizing ? (
+          <><Loader2 size={16} className="spin" /> Финализация...</>
+        ) : (
+          <><CheckCircle2 size={16} /> Финализировать</>
+        )}
+      </button>
+    );
+  };
+
   return (
     <div className="workspace">
       <VacancySidebar vacancy={vacancy} />
@@ -426,31 +482,13 @@ export default function VacancyEditor({ notify, role }) {
               disabled={saving || !isDirty || !canMutateGraph}
             >
               {saving ? (
-                <>
-                  <Loader2 size={16} className="spin" /> Сохранение...
-                </>
+                <><Loader2 size={16} className="spin" /> Сохранение...</>
               ) : (
-                <>
-                  <Save size={16} /> Сохранить
-                </>
+                <><Save size={16} /> Сохранить</>
               )}
             </button>
-            <button
-              className="btn-secondary"
-              onClick={handleFinalize}
-              disabled={!canFinalize || finalizing}
-              title={isDirty ? 'Сначала сохраните изменения графа' : 'Перевести в статус ready'}
-            >
-              {finalizing ? (
-                <>
-                  <Loader2 size={16} className="spin" /> Финализация...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={16} /> Finalize
-                </>
-              )}
-            </button>
+
+            {renderFinalizeButton()}
           </div>
         </div>
 
@@ -505,6 +543,17 @@ export default function VacancyEditor({ notify, role }) {
           />
         )}
       </main>
+
+      {/* Подтверждение возврата в черновик */}
+      {draftConfirmOpen && (
+        <ConfirmDialog
+          title="Вернуть в черновик"
+          message={`Вакансия "${vacancy?.name}" будет возвращена в статус черновика и убрана из ранжирования. Продолжить?`}
+          confirmLabel="Вернуть в черновик"
+          onConfirm={handleSendToDraft}
+          onCancel={() => setDraftConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,11 +1,11 @@
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const COMPETENCY_LEVEL_OPTIONS = [
-  { value: 0, label: '⚪ None' },
-  { value: 1, label: '🟢 Novice' },
-  { value: 2, label: '🔵 Beginner' },
-  { value: 3, label: '🟡 Intermediate' },
-  { value: 4, label: '🟠 Advanced' },
+  { value: 0, label: '⚪ No level' },
+  { value: 1, label: '🟢 Beginner' },
+  { value: 2, label: '🟡 Intermediate' },
+  { value: 3, label: '🟠 Upper-Intermediate' },
+  { value: 4, label: '🔴 Advanced' },
   { value: 5, label: '⭐ Expert' },
 ];
 

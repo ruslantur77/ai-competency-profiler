@@ -213,14 +213,12 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
             ) : vacancies.length === 0 ? (
               <AsyncState
                 kind="empty"
-                title="📋 Вакансий пока нет"
+                title="Вакансий пока нет"
                 hint={
                   canCreate
-                    ? 'Создайте первую вакансию для формирования профиля компетенций'
+                    ? 'Создайте первую вакансию для формирования профиля компетенций кандидата'
                     : 'Вакансий пока нет'
                 }
-                actionLabel={canCreate ? 'Создать вакансию' : undefined}
-                onAction={canCreate ? () => setCreating(true) : undefined}
               />
             ) : (
               <>
