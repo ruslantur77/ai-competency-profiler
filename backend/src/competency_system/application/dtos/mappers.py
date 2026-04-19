@@ -41,6 +41,12 @@ from competency_system.domain.services.ranking_engine import (
     RankingScore,
 )
 
+_PERCENT_SCALE = 100.0
+
+
+def _percent_to_ratio(value: float) -> float:
+    return value / _PERCENT_SCALE
+
 
 def candidate_profile_dto_from_scoring(
     candidate: Candidate,
@@ -140,7 +146,7 @@ def ranking_breakdown_item_dto_from_domain(
         matched_weight=breakdown.matched_weight,
         total_weight=breakdown.total_weight,
         coverage=breakdown.coverage,
-        score_contribution=breakdown.score_contribution,
+        score_contribution=_percent_to_ratio(breakdown.score_contribution),
         matched_subcompetency_ids=list(breakdown.matched_subcompetency_ids),
         total_subcompetency_ids=list(breakdown.total_subcompetency_ids),
     )
@@ -152,11 +158,11 @@ def ranking_item_dto_from_ranking_score_domain(
     return RankingItemDTO(
         candidate_id=ranking_score.candidate_id,
         candidate_external_id=ranking_score.candidate_external_id,
-        total_score=ranking_score.total_score,
+        total_score=_percent_to_ratio(ranking_score.total_score),
         required_match=ranking_score.required_match,
         desired_match=ranking_score.desired_match,
-        required_score=ranking_score.required_score,
-        desired_score=ranking_score.desired_score,
+        required_score=_percent_to_ratio(ranking_score.required_score),
+        desired_score=_percent_to_ratio(ranking_score.desired_score),
         breakdown=[
             ranking_breakdown_item_dto_from_domain(breakdown)
             for breakdown in ranking_score.breakdown

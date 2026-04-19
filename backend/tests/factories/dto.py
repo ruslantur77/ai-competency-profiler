@@ -128,11 +128,11 @@ class ApiDTOFactory:
                 RankingItemDTO(
                     candidate_id=uuid4(),
                     candidate_external_id="candidate-1",
-                    total_score=79.0,
+                    total_score=0.79,
                     required_match=0.7,
                     desired_match=1.0,
-                    required_score=49.0,
-                    desired_score=30.0,
+                    required_score=0.49,
+                    desired_score=0.30,
                     breakdown=[
                         RankingBreakdownItemDTO(
                             competency_id=uuid4(),
@@ -141,7 +141,7 @@ class ApiDTOFactory:
                             matched_weight=0.7,
                             total_weight=1.0,
                             coverage=0.7,
-                            score_contribution=49.0,
+                            score_contribution=0.49,
                             matched_subcompetency_ids=[uuid4()],
                             total_subcompetency_ids=[uuid4()],
                         )
