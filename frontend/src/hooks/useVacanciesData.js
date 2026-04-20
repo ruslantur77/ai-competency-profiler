@@ -12,20 +12,21 @@ export default function useVacanciesData({ notify, vacancyMode }) {
 
   const fetchVacancies = useCallback(
     async ({ silent = false } = {}) => {
-      if (!silent) setLoading(true);
+      if (!silent) setLoading(true)
       try {
         if (vacancyMode === 'review') {
           const reviewPages = await fetchAllPages({
             fetchPage: async ({ limit, offset }) => {
-              const { data } = await listVacanciesForReview({ limit, offset });
-              return data;
+              const { data } = await listVacanciesForReview({ limit, offset })
+              return data
             },
-          });
+          })
           const reviewItems = reviewPages.items.sort(
             (a, b) => new Date(b.created_at) - new Date(a.created_at)
-          );
-          setVacancies(reviewItems);
+          )
+          setVacancies(reviewItems)
         } else {
+          // Всегда грузим все статусы
           const responses = await Promise.allSettled(
             ALL_STATUSES.map((status) =>
               fetchAllPages({
@@ -34,34 +35,38 @@ export default function useVacanciesData({ notify, vacancyMode }) {
                     status_filter: status,
                     limit,
                     offset,
-                  });
-                  return data;
+                  })
+                  return data
                 },
               })
             )
-          );
-          const fulfilled = responses.filter((result) => result.status === 'fulfilled');
+          )
+          const fulfilled = responses.filter((r) => r.status === 'fulfilled')
           const all = fulfilled
-            .flatMap((result) => result.value.items)
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-          setVacancies(all);
-          setAllVacancies(all);
-
+            .flatMap((r) => r.value.items)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  
+          setAllVacancies(all)
+  
+          // Фильтруем по выбранному режиму
+          const filtered = ['pending', 'draft', 'ready', 'failed'].includes(vacancyMode)
+            ? all.filter((v) => v.status === vacancyMode)
+            : all
+  
+          setVacancies(filtered)
+  
           if (fulfilled.length === 0) {
-            notify('Ошибка загрузки вакансий', 'error');
+            notify('Ошибка загрузки вакансий', 'error')
           } else if (fulfilled.length < ALL_STATUSES.length) {
-            notify('Часть вакансий не загрузилась, повторите позже', 'error');
+            notify('Часть вакансий не загрузилась, повторите позже', 'error')
           }
         }
       } catch (error) {
-        setVacancies([]);
-        if (vacancyMode !== 'review') {
-          setAllVacancies([]);
-        }
-        notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансий' }), 'error');
+        setVacancies([])
+        if (vacancyMode !== 'review') setAllVacancies([])
+        notify(getErrorMessage(error, { fallback: 'Ошибка загрузки вакансий' }), 'error')
       } finally {
-        if (!silent) setLoading(false);
+        if (!silent) setLoading(false)
       }
     },
     [notify, vacancyMode]

@@ -1,22 +1,30 @@
+// frontend/src/components/vacancy-list/VacancyModeSwitch.jsx
 import React from 'react';
 
+const MODES = [
+  { id: 'all',     label: 'Все вакансии' },
+  { id: 'pending', label: 'Обрабатывается' },
+  { id: 'draft',   label: 'Ожидают проверки' },
+  { id: 'ready',   label: 'Финализированы' },
+  { id: 'failed',  label: 'Ошибка обработки' },
+]
+
 export default function VacancyModeSwitch({ vacancyMode, canSeeReviewQueue, onModeChange }) {
+  const visibleModes = canSeeReviewQueue
+    ? [...MODES, { id: 'review', label: 'Очередь проверки' }]
+    : MODES
+
   return (
     <div className="vacancy-list__mode">
-      <button
-        className={`vacancy-list__mode-btn ${vacancyMode === 'all' ? 'is-active' : ''}`}
-        onClick={() => onModeChange('all')}
-      >
-        Все вакансии
-      </button>
-      {canSeeReviewQueue && (
+      {visibleModes.map(mode => (
         <button
-          className={`vacancy-list__mode-btn ${vacancyMode === 'review' ? 'is-active' : ''}`}
-          onClick={() => onModeChange('review')}
+          key={mode.id}
+          className={`vacancy-list__mode-btn ${vacancyMode === mode.id ? 'is-active' : ''}`}
+          onClick={() => onModeChange(mode.id)}
         >
-          Ожидают проверки
+          {mode.label}
         </button>
-      )}
+      ))}
     </div>
-  );
+  )
 }

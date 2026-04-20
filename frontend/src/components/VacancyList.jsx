@@ -113,7 +113,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
 
   // Умный polling: только когда есть pending, вкладка видима и пользователь в табе вакансий.
   useEffect(() => {
-    const hasPending = vacancies.some((v) => v.status === 'pending');
+    const hasPending = allVacancies.some((v) => v.status === 'pending')
     if (
       !canSeeVacancies ||
       effectiveVacancyMode !== 'all' ||
@@ -228,7 +228,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
                   onHardDelete={openHardDeleteConfirm}
                 />
 
-<VacancyCardsGrid
+                <VacancyCardsGrid
                   vacancies={vacancies}
                   statusConfig={STATUS_CONFIG}
                   onOpen={handleOpen}

@@ -159,7 +159,7 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
           value={selectedVacancyId}
           onChange={handleVacancyChange}
         >
-          <option value="">— Выберите вакансию —</option>
+          <option value="">Выберите вакансию</option>
           {vacancyList.map((v) => (
             <option key={v.id} value={v.id}>
               {v.name}
@@ -171,7 +171,7 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
       {!selectedVacancyId && (
         <div className="ranking__empty">
           <Trophy size={48} />
-          <p>Выберите вакансию чтобы увидеть ранжирование кандидатов</p>
+          <p>Выберите вакансию, чтобы увидеть ранжирование кандидатов</p>
           {vacancyList.length === 0 && (
             <p className="ranking__empty-hint">
               Нет вакансий со статусом "Готово". Сначала завершите редактирование вакансии.
