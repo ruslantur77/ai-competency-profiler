@@ -169,3 +169,47 @@
     max-height: none;
   }
 }
+/* Details — новые стили */
+.ontology__details-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  background: #0f172a;
+  border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.ontology__details-key {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.ontology__details-value {
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  line-height: 1.4;
+}
+
+.ontology__details-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.ontology__details-tag {
+  background: #1e3a5f;
+  color: #93c5fd;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.82rem;
+}
+
+.ontology__details-empty {
+  font-size: 0.85rem;
+  color: #475569;
+}
