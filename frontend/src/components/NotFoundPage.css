@@ -20,7 +20,11 @@
     font-size: 8rem;
     font-weight: 800;
     line-height: 1;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: repeating-linear-gradient(
+      135deg,
+      #048b6b 0 16px,
+      #b09406 16px 32px
+    );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
