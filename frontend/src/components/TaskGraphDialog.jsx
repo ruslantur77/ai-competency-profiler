@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Save, CheckCircle2, X } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, X, FileEdit } from 'lucide-react';
 import AddCategoryDialog from './AddCategoryDialog';
 import MindMap from './MindMap';
 import AsyncState from './AsyncState';
@@ -16,12 +16,12 @@ import {
 } from '../domain/competencyGraph';
 import './TaskGraphDialog.css';
 
-const TASK_STATUS_LABELS = {
-  pending: 'Pending',
-  draft: 'Draft',
-  ready: 'Ready',
-  failed: 'Failed',
-};
+const TASK_STATUS_CONFIG = {
+  pending: { label: 'Ожидает маппинга', badge: 'pending' },
+  draft:   { label: 'Черновик графа',   badge: 'draft'   },
+  ready:   { label: 'Граф готов',       badge: 'ready'   },
+  failed:  { label: 'Ошибка',           badge: 'failed'  },
+}
 
 const tempId = () => crypto.randomUUID();
 
@@ -294,6 +294,20 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
     markDirty();
   };
 
+  const handleRevertToDraft = async () => {
+    setStatusSaving(true)
+    try {
+      const { data } = await updateTaskStatus(taskId, 'draft')
+      applyTask(data)
+      notify('Задача возвращена в черновик')
+      onUpdated()
+    } catch (error) {
+      notify(getErrorMessage(error, { fallback: 'Ошибка изменения статуса' }), 'error')
+    } finally {
+      setStatusSaving(false)
+    }
+  }
+
   const handleUpdateSub = (updatedSub) => {
     setSubCompetencyNodes((prev) =>
       prev.map((s) =>
@@ -363,73 +377,89 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
 
   return (
     <div className="task-graph-dialog__overlay" onClick={onClose}>
-      <div className="task-graph-dialog" onClick={(event) => event.stopPropagation()}>
+      <div className="task-graph-dialog" onClick={(e) => e.stopPropagation()}>
+  
+        {/* ===== HEADER ===== */}
         <div className="task-graph-dialog__header">
-          <div>
+          <div className="task-graph-dialog__header-left">
             <h3>{task?.title || 'Граф задачи'}</h3>
-            <p>ID: {task?.external_id || '—'}</p>
+            <div className="task-graph-dialog__header-meta">
+              {task?.external_id && (
+                <span className="task-graph-dialog__external-id">
+                  {task.external_id}
+                </span>
+              )}
+              {task?.status && (
+                <span className={`task-graph-dialog__status-badge task-graph-dialog__status-badge--${TASK_STATUS_CONFIG[task.status]?.badge}`}>
+                  {TASK_STATUS_CONFIG[task.status]?.label ?? task.status}
+                </span>
+              )}
+            </div>
           </div>
           <button className="task-graph-dialog__close" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
-
+  
         {loading ? (
           <AsyncState kind="loading" title="Загрузка графа задачи..." />
         ) : (
           <>
+          {/* ===== ACTIONS ===== */}
             <div className="task-graph-dialog__actions">
-              <label>
-                Статус
-                <select
-                  value={task?.status || 'pending'}
-                  onChange={handleStatusChange}
-                  disabled={statusSaving}
-                >
-                  {Object.keys(TASK_STATUS_LABELS).map((status) => (
-                    <option key={status} value={status}>
-                      {TASK_STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
               <div className="task-graph-dialog__buttons">
                 {isDirty && (
-                  <button className="btn-secondary" onClick={handleDiscard} disabled={saving}>
+                  <button
+                    className="btn-secondary"
+                    onClick={handleDiscard}
+                    disabled={saving}
+                  >
                     Отменить
                   </button>
                 )}
-                <button className="btn-primary" onClick={handleSave} disabled={saving || !isDirty}>
-                  {saving ? (
-                    <>
-                      <Loader2 size={16} className="spin" /> Сохранение...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} /> Сохранить граф
-                    </>
-                  )}
-                </button>
                 <button
-                  className="btn-secondary"
-                  onClick={handleFinalize}
-                  disabled={finalizing || isDirty}
-                  title={isDirty ? 'Сначала сохраните изменения' : 'Перевести граф в ready'}
+                  className="btn-primary"
+                  onClick={handleSave}
+                  disabled={saving || !isDirty}
                 >
-                  {finalizing ? (
-                    <>
-                      <Loader2 size={16} className="spin" /> Финализация...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 size={16} /> Finalize
-                    </>
-                  )}
+                  {saving
+                    ? <><Loader2 size={16} className="spin" /> Сохранение...</>
+                    : <><Save size={16} /> Сохранить граф</>
+                  }
                 </button>
+
+                {/* Финализировать — всегда виден для draft */}
+                {(task?.status === 'draft' || task?.status === 'pending') && (
+                  <button
+                    className="btn-secondary"
+                    onClick={handleFinalize}
+                    disabled={finalizing || isDirty}
+                    title={isDirty ? 'Сначала сохраните изменения' : 'Перевести граф в ready'}
+                  >
+                    {finalizing
+                      ? <><Loader2 size={16} className="spin" /> Финализация...</>
+                      : <><CheckCircle2 size={16} /> Финализировать</>
+                    }
+                  </button>
+                )}
+
+                {/* Вернуть в черновик — только для ready */}
+                {task?.status === 'ready' && (
+                  <button
+                    className="btn-secondary"
+                    onClick={handleRevertToDraft}
+                    disabled={statusSaving || isDirty}
+                    title="Вернуть граф в черновик для редактирования"
+                  >
+                    {statusSaving
+                        ? <><Loader2 size={16} className="spin" /> Обновление...</>
+                        : <><FileEdit size={16} /> Вернуть в черновик</>
+                      }
+                  </button>
+                )}
               </div>
             </div>
-
+  
             <div className="task-graph-dialog__body">
               <MindMap
                 categoryNodes={categoryNodes}
@@ -450,7 +480,7 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
             </div>
           </>
         )}
-
+  
         {addingCategory && (
           <AddCategoryDialog
             existingOptions={ontologyCategoryOptions}
@@ -460,5 +490,5 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
         )}
       </div>
     </div>
-  );
+  )
 }
