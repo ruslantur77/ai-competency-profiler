@@ -8,6 +8,7 @@ import Notification from './components/Notification';
 import { getMe, logout } from './api/auth';
 import { ROLES, hasAllowedRole } from './api/roles';
 import './App.css';
+import NotFoundPage from './components/NotFoundPage'
 
 function PrivateRoute({ isAuth, isLoading, role, allowedRoles, children }) {
   if (isLoading) {
@@ -150,6 +151,7 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
   );

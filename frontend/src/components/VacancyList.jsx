@@ -204,7 +204,6 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
           <>
             <VacancyModeSwitch
               vacancyMode={effectiveVacancyMode}
-              canSeeReviewQueue={canSeeReviewQueue}
               onModeChange={setVacancyMode}
             />
 
