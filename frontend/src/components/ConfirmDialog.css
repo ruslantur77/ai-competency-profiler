@@ -89,6 +89,9 @@
   background: #dc2626;
   color: white;
   border: none;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;

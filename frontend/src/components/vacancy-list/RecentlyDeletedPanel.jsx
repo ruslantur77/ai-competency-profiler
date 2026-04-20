@@ -22,7 +22,7 @@ export default function RecentlyDeletedPanel({ items, onRestore, onHardDelete })
                 onClick={() => onHardDelete(item)}
                 title="Полное удаление без восстановления"
               >
-                <ShieldAlert size={14} /> Hard delete
+                <ShieldAlert size={14} /> Удалить навсегда
               </button>
             </div>
           </div>
