@@ -54,14 +54,18 @@ export default function AdminUsersTable({
             <span>{formatDateTime(user.created_at)}</span>
             <span>{formatDateTime(user.updated_at)}</span>
             <span>
-              <button
-                className="btn-secondary admin-users__toggle"
+            <button
+                className={`btn-secondary admin-users__toggle ${
+                  user.is_active 
+                    ? 'admin-users__toggle--active' 
+                    : 'admin-users__toggle--inactive'
+                }`}
                 disabled={updatingStatusId === user.id || isSelf}
                 title={isSelf ? 'Собственную учетную запись деактивировать нельзя' : undefined}
                 onClick={() => onStatusToggle(user)}
               >
                 <UserX size={14} />
-                {user.is_active ? 'Deactivate' : 'Activate'}
+                {user.is_active ? 'Деактивировать' : 'Активировать'}
               </button>
             </span>
           </div>

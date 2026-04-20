@@ -152,3 +152,25 @@
     min-width: 960px;
   }
 }
+
+.admin-users__toggle--active {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.admin-users__toggle--active:hover:not(:disabled) {
+  background: #2d1515;
+  border-color: #ef4444;
+  color: #f87171;
+}
+
+.admin-users__toggle--inactive {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.admin-users__toggle--inactive:hover:not(:disabled) {
+  background: #052e16;
+  border-color: #22c55e;
+  color: #4ade80;
+}
