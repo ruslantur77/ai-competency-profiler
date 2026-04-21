@@ -97,8 +97,8 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
             </>
           ) : (
             <>
-              <label>
-                Эмодзи
+              <div className="add-category__field">
+                <span>Эмодзи</span>
                 <div className="add-category__emoji-grid">
                 {EMOJI_OPTIONS.map((em, index) => (
                   <button
@@ -111,7 +111,7 @@ export default function AddCategoryDialog({ onAdd, onClose, existingOptions = []
                   </button>
                 ))}
                 </div>
-              </label>
+              </div>
 
               <label>
                 Название категории *
