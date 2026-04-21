@@ -184,6 +184,13 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   // Только ready вакансии для ранжирования
   const readyVacancies = vacancyUniverse.filter((v) => v.status === 'ready');
 
+  const handleTabChange = (tabId) => {
+    if (tabId !== 'ranking') {
+      setRankingNavigationTarget(null)
+    }
+    setActiveTab(tabId)
+  }
+
   return (
     <div className="vacancy-list">
       {/* ===== HEADER ===== */}
@@ -195,7 +202,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       />
 
       {/* ===== ТАБЫ ===== */}
-      <VacancyTabs tabs={tabs} activeTab={resolvedActiveTab} onTabChange={setActiveTab} />
+      <VacancyTabs tabs={tabs} activeTab={resolvedActiveTab} onTabChange={handleTabChange} />
 
       {/* ===== КОНТЕНТ ===== */}
       <div className="vacancy-list__content">
