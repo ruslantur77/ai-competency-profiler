@@ -28,6 +28,7 @@
 .tasks-tab__stats {
   display: flex;
   gap: 1rem;
+  width: 100%;
 }
 
 .tasks-tab__stat {
@@ -40,6 +41,7 @@
   align-items: center;
   gap: 0.2rem;
   min-width: 80px;
+  flex: 1;
 }
 
 .tasks-tab__stat-value {
