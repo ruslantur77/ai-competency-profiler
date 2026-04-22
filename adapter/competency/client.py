@@ -35,6 +35,11 @@ class CompetencyClient:
         """
         Отправляет одно событие в webhook нашей системы.
         Retry с exponential backoff настраивается через .env.
+
+        Коды ответа:
+          2xx - успех
+          409 - событие уже обработано, считаем успехом (идемпотентность)
+          остальные 4xx/5xx - ошибка, будет retry
         """
         retry_decorator = _make_retry_decorator()
 
@@ -47,6 +52,16 @@ class CompetencyClient:
                 headers=self._headers,
                 timeout=30.0,
             )
+
+            # 409 = наша система уже обработала это событие
+            # Считаем успехом — не нужно retry
+            if response.status_code == 409:
+                logger.info(
+                    f"event_id={dto.event_id} уже обработан (409), считаем успехом"
+                )
+                return
+
+            # Всё остальное кроме 2xx — бросаем исключение → retry
             response.raise_for_status()
 
         await _do_send()
