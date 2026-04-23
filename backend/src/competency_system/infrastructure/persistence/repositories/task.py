@@ -29,6 +29,7 @@ from competency_system.domain.entities import (
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import TaskStatus
 from competency_system.infrastructure.persistence.mappers import (
+    subcompetency_from_orm,
     task_from_orm,
     task_to_orm,
     test_result_from_orm,
@@ -282,8 +283,8 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm, TaskInclude], ITaskRepo
                 )
             ).all()
         }
-        sub_models = {
-            model.id: model
+        sub_competencies = {
+            model.id: subcompetency_from_orm(model)
             for model in (
                 await self._session.scalars(
                     select(SubCompetencyOrm).where(SubCompetencyOrm.id.in_(sub_ids))
@@ -361,7 +362,7 @@ class TaskRepository(SQLAlchemyRepository[Task, TaskOrm, TaskInclude], ITaskRepo
                 weight=row.weight,
                 position=row.position,
                 competency=competencies.get(row.competency_id),
-                sub_competency=sub_models.get(row.sub_competency_id),
+                sub_competency=sub_competencies.get(row.sub_competency_id),
             )
             for row in sub_rows
         ]

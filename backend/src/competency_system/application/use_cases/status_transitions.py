@@ -17,8 +17,7 @@ def validate_status_transition[StatusT: StrEnum](
     allowed = allowed_transitions.get(current, set())
     if target not in allowed:
         raise ValidationError(
-            "Invalid status transition: "
-            f"{current.value} -> {target.value}"
+            f"Invalid status transition: {current.value} -> {target.value}"
         )
 
 

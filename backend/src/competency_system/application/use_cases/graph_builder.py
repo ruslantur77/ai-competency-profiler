@@ -13,25 +13,41 @@ from competency_system.domain.value_objects.competency_level import CompetencyLe
 
 
 class _GraphNodeDTO(Protocol):
-    mode: str | StrEnum
-    id: UUID | None
-    name: str | None
-    description: str | None
+    @property
+    def mode(self) -> str | StrEnum: ...
+
+    @property
+    def id(self) -> UUID | None: ...
+
+    @property
+    def name(self) -> str | None: ...
+
+    @property
+    def description(self) -> str | None: ...
 
 
 class GraphSubCompetencyDTO(_GraphNodeDTO, Protocol):
-    weight: float
-    target_level: CompetencyLevel
+    @property
+    def weight(self) -> float: ...
+
+    @property
+    def target_level(self) -> CompetencyLevel: ...
 
 
 class GraphCompetencyDTO(_GraphNodeDTO, Protocol):
-    is_required: bool
-    sub_competencies: Sequence[GraphSubCompetencyDTO]
+    @property
+    def is_required(self) -> bool: ...
+
+    @property
+    def sub_competencies(self) -> Sequence[GraphSubCompetencyDTO]: ...
 
 
 class GraphCategoryDTO(_GraphNodeDTO, Protocol):
-    emoji: str | None
-    competencies: Sequence[GraphCompetencyDTO]
+    @property
+    def emoji(self) -> str | None: ...
+
+    @property
+    def competencies(self) -> Sequence[GraphCompetencyDTO]: ...
 
 
 @dataclass
@@ -107,8 +123,7 @@ class GraphEntityResolver:
                 )
                 if competency.id in used_competency_ids:
                     raise ValidationError(
-                        "Duplicate competency node for "
-                        f"competency_id={competency.id}"
+                        f"Duplicate competency node for competency_id={competency.id}"
                     )
                 used_competency_ids.add(competency.id)
                 competencies.append(
