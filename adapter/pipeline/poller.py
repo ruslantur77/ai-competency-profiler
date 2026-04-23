@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 from pipeline.converter import extract_all_events
-from competency.client import CompetencyClient
+from competency.client import CompetencyClient, TaskNotSyncedError
 from competency.schemas import CandidateTaskAssessmentDTO
 from core.config import settings
 from core.logging import logger
@@ -14,13 +14,16 @@ from lms.client import LmsClient
 
 async def _fetch_and_store(lms_client: LmsClient, now: datetime) -> int:
     """
-    Шаг 1: Получаем данные из LMS и сохраняем новые в БД.
+    Шаг 1: Получаем данные из LMS и сохраняем новые события в БД.
     Возвращает количество новых событий.
     """
     last_sync = await repository.get_last_sync_time()
     if not last_sync:
         last_sync = now - timedelta(days=settings.initial_lookback_days)
-        logger.info(f"Первый запуск. Берём данные за последние {settings.initial_lookback_days} дн.")
+        logger.info(
+            f"Первый запуск. Берём данные за последние "
+            f"{settings.initial_lookback_days} дн."
+        )
 
     new_events_count = 0
 
@@ -49,36 +52,37 @@ async def _fetch_and_store(lms_client: LmsClient, now: datetime) -> int:
                 code_submitted=dto.code,
                 raw_data=raw,
                 fetched_at=now,
+                vacancy_id=dto.vacancy_id,
             )
             if is_new:
                 new_events_count += 1
 
     logger.info(f"Получено новых событий из LMS: {new_events_count}")
-
-    # Обновляем время последнего успешного поллинга ТОЛЬКО если запрос прошёл
     await repository.set_last_sync_time(now)
-
     return new_events_count
 
 
-async def _send_pending(competency_client: CompetencyClient) -> tuple[int, int]:
+async def _send_pending(competency_client: CompetencyClient) -> tuple[int, int, int]:
     """
-    Шаг 2: Отправляем все pending-события в наш webhook.
-    Возвращает (sent_count, failed_count).
+    Шаг 2: Отправляем pending-события в наш webhook.
+
+    Возвращает (sent_count, failed_count, skipped_count).
+    skipped — события которые оставили pending (таск ещё не синкнут).
     """
     pending = await repository.get_pending_events(limit=200)
     if not pending:
-        return 0, 0
+        return 0, 0, 0
 
     logger.info(f"Отправляю {len(pending)} pending событий в webhook...")
     sent = 0
     failed = 0
+    skipped = 0  # оставлены pending — таск не синкнут
 
     async with httpx.AsyncClient() as http_client:
         for row in pending:
             dto = CandidateTaskAssessmentDTO(
                 event_id=row["event_id"],
-                vacancy_id=settings.target_vacancy_id,
+                vacancy_id=row["vacancy_id"],
                 candidate_external_id=str(row["lms_user_id"]),
                 task_external_id=row["task_external_id"],
                 type=row["task_type"],
@@ -93,20 +97,32 @@ async def _send_pending(competency_client: CompetencyClient) -> tuple[int, int]:
                 await competency_client.send_assessment(dto, http_client)
                 await repository.mark_event_sent(row["event_id"])
                 sent += 1
+
+            except TaskNotSyncedError as e:
+                # Таск не синкнут — оставляем pending, попробуем в след. цикле
+                logger.warning(
+                    f"Таск не синкнут, оставляем pending: {e}"
+                )
+                skipped += 1
+
             except Exception as e:
                 err_msg = str(e)
-                logger.error(f"Не удалось отправить event_id={row['event_id']}: {err_msg}")
+                logger.error(
+                    f"Не удалось отправить event_id={row['event_id']}: {err_msg}"
+                )
                 await repository.mark_event_failed(row["event_id"], err_msg)
                 failed += 1
 
-    logger.info(f"Webhook: отправлено={sent}, ошибок={failed}")
-    return sent, failed
+    logger.info(
+        f"Webhook: отправлено={sent}, ошибок={failed}, "
+        f"отложено (таск не синкнут)={skipped}"
+    )
+    return sent, failed, skipped
 
 
 async def run_poll_cycle() -> dict:
     """
     Полный цикл: получить из LMS → сохранить в БД → отправить в webhook.
-    Возвращает статистику цикла.
     """
     now = datetime.now(timezone.utc)
     logger.info(f"=== Начало цикла поллинга ({now.isoformat()}) ===")
@@ -115,13 +131,14 @@ async def run_poll_cycle() -> dict:
     competency_client = CompetencyClient()
 
     new_events = await _fetch_and_store(lms_client, now)
-    sent, failed = await _send_pending(competency_client)
+    sent, failed, skipped = await _send_pending(competency_client)
 
     result = {
         "started_at": now.isoformat(),
         "new_events_fetched": new_events,
         "webhooks_sent": sent,
         "webhooks_failed": failed,
+        "webhooks_skipped_not_synced": skipped,
     }
     logger.info(f"=== Цикл завершён: {result} ===")
     return result
@@ -136,6 +153,8 @@ async def polling_worker() -> None:
         try:
             await run_poll_cycle()
         except Exception as e:
-            logger.error(f"Критическая ошибка в polling_worker: {e}", exc_info=True)
+            logger.error(
+                f"Критическая ошибка в polling_worker: {e}", exc_info=True
+            )
 
         await asyncio.sleep(settings.poll_interval_seconds)

@@ -4,6 +4,7 @@ from typing import Optional
 from lms.schemas import LmsCase, LmsQuiz, LmsUserProgress
 from competency.schemas import CandidateTaskAssessmentDTO
 from core.config import settings
+from core.logging import logger
 
 
 def _build_case_event_id(user_id: int, case_id: int, submission_id: int) -> str:
@@ -20,11 +21,19 @@ def convert_case_to_event(
 ) -> Optional[tuple[str, CandidateTaskAssessmentDTO, dict]]:
     """
     Конвертирует задачу с кодом (case) из LMS в DTO для нашего webhook.
-
-    Берём последний (свежий) сабмит.
-    Возвращает (event_id, dto, raw_dict) или None если сабмитов нет.
+    Возвращает (event_id, dto, raw_dict) или None если сабмитов нет
+    или нет маппинга на вакансию.
     """
     if not case.submissions:
+        return None
+
+    # Ищем vacancy_id через маппинг
+    task_external_id = str(case.case_id)
+    vacancy_id = settings.get_vacancy_id(task_external_id)
+    if not vacancy_id:
+        logger.debug(
+            f"Нет маппинга для case_id={case.case_id}, пропускаем"
+        )
         return None
 
     # Берём последний сабмит по дате
@@ -32,15 +41,15 @@ def convert_case_to_event(
 
     tests = latest.tests
     passed_count = sum(1 for t in tests if t.passed)
-    total_count = len(tests) if tests else 1  # защита от деления на 0
+    total_count = len(tests) if tests else 1
 
     event_id = _build_case_event_id(user_id, case.case_id, latest.submission_id)
 
     dto = CandidateTaskAssessmentDTO(
         event_id=event_id,
-        vacancy_id=settings.target_vacancy_id,
+        vacancy_id=vacancy_id,
         candidate_external_id=str(user_id),
-        task_external_id=str(case.case_id),
+        task_external_id=task_external_id,
         type="code",
         code=latest.code,
         passed=passed_count,
@@ -64,21 +73,27 @@ def convert_quiz_to_event(
 ) -> Optional[tuple[str, CandidateTaskAssessmentDTO, dict]]:
     """
     Конвертирует результат квиза (quiz) из LMS в DTO для нашего webhook.
-
-    Берём лучший результат из всех попыток.
-    quiz_task_external_id содержит префикс "quiz_" чтобы не пересекаться с case_id.
+    Возвращает None если нет попыток или нет маппинга на вакансию.
     """
-    # Если ещё ни одной попытки — нечего отправлять
     if quiz.attempts_used == 0:
+        return None
+
+    # Ищем vacancy_id через маппинг
+    task_external_id = f"quiz_{quiz.lecture_id}"
+    vacancy_id = settings.get_vacancy_id(task_external_id)
+    if not vacancy_id:
+        logger.debug(
+            f"Нет маппинга для quiz lecture_id={quiz.lecture_id}, пропускаем"
+        )
         return None
 
     event_id = _build_quiz_event_id(user_id, quiz.lecture_id, quiz.attempts_used)
 
     dto = CandidateTaskAssessmentDTO(
         event_id=event_id,
-        vacancy_id=settings.target_vacancy_id,
+        vacancy_id=vacancy_id,
         candidate_external_id=str(user_id),
-        task_external_id=f"quiz_{quiz.lecture_id}",
+        task_external_id=task_external_id,
         type="test",
         passed=quiz.best_score or 0,
         total=quiz.max_score or 0,
@@ -98,7 +113,7 @@ def extract_all_events(
 ) -> list[tuple[str, CandidateTaskAssessmentDTO, dict]]:
     """
     Извлекает все события из прогресса одного пользователя.
-    Возвращает список (event_id, dto, raw_dict).
+    Пропускает события без маппинга на вакансию.
     """
     user_id = user_progress.user.id
     events = []

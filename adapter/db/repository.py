@@ -34,6 +34,7 @@ async def upsert_lms_event(
     lms_user_id: int,
     task_external_id: str,
     task_type: str,
+    vacancy_id: str,
     passed: int,
     total: int,
     attempts: int,
@@ -53,21 +54,22 @@ async def upsert_lms_event(
             existing = await cursor.fetchone()
 
         if existing:
-            return False  # Уже есть — не дублируем
+            return False
 
         await db.execute(
             """
             INSERT INTO lms_events
                 (event_id, lms_user_id, task_external_id, task_type,
-                 passed, total, attempts, duration_seconds,
+                 vacancy_id, passed, total, attempts, duration_seconds,
                  code_submitted, raw_json, fetched_at, send_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             """,
             (
                 event_id,
                 lms_user_id,
                 task_external_id,
                 task_type,
+                vacancy_id,
                 passed,
                 total,
                 attempts,
@@ -82,7 +84,6 @@ async def upsert_lms_event(
 
 
 async def get_pending_events(limit: int = 100) -> list[dict]:
-    """Возвращает события, которые ещё не отправлены."""
     async with aiosqlite.connect(settings.db_path) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
@@ -124,13 +125,12 @@ async def mark_event_failed(event_id: str, error: str) -> None:
                 last_error = ?
             WHERE event_id = ?
             """,
-            (error[:1000], event_id),  # обрезаем, чтобы не переполнить
+            (error[:1000], event_id),
         )
         await db.commit()
 
 
 async def get_stats() -> dict:
-    """Статистика для /status endpoint."""
     async with aiosqlite.connect(settings.db_path) as db:
         stats = {}
         for status in ("pending", "sent", "failed"):

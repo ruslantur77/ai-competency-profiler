@@ -6,6 +6,14 @@ from core.config import settings
 from core.logging import logger
 
 
+class TaskNotSyncedError(Exception):
+    """
+    Таск ещё не синкнут в нашей системе.
+    Событие надо оставить pending и попробовать позже.
+    """
+    pass
+
+
 def _make_retry_decorator():
     return retry(
         stop=stop_after_attempt(settings.webhook_max_attempts),
@@ -34,12 +42,13 @@ class CompetencyClient:
     ) -> None:
         """
         Отправляет одно событие в webhook нашей системы.
-        Retry с exponential backoff настраивается через .env.
 
         Коды ответа:
-          2xx - успех
-          409 - событие уже обработано, считаем успехом (идемпотентность)
-          остальные 4xx/5xx - ошибка, будет retry
+          2xx  - успех
+          409  - событие уже обработано, считаем успехом (идемпотентность)
+          404  - таск не найден (ещё не синкнут Airflow) → TaskNotSyncedError
+          422  - таск не прошёл валидацию (скорее всего тоже не синкнут) → TaskNotSyncedError
+          остальные 4xx/5xx - настоящая ошибка, будет retry
         """
         retry_decorator = _make_retry_decorator()
 
@@ -53,13 +62,22 @@ class CompetencyClient:
                 timeout=30.0,
             )
 
-            # 409 = наша система уже обработала это событие
-            # Считаем успехом — не нужно retry
+            # Уже обработано — считаем успехом
             if response.status_code == 409:
                 logger.info(
                     f"event_id={dto.event_id} уже обработан (409), считаем успехом"
                 )
                 return
+
+            # Таск не найден в нашей системе — Airflow ещё не синкнул.
+            # Пробрасываем специальный exception — retry не нужен,
+            # попробуем в следующем цикле поллинга.
+            if response.status_code in (404, 422):
+                body = response.text[:300]
+                raise TaskNotSyncedError(
+                    f"event_id={dto.event_id} task_external_id={dto.task_external_id} "
+                    f"не найден в системе (HTTP {response.status_code}): {body}"
+                )
 
             # Всё остальное кроме 2xx — бросаем исключение → retry
             response.raise_for_status()
