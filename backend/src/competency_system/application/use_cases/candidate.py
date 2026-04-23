@@ -302,7 +302,6 @@ class CandidateScoringOperation:
         self, command: CandidateTaskAssessmentDTO
     ) -> tuple[Candidate, TestResult, CandidateAssessmentResultDTO]:
         async with self._uow as uow:
-            # TODO: test with not existing candidate
             candidate = await self._get_or_create_candidate(uow, command)
 
             task = await uow.tasks.get_by_external_id(
@@ -313,7 +312,6 @@ class CandidateScoringOperation:
                 raise ValueError(f"Task {command.task_external_id} not found")
 
             test_result = self._build_test_result(command, task, candidate.id)
-            await uow.test_results.add(test_result)
 
             candidate.achieved_subcompetency_ids |= self._scorer.calculate_achievements(
                 [test_result], [task]
@@ -321,6 +319,7 @@ class CandidateScoringOperation:
             candidate.assessment_status = AssessmentStatus.COMPLETED
             candidate.last_assessment_at = datetime.now(UTC)
             await uow.candidates.add(candidate)
+            await uow.test_results.add(test_result)
 
             vacancy = await uow.vacancies.get(
                 command.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}

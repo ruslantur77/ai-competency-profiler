@@ -91,7 +91,11 @@ async def test_webhook_event_operation_replays_processed_duplicate_result(
         candidate_id=candidate.id,
         test_result_id=test_result.id,
     )
-    vacancy = type("VacancyLike", (), {"requirement_competencies": []})()
+    vacancy = type(
+        "VacancyLike",
+        (),
+        {"requirement_competencies": [], "category_nodes": []},
+    )()
     mock_uow.webhook_events.get_by_event_id.return_value = event
     mock_uow.candidates.get.return_value = candidate
     mock_uow.test_results.get.return_value = test_result
