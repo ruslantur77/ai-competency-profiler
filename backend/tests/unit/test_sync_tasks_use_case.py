@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
+import httpx
 import pytest
 
+from competency_system.application.errors import ServiceUnavailableError
 from competency_system.application.ports.external_testing_system import (
     ExternalTaskRecord,
 )
@@ -160,3 +162,47 @@ async def test_sync_tasks_use_case_resets_when_existing_task_changed(
     external_testing_gateway_mock.list_tasks.assert_awaited_once_with(
         start=start, end=end, force=False
     )
+
+
+async def test_sync_tasks_use_case_raises_service_unavailable_on_connect_error(
+    use_case: SyncTasksUseCase,
+    external_testing_gateway_mock,
+) -> None:
+    start = datetime(2026, 4, 1, tzinfo=UTC)
+    end = datetime(2026, 4, 2, tzinfo=UTC)
+    external_testing_gateway_mock.list_tasks.side_effect = httpx.ConnectError(
+        "connection refused"
+    )
+
+    with pytest.raises(ServiceUnavailableError, match="unavailable"):
+        await use_case.execute(start=start, end=end)
+
+
+async def test_sync_tasks_use_case_raises_service_unavailable_on_timeout(
+    use_case: SyncTasksUseCase,
+    external_testing_gateway_mock,
+) -> None:
+    start = datetime(2026, 4, 1, tzinfo=UTC)
+    end = datetime(2026, 4, 2, tzinfo=UTC)
+    external_testing_gateway_mock.list_tasks.side_effect = httpx.ReadTimeout("timeout")
+
+    with pytest.raises(ServiceUnavailableError, match="unavailable"):
+        await use_case.execute(start=start, end=end)
+
+
+async def test_sync_tasks_use_case_keeps_http_status_error_unmapped(
+    use_case: SyncTasksUseCase,
+    external_testing_gateway_mock,
+) -> None:
+    start = datetime(2026, 4, 1, tzinfo=UTC)
+    end = datetime(2026, 4, 2, tzinfo=UTC)
+    request = httpx.Request("GET", "http://testing.local/external/tasks")
+    response = httpx.Response(status_code=500, request=request)
+    external_testing_gateway_mock.list_tasks.side_effect = httpx.HTTPStatusError(
+        "upstream error",
+        request=request,
+        response=response,
+    )
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await use_case.execute(start=start, end=end)
