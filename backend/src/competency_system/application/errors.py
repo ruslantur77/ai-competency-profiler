@@ -31,6 +31,10 @@ class ValidationError(ApplicationError):
     default_code = "validation_error"
 
 
+class ServiceUnavailableError(ApplicationError):
+    default_code = "service_unavailable"
+
+
 def map_value_error(exc: ValueError) -> ApplicationError:
     message = str(exc)
     lowered = message.lower()

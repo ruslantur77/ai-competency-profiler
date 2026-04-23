@@ -5,6 +5,8 @@ from collections import defaultdict
 from datetime import datetime
 from uuid import UUID, uuid4
 
+import httpx
+
 from competency_system.application.dtos.mappers import (
     task_dto_from_domain,
     task_list_item_dto_from_domain,
@@ -21,7 +23,11 @@ from competency_system.application.dtos.task import (
     TaskListItemDTO,
     TaskStatusUpdateDTO,
 )
-from competency_system.application.errors import NotFoundError, ValidationError
+from competency_system.application.errors import (
+    NotFoundError,
+    ServiceUnavailableError,
+    ValidationError,
+)
 from competency_system.application.llm.llm_dispatch_payload import TaskExtractionPayload
 from competency_system.application.llm.llm_orchestrator import StructuredLLMOrchestrator
 from competency_system.application.llm.pipeline import (
@@ -330,11 +336,17 @@ class SyncTasksUseCase:
         end: datetime,
         force: bool = False,
     ) -> SyncTasksResultDTO:
-        external_tasks = await self._gateway.list_tasks(
-            start=start,
-            end=end,
-            force=force,
-        )
+        try:
+            external_tasks = await self._gateway.list_tasks(
+                start=start,
+                end=end,
+                force=force,
+            )
+        except (httpx.ConnectError, httpx.TimeoutException) as exc:
+            raise ServiceUnavailableError(
+                "Testing system is unavailable",
+                details={"reason": type(exc).__name__},
+            ) from exc
 
         async with self._uow as uow:
             synced: list[TaskDTO] = []

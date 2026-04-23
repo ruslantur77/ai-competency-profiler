@@ -26,7 +26,11 @@ from competency_system.application.dtos.vacancy import (
     VacancyGraphUpdateDTO,
     VacancyUpdateDTO,
 )
-from competency_system.application.errors import ConflictError, NotFoundError
+from competency_system.application.errors import (
+    ConflictError,
+    NotFoundError,
+    ServiceUnavailableError,
+)
 from competency_system.domain.value_objects.competency_level import CompetencyLevel
 from competency_system.domain.value_objects.enums import (
     AssessmentStatus,
@@ -365,6 +369,22 @@ def test_tasks_admin_and_webhook_routes_contract(
             },
         )
         assert sync.status_code == 200
+
+        app.dependency_overrides[get_sync_tasks_use_case] = lambda: _RaisingUseCase(
+            ServiceUnavailableError("Testing system is unavailable")
+        )
+        sync_unavailable = client.post(
+            "/api/v1/tasks/sync",
+            json={
+                "start": "2026-04-01T00:00:00Z",
+                "end": "2026-04-02T00:00:00Z",
+                "force": False,
+            },
+        )
+        assert sync_unavailable.status_code == 503
+        unavailable_payload = sync_unavailable.json()
+        assert unavailable_payload["code"] == "service_unavailable"
+        assert unavailable_payload["request_id"]
 
         sync_missing_body = client.post("/api/v1/tasks/sync")
         assert sync_missing_body.status_code == 422
