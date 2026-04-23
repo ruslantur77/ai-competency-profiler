@@ -47,6 +47,16 @@ def command() -> CandidateTaskAssessmentDTO:
 async def test_candidate_scoring_operation_creates_result_and_candidate(
     operation: CandidateScoringOperation, mock_uow, command: CandidateTaskAssessmentDTO
 ) -> None:
+    save_order: list[str] = []
+
+    async def _save_candidate(*args, **kwargs) -> None:
+        del args, kwargs
+        save_order.append("candidate")
+
+    async def _save_test_result(*args, **kwargs) -> None:
+        del args, kwargs
+        save_order.append("test_result")
+
     vacancy, _, _, sub1, _ = build_vacancy_with_graph()
     command.vacancy_id = vacancy.id
     task = TaskFactory().make(
@@ -60,7 +70,9 @@ async def test_candidate_scoring_operation_creates_result_and_candidate(
         }
     )
     mock_uow.candidates.get_by_external_id.return_value = None
+    mock_uow.candidates.add.side_effect = _save_candidate
     mock_uow.tasks.get_by_external_id.return_value = task
+    mock_uow.test_results.add.side_effect = _save_test_result
     mock_uow.vacancies.get.return_value = vacancy
 
     candidate, test_result, result = await operation.run(command)
@@ -70,6 +82,7 @@ async def test_candidate_scoring_operation_creates_result_and_candidate(
     assert result.candidate_profile.candidate_id == candidate.id
     mock_uow.test_results.add.assert_awaited_once()
     mock_uow.candidates.add.assert_awaited_once()
+    assert save_order == ["candidate", "test_result"]
     mock_uow.commit.assert_awaited_once()
 
 
