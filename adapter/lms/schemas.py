@@ -1,8 +1,31 @@
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel
 
+
+# --- Справочник курсов и задач ---
+
+class LmsCourse(BaseModel):
+    id: int
+    title: str
+    slug: str
+    description: Optional[str] = None
+    status: str
+    created_at: datetime
+
+
+class LmsCase(BaseModel):
+    """Задача из GET /courses/{course_id}/cases (справочник)."""
+    id: int
+    course_id: int
+    title: str
+    description: Optional[str] = None
+    difficulty: Optional[str] = None
+    created_at: datetime
+    tests_count: int = 0
+
+
+# --- Прогресс пользователей ---
 
 class LmsSubmissionTest(BaseModel):
     test_case_id: int
@@ -22,7 +45,8 @@ class LmsSubmission(BaseModel):
     tests: list[LmsSubmissionTest] = []
 
 
-class LmsCase(BaseModel):
+class LmsCaseProgress(BaseModel):
+    """Прогресс по code-задаче из /users/progress."""
     case_id: int
     title: str
     description: Optional[str] = None
@@ -79,7 +103,7 @@ class LmsUser(BaseModel):
 
 class LmsUserProgress(BaseModel):
     user: LmsUser
-    cases: list[LmsCase] = []
+    cases: list[LmsCaseProgress] = []
     lectures: list[LmsLecture] = []
     quizzes: list[LmsQuiz] = []
     exams: list[LmsExam] = []

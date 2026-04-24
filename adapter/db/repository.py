@@ -5,7 +5,6 @@ from typing import Optional
 import aiosqlite
 
 from core.config import settings
-from core.logging import logger
 
 
 async def get_last_sync_time() -> Optional[datetime]:
@@ -28,13 +27,14 @@ async def set_last_sync_time(dt: datetime) -> None:
         await db.commit()
 
 
-async def upsert_lms_event(
+async def upsert_event(
     *,
     event_id: str,
+    course_id: int,
+    vacancy_id: str,
     lms_user_id: int,
     task_external_id: str,
     task_type: str,
-    vacancy_id: str,
     passed: int,
     total: int,
     attempts: int,
@@ -44,12 +44,12 @@ async def upsert_lms_event(
     fetched_at: datetime,
 ) -> bool:
     """
-    Вставляет новое событие.
+    Вставляет новое событие в outbox.
     Возвращает True если событие новое, False — если уже было.
     """
     async with aiosqlite.connect(settings.db_path) as db:
         async with db.execute(
-            "SELECT id FROM lms_events WHERE event_id = ?", (event_id,)
+            "SELECT id FROM events_outbox WHERE event_id = ?", (event_id,)
         ) as cursor:
             existing = await cursor.fetchone()
 
@@ -58,22 +58,17 @@ async def upsert_lms_event(
 
         await db.execute(
             """
-            INSERT INTO lms_events
-                (event_id, lms_user_id, task_external_id, task_type,
-                 vacancy_id, passed, total, attempts, duration_seconds,
+            INSERT INTO events_outbox
+                (event_id, course_id, vacancy_id, lms_user_id,
+                 task_external_id, task_type,
+                 passed, total, attempts, duration_seconds,
                  code_submitted, raw_json, fetched_at, send_status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             """,
             (
-                event_id,
-                lms_user_id,
-                task_external_id,
-                task_type,
-                vacancy_id,
-                passed,
-                total,
-                attempts,
-                duration_seconds,
+                event_id, course_id, vacancy_id, lms_user_id,
+                task_external_id, task_type,
+                passed, total, attempts, duration_seconds,
                 code_submitted,
                 json.dumps(raw_data, ensure_ascii=False),
                 fetched_at.isoformat(),
@@ -83,12 +78,13 @@ async def upsert_lms_event(
         return True
 
 
-async def get_pending_events(limit: int = 100) -> list[dict]:
+async def get_pending_events(limit: int = 200) -> list[dict]:
+    """Возвращает pending события для отправки."""
     async with aiosqlite.connect(settings.db_path) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT * FROM lms_events
+            SELECT * FROM events_outbox
             WHERE send_status = 'pending'
             ORDER BY fetched_at ASC
             LIMIT ?
@@ -99,11 +95,46 @@ async def get_pending_events(limit: int = 100) -> list[dict]:
             return [dict(row) for row in rows]
 
 
+async def get_dlq_events(limit: int = 100) -> list[dict]:
+    """Возвращает события в DLQ."""
+    async with aiosqlite.connect(settings.db_path) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT * FROM events_outbox
+            WHERE send_status = 'dlq'
+            ORDER BY fetched_at ASC
+            LIMIT ?
+            """,
+            (limit,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+
+async def requeue_dlq_events() -> int:
+    """
+    Переводит все dlq события обратно в pending.
+    Возвращает количество переведённых событий.
+    """
+    async with aiosqlite.connect(settings.db_path) as db:
+        cursor = await db.execute(
+            """
+            UPDATE events_outbox
+            SET send_status = 'pending',
+                last_error = NULL
+            WHERE send_status = 'dlq'
+            """
+        )
+        await db.commit()
+        return cursor.rowcount
+
+
 async def mark_event_sent(event_id: str) -> None:
     async with aiosqlite.connect(settings.db_path) as db:
         await db.execute(
             """
-            UPDATE lms_events
+            UPDATE events_outbox
             SET send_status = 'sent',
                 send_attempts = send_attempts + 1,
                 sent_at = ?,
@@ -115,27 +146,54 @@ async def mark_event_sent(event_id: str) -> None:
         await db.commit()
 
 
-async def mark_event_failed(event_id: str, error: str) -> None:
+async def mark_event_failed(event_id: str, error: str, send_attempts: int) -> None:
+    """
+    Помечает событие как failed или dlq в зависимости от числа попыток.
+    """
+    new_status = (
+        "dlq"
+        if send_attempts >= settings.webhook_max_attempts
+        else "failed"
+    )
     async with aiosqlite.connect(settings.db_path) as db:
         await db.execute(
             """
-            UPDATE lms_events
-            SET send_status = 'failed',
+            UPDATE events_outbox
+            SET send_status = ?,
                 send_attempts = send_attempts + 1,
                 last_error = ?
             WHERE event_id = ?
             """,
-            (error[:1000], event_id),
+            (new_status, error[:1000], event_id),
         )
         await db.commit()
 
 
+async def requeue_failed_events() -> int:
+    """
+    Переводит failed события обратно в pending для retry.
+    DLQ события не трогает — только через requeue_dlq_events().
+    """
+    async with aiosqlite.connect(settings.db_path) as db:
+        cursor = await db.execute(
+            """
+            UPDATE events_outbox
+            SET send_status = 'pending'
+            WHERE send_status = 'failed'
+            """
+        )
+        await db.commit()
+        return cursor.rowcount
+
+
 async def get_stats() -> dict:
+    """Статистика для /api/status."""
     async with aiosqlite.connect(settings.db_path) as db:
         stats = {}
-        for status in ("pending", "sent", "failed"):
+        for status in ("pending", "sent", "failed", "dlq"):
             async with db.execute(
-                "SELECT COUNT(*) FROM lms_events WHERE send_status = ?", (status,)
+                "SELECT COUNT(*) FROM events_outbox WHERE send_status = ?",
+                (status,),
             ) as cur:
                 row = await cur.fetchone()
                 stats[status] = row[0] if row else 0
