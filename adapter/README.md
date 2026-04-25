@@ -1,190 +1,210 @@
-
 # Competency Adapter
 
-Адаптер для интеграции LMS (система другой команды) с AI Competency Profiler.
-Поллит прогресс пользователей из LMS каждый час и отправляет результаты 
-в webhook нашей системы.
+Сервис-адаптер между AI Competency Profiler и внешней LMS системой Kontest.
+
+## Назначение
+
+Адаптер изолирует backend от реальной внешней системы:
+- Backend продолжает работать с привычным контрактом `GET /external/tasks`
+- Адаптер сам общается с Kontest API, трансформирует данные и шлёт webhook-события в backend
 
 ## Архитектура
 
 ```
-[LMS другой команды] 
-    ↓ GET /api/kontest/integration/users/progress (каждый час)
-[Adapter] → SQLite (хранит состояние и события)
-    ↓ POST /api/v1/webhook/task-completed
-[AI Competency Profiler]
+Airflow DAG
+    ↓
+Backend POST /api/v1/tasks/sync
+    ↓
+Адаптер GET /api/external/tasks        ← бэкенд думает что это mock
+    ↓
+Kontest GET /integration/courses/{id}  ← реальный LMS
+
+Kontest GET /integration/users/progress
+    ↓
+Адаптер (polling worker)
+    ↓
+Backend POST /api/v1/webhook/task-completed
 ```
 
-### Что конвертируется
+## Потоки данных
 
-| LMS | Наша система |
-|-----|-------------|
-| `cases` (задачи с кодом) | `TaskType.code` |
-| `quizzes` (тесты/квизы) | `TaskType.test` |
-| `lectures` | не обрабатываются |
-| `exams` | не обрабатываются |
+### Поток задач (northbound)
+1. Airflow триггерит `POST /api/v1/tasks/sync` на бэкенде
+2. Бэкенд дёргает `GET /api/external/tasks` на адаптере
+3. Адаптер идёт в LMS за списком курсов и задач
+4. Возвращает задачи в формате который ожидает бэкенд
+5. Бэкенд сохраняет задачи и запускает LLM маппинг
 
-## Структура проекта
+### Поток прогресса (southbound)
+1. Polling worker каждые N секунд идёт в LMS за прогрессом студентов
+2. Конвертирует прогресс в события и сохраняет в outbox
+3. Отправляет события в `POST /api/v1/webhook/task-completed`
+4. Успешные помечает `sent`, неуспешные — `retry` или `dlq`
 
-```
-adapter/
-├── .env.example          # пример конфига
-├── .gitignore
-├── pyproject.toml        # зависимости
-├── main.py               # точка входа FastAPI
-├── core/
-│   ├── config.py         # настройки через pydantic-settings
-│   └── logging.py        # настройка логгера
-├── db/
-│   ├── database.py       # инициализация SQLite
-│   └── repository.py     # все запросы к БД
-├── lms/
-│   ├── client.py         # HTTP клиент к LMS
-│   └── schemas.py        # Pydantic модели ответов LMS
-├── competency/
-│   ├── client.py         # HTTP клиент к нашему webhook
-│   └── schemas.py        # DTO для webhook
-├── pipeline/
-│   ├── converter.py      # маппинг LMS → наш формат
-│   └── poller.py         # логика поллинга и фоновый worker
-└── api/
-    └── routes.py         # FastAPI эндпоинты
-```
+## Быстрый старт
 
-## Требования
-
+### Требования
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (менеджер пакетов)
+- uv
 
-## Установка
+### Установка
 
 ```bash
-# 1. Клонировать репозиторий и перейти в папку адаптера
+git clone <repo>
 cd adapter
-
-# 2. Установить зависимости (uv создаст .venv автоматически)
 uv sync
+```
 
-# 3. Создать .env из примера
+### Конфигурация
+
+```bash
 cp .env.example .env
-
-# 4. Заполнить .env (см. раздел Конфигурация)
+# Отредактируй .env
 ```
 
-## Конфигурация
-
-Заполни `.env` файл:
-
-```env
-# Токен от другой команды (они выдают статичный Bearer токен)
-LMS_API_TOKEN=your_lms_token_here
-
-# UUID вакансии из нашей системы (должна быть в статусе ready)
-# Взять из GET /api/v1/vacancies?status_filter=ready
-TARGET_VACANCY_ID=your_vacancy_uuid_here
-
-# Секрет для webhook (из .env основного проекта — TESTING_SYSTEM_WEBHOOK_SECRET)
-OUR_WEBHOOK_SECRET=your_webhook_secret_here
-```
-
-### Как найти TARGET_VACANCY_ID
-
-1. Запусти основной проект
-2. Открой `http://localhost:1000/docs`
-3. `GET /api/v1/vacancies?status_filter=ready`
-4. Скопируй `id` любой вакансии со статусом `ready`
-
-## Запуск
+### Запуск
 
 ```bash
-# Разработка (с автоперезагрузкой при изменениях)
-uv run uvicorn main:app --port 8001 --reload
+# Локально
+uv run main.py
 
-# Продакшен
-uv run python main.py
+# Или через Docker
+docker compose up adapter
 ```
 
-Адаптер запустится на `http://localhost:8001`
+## Конфигурация (.env)
 
-## API эндпоинты адаптера
+| Переменная | Обязательная | Описание |
+|-----------|-------------|----------|
+| `SOURCE_BASE_URL` | ✅ | Базовый URL Kontest API |
+| `SOURCE_API_TOKEN` | ✅ | Bearer токен для Kontest |
+| `SOURCE_COURSE_IDS` | ✅ | ID курсов для синка (CSV или JSON) |
+| `COURSE_VACANCY_MAP` | ✅ | Маппинг course_id → vacancy_id (JSON) |
+| `BACKEND_WEBHOOK_URL` | ✅ | URL webhook эндпоинта бэкенда |
+| `BACKEND_WEBHOOK_SECRET` | ❌ | Секрет для X-Webhook-Secret заголовка |
+| `POLL_INTERVAL_SECONDS` | ❌ | Интервал поллинга (default: 3600) |
+| `INITIAL_LOOKBACK_MINUTES` | ❌ | Глубина первого синка (default: 1440) |
+| `WEBHOOK_MAX_ATTEMPTS` | ❌ | Макс попыток отправки (default: 5) |
+| `DLQ_ENABLED` | ❌ | Включить DLQ (default: true) |
+| `DB_PATH` | ❌ | Путь к SQLite файлу (default: adapter_state.db) |
+| `ADAPTER_PORT` | ❌ | Порт адаптера (default: 8001) |
 
-| Метод | URL | Описание |
-|-------|-----|----------|
-| `GET` | `/api/health` | Проверка работоспособности |
-| `GET` | `/api/status` | Статистика: сколько событий pending/sent/failed |
-| `POST` | `/api/sync-now` | Запустить синхронизацию вручную |
+### Пример COURSE_VACANCY_MAP
 
-### Пример ответа /api/status
+```bash
+# Один курс — одна вакансия
+COURSE_VACANCY_MAP={"1": "40000000-0000-0000-0000-000000000001"}
 
+# Несколько курсов
+COURSE_VACANCY_MAP={"1": "40000000-0000-0000-0000-000000000001", "2": "40000000-0000-0000-0000-000000000002"}
+```
+
+## API
+
+### Service API
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/health` | Liveness check |
+| `GET` | `/api/status` | Статистика (counters, last_sync) |
+| `POST` | `/api/sync-now` | Форс-запуск цикла поллинга |
+| `GET` | `/api/dlq` | Список застрявших событий |
+| `POST` | `/api/dlq/requeue` | Вернуть DLQ события в очередь |
+| `GET` | `/api/debug/events` | Просмотр событий в БД |
+
+### Northbound API (для бэкенда)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `GET` | `/api/external/tasks` | Список задач из LMS (контракт mock_testing_system) |
+
+#### GET /api/external/tasks
+
+```
+GET /api/external/tasks?start=2026-01-01T00:00:00Z&end=2026-04-25T23:59:59Z&force=false
+```
+
+Ответ:
 ```json
-{
-  "status": "ok",
-  "db_stats": {
-    "pending": 0,
-    "sent": 3,
-    "failed": 0,
-    "last_sync": "2026-04-22T17:17:41.407685+00:00"
+[
+  {
+    "external_id": "course_1_case_1",
+    "title": "Сложение двух чисел",
+    "description": "...",
+    "type": "code",
+    "tags": ["course:1", "kind:case"],
+    "created_at": "2026-04-21T10:23:22Z"
+  },
+  {
+    "external_id": "course_1_quiz_2",
+    "title": "Quiz: Основы ООП",
+    "description": "Автосгенерированная задача по квизу lecture 2",
+    "type": "test",
+    "tags": ["course:1", "kind:quiz"],
+    "created_at": "2026-04-21T10:23:22Z"
   }
-}
+]
 ```
 
-## Как работает поллинг
+## Форматы ID
 
-1. При старте адаптер читает `last_sync` из SQLite
-2. Если первый запуск — берёт данные за последние `INITIAL_LOOKBACK_DAYS` дней
-3. Запрашивает прогресс всех пользователей из LMS за период
-4. Новые события сохраняет в SQLite со статусом `pending`
-5. Отправляет `pending` события в наш webhook
-6. При успехе помечает `sent`, при ошибке — `failed`
-7. Обновляет `last_sync`
-8. Спит `POLL_INTERVAL_SECONDS` секунд и повторяет
+### task_external_id
+- Code задача: `course_{course_id}_case_{case_id}`
+- Quiz задача: `course_{course_id}_quiz_{lecture_id}`
 
-### Идемпотентность
+### event_id
+- Code задача: `course_{course_id}_case_{case_id}_user_{user_id}_submission_{submission_id}`
+- Quiz задача: `course_{course_id}_quiz_{lecture_id}_user_{user_id}_attempt_{attempts_used}`
 
-Каждое событие имеет уникальный `event_id`:
-- Для кода: `case_{user_id}_{case_id}_{submission_id}`
-- Для тестов: `quiz_{user_id}_{lecture_id}_{attempts_used}`
+## Статусы событий
 
-SQLite не даст записать дубль — поле `event_id` уникально.
-Наша система тоже защищена от дублей и вернёт `409` если событие уже обработано.
+| Статус | Описание |
+|--------|----------|
+| `pending` | Ожидает отправки |
+| `sent` | Успешно отправлено |
+| `failed` | Ошибка, будет retry |
+| `dlq` | Превышен лимит попыток |
 
-### Retry
+## DLQ (Dead Letter Queue)
 
-Если webhook недоступен — tenacity повторит отправку:
-- Максимум `WEBHOOK_MAX_ATTEMPTS` попыток (default: 5)
-- Задержка растёт экспоненциально: 2s → 4s → 8s → ... → 60s
+Событие попадает в DLQ если:
+- Превышено `WEBHOOK_MAX_ATTEMPTS` попыток
+- Получен 401/403 от бэкенда (конфигурационная ошибка)
 
-## Предварительные требования в основной системе
-
-**Важно!** Перед тем как адаптер сможет отправлять результаты, в основной 
-системе должны существовать задачи с соответствующими `external_id`.
-
-Задачи из LMS:
-- `cases` → `task_external_id = str(case_id)` (например `"27"`)
-- `quizzes` → `task_external_id = "quiz_{lecture_id}"` (например `"quiz_2"`)
-
-Задачи можно добавить вручную через psql:
-
-```sql
-INSERT INTO tasks (id, external_id, title, description, type, status, created_at, updated_at)
-VALUES 
-    (gen_random_uuid(), '27', 'Название задачи', 'Описание', 'code', 'draft', now(), now()),
-    (gen_random_uuid(), 'quiz_2', 'Квиз лекции 2', 'Описание', 'test', 'draft', now(), now());
+Для повторной отправки:
+```bash
+curl -X POST http://localhost:8001/api/dlq/requeue
 ```
 
-## Сброс состояния (для отладки)
+## База данных
+
+SQLite файл `adapter_state.db` содержит:
+
+| Таблица | Описание |
+|---------|----------|
+| `sync_state` | Watermark последнего синка |
+| `events_outbox` | Outbox событий прогресса студентов |
+| `course_cache` | Кэш задач из LMS |
+
+## Проверка работоспособности
 
 ```bash
-# Удалить БД адаптера (сбросит last_sync и все события)
-del adapter_state.db  # Windows
-rm adapter_state.db   # Linux/Mac
-
-# Удалить события в основной системе
-docker compose exec postgres psql -U postgres -d competency_db
+uv run test_main.py
 ```
 
-```sql
-DELETE FROM webhook_events WHERE candidate_external_id = '4';
-DELETE FROM candidates WHERE external_id = '4';
+## Интеграция с Airflow
+
+В бэкенде настроить:
+```bash
+TESTING_SYSTEM_BASE_URL=http://adapter:8001/api
 ```
 
+В Airflow UI добавить Connection:
+| Поле | Значение |
+|------|----------|
+| Conn Id | `competency_adapter` |
+| Conn Type | `HTTP` |
+| Host | `http://adapter` |
+| Port | `8001` |
+
+DAG `task_sync` автоматически триггерит адаптер после синка задач.
