@@ -1,5 +1,5 @@
-from datetime import datetime
-
+from datetime import datetime, timezone
+import aiosqlite
 from core.config import settings
 from core.logging import logger
 from lms.client import LmsClient
@@ -7,6 +7,32 @@ from pipeline.converter import (
     convert_case_to_external_task,
     convert_quiz_to_external_task,
 )
+
+async def _cache_tasks(tasks: list[dict]) -> None:
+    """Сохраняем задачи в локальный кэш."""
+    now = datetime.now(timezone.utc).isoformat()
+    async with aiosqlite.connect(settings.db_path) as db:
+        for task in tasks:
+            # Извлекаем course_id из external_id (course_1_case_1 → 1)
+            parts = task["external_id"].split("_")
+            course_id = int(parts[1])
+
+            await db.execute(
+                """
+                INSERT OR REPLACE INTO course_cache
+                    (course_id, external_id, task_type, title, description, cached_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    course_id,
+                    task["external_id"],
+                    task["type"],
+                    task["title"],
+                    task.get("description", ""),
+                    now,
+                ),
+            )
+        await db.commit()
 
 
 async def get_external_tasks(
@@ -75,6 +101,9 @@ async def get_external_tasks(
                     created_at_iso=quiz.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 )
             )
-
-    logger.info(f"GET /external/tasks: сформировано {len(tasks)} задач")
+    try:
+        await _cache_tasks(tasks)
+        logger.info(f"Кэш обновлён: {len(tasks)} задач")
+    except Exception as e:
+        logger.error(f"Ошибка кэширования задач: {e}", exc_info=True)
     return tasks
