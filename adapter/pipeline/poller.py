@@ -50,6 +50,12 @@ async def _fetch_and_store(lms_client: LmsClient, now: datetime) -> int:
             continue
 
         for user_progress in all_progress:
+            logger.info(
+            f"Пользователь id={user_progress.user.id} "
+            f"email={user_progress.user.email} | "
+            f"cases={len(user_progress.cases)} "
+            f"quizzes={len(user_progress.quizzes)}")
+            
             events = extract_all_events(course_id, user_progress, vacancy_id)
 
             for event_id, dto, raw in events:
