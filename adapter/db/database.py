@@ -49,5 +49,20 @@ async def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_outbox_task_external_id
                 ON events_outbox (task_external_id);
+                
+            -- Кэш курсов и задач из LMS
+            CREATE TABLE IF NOT EXISTS course_cache (
+                course_id       INTEGER NOT NULL,
+                external_id     TEXT    NOT NULL,  -- course_1_case_1
+                task_type       TEXT    NOT NULL,  -- code | test
+                title           TEXT    NOT NULL,
+                description     TEXT,
+                cached_at       TIMESTAMP NOT NULL,
+                PRIMARY KEY (course_id, external_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_course_cache_external_id
+                ON course_cache (external_id);
+        
         """)
         await db.commit()
