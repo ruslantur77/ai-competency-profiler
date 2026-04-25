@@ -1,6 +1,6 @@
 from typing import Optional
 
-from lms.schemas import LmsCaseProgress, LmsQuiz, LmsUserProgress, LmsCase
+from lms.schemas import LmsCaseProgress, LmsQuiz, LmsUserProgress, LmsCaseRef
 from competency.schemas import CandidateTaskAssessmentDTO
 from core.config import settings
 from core.logging import logger
@@ -148,12 +148,11 @@ def extract_all_events(
 
 def convert_case_to_external_task(
     course_id: int,
-    case: LmsCase,
+    case: LmsCaseRef,   # ← было LmsCase, теперь LmsCaseRef
     created_at_iso: str,
 ) -> dict:
-    """Конвертирует LmsCase в формат ExternalTask для бэкенда."""
     return {
-        "external_id": build_case_task_external_id(course_id, case.id),
+        "external_id": build_case_task_external_id(course_id, case.case_id),  # ← было case.id
         "title": case.title,
         "description": case.description or "",
         "type": "code",

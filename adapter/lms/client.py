@@ -2,7 +2,11 @@ import httpx
 
 from core.config import settings
 from core.logging import logger
-from lms.schemas import LmsUserProgress, LmsCourse, LmsCase
+from lms.schemas import (
+    LmsCourseListItem,
+    LmsCourseDetail,
+    LmsUserProgress,
+)
 
 
 class LmsClient:
@@ -16,9 +20,9 @@ class LmsClient:
         }
         self._timeout = settings.request_timeout_seconds
 
-    async def get_my_courses(self) -> list[LmsCourse]:
-        """GET /courses/my — список курсов."""
-        url = f"{self._base_url}/courses/my"
+    async def get_courses(self) -> list[LmsCourseListItem]:
+        """GET /integration/courses — список курсов."""
+        url = f"{self._base_url}/integration/courses"
         logger.info(f"LMS запрос: GET {url}")
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -26,21 +30,21 @@ class LmsClient:
             response.raise_for_status()
 
         data = response.json()
-        logger.info(f"LMS вернул {len(data)} курсов")
-        return [LmsCourse.model_validate(item) for item in data]
+        courses = data.get("courses", [])
+        logger.info(f"LMS вернул {len(courses)} курсов")
+        return [LmsCourseListItem.model_validate(c) for c in courses]
 
-    async def get_course_cases(self, course_id: int) -> list[LmsCase]:
-        """GET /courses/{course_id}/cases — справочник code-задач курса."""
-        url = f"{self._base_url}/courses/{course_id}/cases"
+    async def get_course_detail(self, course_id: int) -> LmsCourseDetail:
+        """GET /integration/courses/{course_id} — детали курса с tasks и quizzes."""
+        url = f"{self._base_url}/integration/courses/{course_id}"
         logger.info(f"LMS запрос: GET {url}")
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(url, headers=self._headers)
             response.raise_for_status()
 
-        data = response.json()
-        logger.info(f"LMS вернул {len(data)} cases для course_id={course_id}")
-        return [LmsCase.model_validate(item) for item in data]
+        logger.info(f"LMS вернул детали для course_id={course_id}")
+        return LmsCourseDetail.model_validate(response.json())
 
     async def get_user_progress(
         self,

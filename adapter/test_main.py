@@ -124,7 +124,7 @@ async def check_external_tasks(client: httpx.AsyncClient) -> None:
     end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     r = await client.get(
-        f"{ADAPTER_URL}/external/tasks",
+        f"{ADAPTER_URL}/api/external/tasks",
         params={"start": start, "end": end, "force": "true"},
     )
     print(f"Статус: {r.status_code}")

@@ -3,26 +3,54 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-# --- Справочник курсов и задач ---
+# --- Справочник курсов ---
 
-class LmsCourse(BaseModel):
-    id: int
+class LmsCourseListItem(BaseModel):
+    """GET /integration/courses — элемент списка."""
+    course_id: int
+    title: str
+
+
+class LmsCaseRef(BaseModel):
+    """Задача внутри GET /integration/courses/{course_id}."""
+    case_id: int
+    title: str
+    description: Optional[str] = None
+    difficulty: Optional[str] = None
+    created_by_user_id: Optional[int] = None
+    created_at: datetime
+    tests_count: int = 0
+
+
+class LmsQuizRef(BaseModel):
+    """Квиз внутри GET /integration/courses/{course_id}."""
+    lecture_id: int
+    slug: str
+    title: str
+    description: Optional[str] = None
+    is_published: bool = False
+    quiz_max_attempts: Optional[int] = None
+    questions_count: int = 0
+    estimated_minutes: Optional[int] = None
+    created_by_user_id: Optional[int] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class LmsCourseDetail(BaseModel):
+    """GET /integration/courses/{course_id} — детальная информация."""
+    course_id: int
     title: str
     slug: str
     description: Optional[str] = None
     status: str
+    visibility: Optional[str] = None
+    created_by_user_id: Optional[int] = None
     created_at: datetime
-
-
-class LmsCase(BaseModel):
-    """Задача из GET /courses/{course_id}/cases (справочник)."""
-    id: int
-    course_id: int
-    title: str
-    description: Optional[str] = None
-    difficulty: Optional[str] = None
-    created_at: datetime
-    tests_count: int = 0
+    updated_at: Optional[datetime] = None
+    cases: list[LmsCaseRef] = []
+    quizzes: list[LmsQuizRef] = []
+    exams: list = []
 
 
 # --- Прогресс пользователей ---

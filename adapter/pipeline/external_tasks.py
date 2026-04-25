@@ -19,39 +19,35 @@ async def get_external_tasks(
     Бэкенд вызывает этот эндпоинт через HTTPTestingSystemGateway.
 
     Берём:
-    - cases из GET /courses/{course_id}/cases
-    - quizzes из /users/progress (уникальные lecture_id)
-
-    Фильтрация по start/end — по created_at для cases.
-    Для quizzes created_at не знаем — отдаём все из курса.
+    - cases из GET /integration/courses/{course_id} → course.cases
+    - quizzes из GET /integration/courses/{course_id} → course.quizzes
     """
     lms_client = LmsClient()
     course_ids = settings.get_course_ids()
 
     if not course_ids:
-        logger.warning("SOURCE_COURSE_IDS пустой — возвращаем пустой список задач")
+        logger.warning("SOURCE_COURSE_IDS пустой — возвращаем пустой список")
         return []
 
     tasks = []
-    seen_external_ids = set()
+    seen_external_ids: set[str] = set()
 
     for course_id in course_ids:
-        # --- Code задачи (cases) ---
         try:
-            cases = await lms_client.get_course_cases(course_id)
+            course = await lms_client.get_course_detail(course_id)
         except Exception as e:
             logger.error(
-                f"Ошибка получения cases для course_id={course_id}: {e}"
+                f"Ошибка получения деталей course_id={course_id}: {e}"
             )
-            cases = []
+            continue
 
-        for case in cases:
-            # Фильтруем по временному окну
-            if case.created_at < start or case.created_at >= end:
-                if not force:
-                    continue
+        # --- Code задачи (cases) ---
+        for case in course.cases:
+            # Фильтрация по временному окну (если не force)
+            if not force and (case.created_at < start or case.created_at >= end):
+                continue
 
-            external_id = f"course_{course_id}_case_{case.id}"
+            external_id = f"course_{course_id}_case_{case.case_id}"
             if external_id in seen_external_ids:
                 continue
             seen_external_ids.add(external_id)
@@ -64,45 +60,21 @@ async def get_external_tasks(
                 )
             )
 
-        # --- Quiz задачи (из прогресса — берём уникальные lecture_id) ---
-        try:
-            all_progress = await lms_client.get_user_progress(
-                updated_from=start.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                updated_to=end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            )
-        except Exception as e:
-            logger.error(
-                f"Ошибка получения прогресса для course_id={course_id}: {e}"
-            )
-            all_progress = []
+        # --- Quiz задачи ---
+        for quiz in course.quizzes:
+            external_id = f"course_{course_id}_quiz_{quiz.lecture_id}"
+            if external_id in seen_external_ids:
+                continue
+            seen_external_ids.add(external_id)
 
-        seen_quizzes: set[int] = set()
-        for user_progress in all_progress:
-            for quiz in user_progress.quizzes:
-                if quiz.lecture_id in seen_quizzes:
-                    continue
-                seen_quizzes.add(quiz.lecture_id)
-
-                external_id = f"course_{course_id}_quiz_{quiz.lecture_id}"
-                if external_id in seen_external_ids:
-                    continue
-                seen_external_ids.add(external_id)
-
-                # Берём название из lectures если есть
-                title = f"Lecture {quiz.lecture_id}"
-                for lecture in user_progress.lectures:
-                    if lecture.lecture_id == quiz.lecture_id:
-                        title = lecture.title
-                        break
-
-                tasks.append(
-                    convert_quiz_to_external_task(
-                        course_id=course_id,
-                        lecture_id=quiz.lecture_id,
-                        title=title,
-                        created_at_iso=start.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    )
+            tasks.append(
+                convert_quiz_to_external_task(
+                    course_id=course_id,
+                    lecture_id=quiz.lecture_id,
+                    title=quiz.title,
+                    created_at_iso=quiz.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 )
+            )
 
     logger.info(f"GET /external/tasks: сформировано {len(tasks)} задач")
     return tasks
