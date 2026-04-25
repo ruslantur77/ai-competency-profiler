@@ -41,6 +41,15 @@ async def _fetch_and_store(lms_client: LmsClient, now: datetime) -> int:
         logger.error(f"Ошибка при получении прогресса из LMS: {e}")
         return 0
 
+    logger.info(f"Период синка: {last_sync.isoformat()} → {now.isoformat()}")
+    for user_progress in all_progress:
+        logger.info(
+            f"  user_id={user_progress.user.id} "
+            f"email={user_progress.user.email} | "
+            f"cases={len(user_progress.cases)} "
+            f"quizzes={len(user_progress.quizzes)}"
+        )    
+
     for course_id in course_ids:
         vacancy_id = settings.get_vacancy_id(course_id)
         if not vacancy_id:
