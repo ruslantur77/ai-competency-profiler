@@ -156,6 +156,16 @@ async def _send_pending(competency_client: CompetencyClient) -> tuple[int, int, 
     )
     return sent, failed, skipped
 
+async def _retry_failed(competency_client: CompetencyClient) -> tuple[int, int]:
+    """
+    Переводим failed события обратно в pending для retry.
+    Возвращает (requeued_count, skipped_dlq_count).
+    """
+    requeued = await repository.requeue_failed_events()
+    if requeued > 0:
+        logger.info(f"Retry: {requeued} failed событий переведено в pending")
+    return requeued        
+
 
 async def run_poll_cycle() -> dict:
     """Полный цикл поллинга."""
@@ -165,12 +175,19 @@ async def run_poll_cycle() -> dict:
     lms_client = LmsClient()
     competency_client = CompetencyClient()
 
+    # Шаг 1: получаем новые события из LMS
     new_events = await _fetch_and_store(lms_client, now)
+
+    # Шаг 2: переводим failed обратно в pending для retry
+    requeued = await _retry_failed(competency_client)
+
+    # Шаг 3: отправляем все pending (новые + retry)
     sent, failed, skipped = await _send_pending(competency_client)
 
     result = {
         "started_at": now.isoformat(),
         "new_events_fetched": new_events,
+        "failed_requeued": requeued,
         "webhooks_sent": sent,
         "webhooks_failed_or_dlq": failed,
         "webhooks_skipped_not_synced": skipped,

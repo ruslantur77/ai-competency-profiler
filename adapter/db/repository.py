@@ -172,15 +172,30 @@ async def mark_event_failed(event_id: str, error: str, send_attempts: int) -> No
 async def requeue_failed_events() -> int:
     """
     Переводит failed события обратно в pending для retry.
-    DLQ события не трогает — только через requeue_dlq_events().
+    Если send_attempts >= webhook_max_attempts → переводит в dlq.
     """
     async with aiosqlite.connect(settings.db_path) as db:
+        # Сначала переводим в dlq те что исчерпали попытки
+        await db.execute(
+            """
+            UPDATE events_outbox
+            SET send_status = 'dlq'
+            WHERE send_status = 'failed'
+              AND send_attempts >= ?
+            """,
+            (settings.webhook_max_attempts,),
+        )
+
+        # Остальные failed → pending
         cursor = await db.execute(
             """
             UPDATE events_outbox
-            SET send_status = 'pending'
+            SET send_status = 'pending',
+                last_error = NULL
             WHERE send_status = 'failed'
-            """
+              AND send_attempts < ?
+            """,
+            (settings.webhook_max_attempts,),
         )
         await db.commit()
         return cursor.rowcount
