@@ -163,16 +163,47 @@ GET /api/external/tasks?start=2026-01-01T00:00:00Z&end=2026-04-25T23:59:59Z&forc
 | `pending` | Ожидает отправки |
 | `sent` | Успешно отправлено |
 | `failed` | Ошибка, будет retry |
-| `dlq` | Превышен лимит попыток |
+| `dlq` | Превышен лимит попыток (`WEBHOOK_MAX_ATTEMPTS`)|
+
+
+## Retry логика
+
+Каждый цикл поллинга делает три шага:
+
+1. **Fetch** — идёт в LMS за новым прогрессом студентов
+2. **Retry** — проверяет `failed` события в БД:
+   - `send_attempts < WEBHOOK_MAX_ATTEMPTS` → переводит обратно в `pending`
+   - `send_attempts >= WEBHOOK_MAX_ATTEMPTS` → переводит в `dlq`
+3. **Send** — отправляет все `pending` события (новые + retry)
+
+### Пример цикла
+=== Начало цикла ===
+
+LMS вернул прогресс для 6 пользователей
+
+Новых событий: 2
+
+Retry: 3 failed событий переведено в pending
+
+Отправляю 5 pending событий...
+
+Webhook: sent=4, failed=1, skipped=0
+
+=== Цикл завершён ===
+
 
 ## DLQ (Dead Letter Queue)
 
 Событие попадает в DLQ если:
-- Превышено `WEBHOOK_MAX_ATTEMPTS` попыток
-- Получен 401/403 от бэкенда (конфигурационная ошибка)
+- Превышен лимит `WEBHOOK_MAX_ATTEMPTS` попыток
+- Получен `401/403` от бэкенда (проблема с `BACKEND_WEBHOOK_SECRET`)
+- Таск не найден в бэкенде — бэкенд не синкнул задачи через Airflow
 
-Для повторной отправки:
 ```bash
+# Посмотреть застрявшие события
+curl http://localhost:8001/api/dlq
+
+# Вернуть все DLQ события в очередь
 curl -X POST http://localhost:8001/api/dlq/requeue
 ```
 
