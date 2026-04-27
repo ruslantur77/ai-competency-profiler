@@ -151,23 +151,6 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
     }
   };
 
-  const handleStatusChange = async (event) => {
-    const nextStatus = event.target.value;
-    if (!nextStatus || nextStatus === task?.status) return;
-
-    setStatusSaving(true);
-    try {
-      const { data } = await updateTaskStatus(taskId, nextStatus);
-      applyTask(data);
-      notify(`Статус задачи обновлен: ${TASK_STATUS_LABELS[data.status] || data.status}`);
-      onUpdated();
-    } catch (error) {
-      notify(getErrorMessage(error, { fallback: 'Ошибка изменения статуса задачи' }), 'error');
-    } finally {
-      setStatusSaving(false);
-    }
-  };
-
   const handleDiscard = () => {
     if (!originalNodes) return;
     setCategoryNodes(originalNodes.cats);
