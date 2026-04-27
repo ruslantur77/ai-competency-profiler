@@ -6,6 +6,7 @@ from lms.schemas import (
     LmsCourseListItem,
     LmsCourseDetail,
     LmsUserProgress,
+    LmsQuizDetail
 )
 
 
@@ -73,3 +74,16 @@ class LmsClient:
         data = response.json()
         logger.info(f"LMS вернул прогресс для {len(data)} пользователей")
         return [LmsUserProgress.model_validate(item) for item in data]
+
+
+async def get_quiz_detail(self, slug: str) -> LmsQuizDetail:
+    """GET /integration/lectures/{slug}/quiz — детали квиза."""
+    url = f"{self._base_url}/integration/lectures/{slug}/quiz"
+    logger.info(f"LMS запрос: GET {url}")
+
+    async with httpx.AsyncClient(timeout=self._timeout) as client:
+        response = await client.get(url, headers=self._headers)
+        response.raise_for_status()
+
+    logger.info(f"LMS вернул детали квиза slug={slug}")
+    return LmsQuizDetail.model_validate(response.json())        

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from lms.schemas import LmsCaseProgress, LmsQuiz, LmsUserProgress, LmsCaseRef
+from lms.schemas import LmsCaseProgress, LmsQuiz, LmsUserProgress, LmsCaseRef, LmsQuizDetail
 from competency.schemas import CandidateTaskAssessmentDTO
 from core.config import settings
 from core.logging import logger
@@ -163,15 +163,24 @@ def convert_case_to_external_task(
 
 def convert_quiz_to_external_task(
     course_id: int,
-    lecture_id: int,
-    title: str,
+    quiz_detail: LmsQuizDetail,  # ← теперь принимаем полный объект
     created_at_iso: str,
 ) -> dict:
-    """Конвертирует quiz (lecture) в формат ExternalTask для бэкенда."""
+    """Конвертирует квиз в формат ExternalTask для бэкенда."""
+    # Собираем описание из вопросов
+    description = f"{quiz_detail.lecture_title}."
+    if quiz_detail.questions:
+        questions_preview = "; ".join(
+            q.text for q in quiz_detail.questions[:3]
+        )
+        description += f" Вопросы: {questions_preview}"
+        if len(quiz_detail.questions) > 3:
+            description += f" и ещё {len(quiz_detail.questions) - 3}..."
+
     return {
-        "external_id": build_quiz_task_external_id(course_id, lecture_id),
-        "title": f"Quiz: {title}",
-        "description": f"Автосгенерированная задача по квизу lecture {lecture_id}",
+        "external_id": build_quiz_task_external_id(course_id, quiz_detail.lecture_id),
+        "title": f"Quiz: {quiz_detail.lecture_title}",
+        "description": description,
         "type": "test",
         "tags": [f"course:{course_id}", "kind:quiz"],
         "created_at": created_at_iso,

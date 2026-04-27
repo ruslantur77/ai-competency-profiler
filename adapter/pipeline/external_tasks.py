@@ -40,14 +40,6 @@ async def get_external_tasks(
     end: datetime,
     force: bool = False,
 ) -> list[dict]:
-    """
-    Формирует список задач для бэкенда из LMS.
-    Бэкенд вызывает этот эндпоинт через HTTPTestingSystemGateway.
-
-    Берём:
-    - cases из GET /integration/courses/{course_id} → course.cases
-    - quizzes из GET /integration/courses/{course_id} → course.quizzes
-    """
     lms_client = LmsClient()
     course_ids = settings.get_course_ids()
 
@@ -62,14 +54,11 @@ async def get_external_tasks(
         try:
             course = await lms_client.get_course_detail(course_id)
         except Exception as e:
-            logger.error(
-                f"Ошибка получения деталей course_id={course_id}: {e}"
-            )
+            logger.error(f"Ошибка получения деталей course_id={course_id}: {e}")
             continue
 
         # --- Code задачи (cases) ---
         for case in course.cases:
-            # Фильтрация по временному окну (если не force)
             if not force and (case.created_at < start or case.created_at >= end):
                 continue
 
@@ -86,24 +75,46 @@ async def get_external_tasks(
                 )
             )
 
-        # --- Quiz задачи ---
+        # --- Quiz задачи — теперь дёргаем детали по slug ---
         for quiz in course.quizzes:
             external_id = f"course_{course_id}_quiz_{quiz.lecture_id}"
             if external_id in seen_external_ids:
                 continue
             seen_external_ids.add(external_id)
 
+            # Получаем детали квиза по slug
+            try:
+                quiz_detail = await lms_client.get_quiz_detail(quiz.slug)
+            except Exception as e:
+                logger.warning(
+                    f"Не удалось получить детали квиза slug={quiz.slug}, "
+                    f"используем базовые данные: {e}"
+                )
+                # Fallback — используем базовые данные из course detail
+                tasks.append({
+                    "external_id": external_id,
+                    "title": f"Quiz: {quiz.title}",
+                    "description": quiz.description or "",
+                    "type": "test",
+                    "tags": [f"course:{course_id}", "kind:quiz"],
+                    "created_at": quiz.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                })
+                continue
+
             tasks.append(
                 convert_quiz_to_external_task(
                     course_id=course_id,
-                    lecture_id=quiz.lecture_id,
-                    title=quiz.title,
+                    quiz_detail=quiz_detail,
                     created_at_iso=quiz.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 )
             )
+
+    logger.info(f"GET /external/tasks: сформировано {len(tasks)} задач")
+
     try:
         await _cache_tasks(tasks)
         logger.info(f"Кэш обновлён: {len(tasks)} задач")
     except Exception as e:
         logger.error(f"Ошибка кэширования задач: {e}", exc_info=True)
+
     return tasks

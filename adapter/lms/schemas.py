@@ -135,3 +135,33 @@ class LmsUserProgress(BaseModel):
     lectures: list[LmsLecture] = []
     quizzes: list[LmsQuiz] = []
     exams: list[LmsExam] = []
+
+class LmsQuizOption(BaseModel):
+    option_id: int
+    text: str
+    is_correct: bool
+    position: int
+
+
+class LmsQuizQuestion(BaseModel):
+    question_id: int
+    text: str
+    explanation: Optional[str] = None
+    position: int
+    irt_a: Optional[float] = None
+    irt_d: Optional[float] = None
+    irt_c: Optional[float] = None
+    concept_id: Optional[str] = None
+    options: list[LmsQuizOption] = []
+
+
+class LmsQuizDetail(BaseModel):
+    """GET /integration/lectures/{slug}/quiz"""
+    lecture_id: int
+    lecture_slug: str
+    course_id: int
+    lecture_title: str
+    is_published: bool
+    max_attempts: Optional[int] = None
+    total_questions: int = 0
+    questions: list[LmsQuizQuestion] = []    
