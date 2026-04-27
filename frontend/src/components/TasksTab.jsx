@@ -37,6 +37,16 @@ const TASK_TYPE_LABELS = {
   test: '📝 Тест',
 };
 
+const truncateText = (text, maxLength = 70) => {
+  const textStr = String(text || '');
+  
+  if (!textStr || textStr === 'undefined' || textStr === 'null') {
+    return 'Описание не задано';
+  }
+  if (textStr.length <= maxLength) return textStr;
+  return textStr.slice(0, maxLength).trim() + '...';
+};
+
 function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
   const statusConfig = TASK_STATUS_CONFIG[task.status] || TASK_STATUS_CONFIG.pending;
   const canFinalize = task.status === 'draft';
@@ -79,7 +89,9 @@ function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
       </div>
 
       <div className="task-card__body">
-        <p className="task-card__description">{task.description || 'Описание не задано'}</p>
+      <p className="task-card__description">
+        {truncateText(task.description, 50)}</p>
+
         <div className="task-card__meta">
           <span>ID: {task.external_id}</span>
           <span>Создано: {createdAtLabel}</span>
