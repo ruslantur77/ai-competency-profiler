@@ -90,7 +90,7 @@ function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
 
       <div className="task-card__body">
       <p className="task-card__description">
-        {truncateText(task.description, 50)}</p>
+        {truncateText(task.description, 80)}</p>
 
         <div className="task-card__meta">
           <span>ID: {task.external_id}</span>
