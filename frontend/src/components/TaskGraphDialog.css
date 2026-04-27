@@ -126,3 +126,11 @@
 .task-graph-dialog__status-badge--draft   { background: #1e3a5f; color: #60a5fa; }
 .task-graph-dialog__status-badge--ready   { background: #052e16; color: #4ade80; }
 .task-graph-dialog__status-badge--failed  { background: #2d1515; color: #f87171; }
+
+.task-graph-dialog__description {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  border-bottom: 1px solid #334155;
+  line-height: 1.6;
+}

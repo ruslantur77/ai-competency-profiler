@@ -400,6 +400,12 @@ export default function TaskGraphDialog({ taskId, notify, onClose, onUpdated }) 
             <X size={18} />
           </button>
         </div>
+                {/* ===== ОПИСАНИЕ ===== */}
+                {task?.description && (
+          <div className="task-graph-dialog__description">
+            {task.description}
+          </div>
+        )}
   
         {loading ? (
           <AsyncState kind="loading" title="Загрузка графа задачи..." />
