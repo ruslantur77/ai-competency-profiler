@@ -170,13 +170,8 @@ def convert_quiz_to_external_task(
     # Собираем описание из вопросов
     description = f"{quiz_detail.lecture_title}."
     if quiz_detail.questions:
-        questions_preview = "; ".join(
-            q.text for q in quiz_detail.questions[:7]
-        )
-        description += f" Вопросы: {questions_preview}"
-        if len(quiz_detail.questions) > 7:
-            description += f" и ещё {len(quiz_detail.questions) - 7}..."
-
+        questions_list = "\n  - ".join(q.text for q in quiz_detail.questions)
+        description += f"\nВопросы:\n  - {questions_list}"
     return {
         "external_id": build_quiz_task_external_id(course_id, quiz_detail.lecture_id),
         "title": f"Quiz: {quiz_detail.lecture_title}",
