@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1777389039040" clover="3.2.0">
-  <project timestamp="1777389039040" name="All files">
-    <metrics statements="148" coveredstatements="147" conditionals="165" coveredconditionals="154" methods="43" coveredmethods="43" elements="356" coveredelements="344" complexity="0" loc="148" ncloc="148" packages="2" files="6" classes="6"/>
+<coverage generated="1777399208375" clover="3.2.0">
+  <project timestamp="1777399208376" name="All files">
+    <metrics statements="155" coveredstatements="154" conditionals="173" coveredconditionals="162" methods="45" coveredmethods="45" elements="373" coveredelements="361" complexity="0" loc="155" ncloc="155" packages="3" files="7" classes="7"/>
     <package name="api">
       <metrics statements="85" coveredstatements="84" conditionals="123" coveredconditionals="113" methods="19" coveredmethods="19"/>
       <file name="adapters.js" path="C:\ai_competence\ai-competency-profiler\frontend\src\api\adapters.js">
@@ -172,6 +172,19 @@
         <line num="1" count="1" type="stmt"/>
         <line num="7" count="1" type="stmt"/>
         <line num="8" count="7" type="cond" truecount="2" falsecount="0"/>
+      </file>
+    </package>
+    <package name="utils">
+      <metrics statements="7" coveredstatements="7" conditionals="8" coveredconditionals="8" methods="2" coveredmethods="2"/>
+      <file name="formatters.js" path="C:\ai_competence\ai-competency-profiler\frontend\src\utils\formatters.js">
+        <metrics statements="7" coveredstatements="7" conditionals="8" coveredconditionals="8" methods="2" coveredmethods="2"/>
+        <line num="1" count="1" type="stmt"/>
+        <line num="2" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="6" count="1" type="cond" truecount="2" falsecount="0"/>
+        <line num="7" count="12" type="cond" truecount="2" falsecount="0"/>
+        <line num="8" count="12" type="cond" truecount="2" falsecount="0"/>
+        <line num="9" count="12" type="stmt"/>
       </file>
     </package>
   </project>
