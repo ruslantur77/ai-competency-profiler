@@ -110,10 +110,9 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   useEffect(() => {
     if (!canSeeVacancies) return;
     fetchVacancies();
-  }, [location.key, canSeeVacancies]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.key, canSeeVacancies, fetchVacancies]); 
 
   // Умный polling: только когда есть pending, вкладка видима и пользователь в табе вакансий.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- allVacancies производная от vacancies, намеренно не в deps
   useEffect(() => {
     const hasPending = allVacancies.some((v) => v.status === 'pending')
     if (
