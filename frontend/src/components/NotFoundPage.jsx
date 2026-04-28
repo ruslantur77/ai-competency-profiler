@@ -1,7 +1,7 @@
 // frontend/src/components/NotFoundPage.jsx
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Home } from 'lucide-react'
+import { HouseLineIcon } from '@phosphor-icons/react'
 import './NotFoundPage.css'
 
 export default function NotFoundPage() {
@@ -19,7 +19,7 @@ export default function NotFoundPage() {
           className="btn-primary not-found__btn"
           onClick={() => navigate('/')}
         >
-          <Home size={18} /> На главную
+          <HouseLineIcon size={18} weight="bold" /> На главную
         </button>
       </div>
     </div>

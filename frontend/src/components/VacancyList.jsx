@@ -1,4 +1,5 @@
 // frontend/src/components/VacancyList.jsx
+import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleGearIcon, RankingIcon, ShieldCheckeredIcon } from "@phosphor-icons/react";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, CheckCircle, AlertCircle, FileEdit } from 'lucide-react';
@@ -84,12 +85,12 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   } = useVacancyLifecycle({ notify, fetchVacancies });
   const tabs = useMemo(
     () => [
-      ...(canSeeVacancies  ? [{ id: 'vacancies',   label: '📋 Вакансии' }]    : []),
-      ...(canSeeOntology   ? [{ id: 'ontology',    label: '🧩 Онтология' }]   : []),
-      ...(canSeeTasks      ? [{ id: 'tasks',        label: '📝 Задания' }]     : []),
-      ...(canSeeCandidates ? [{ id: 'candidates',  label: '👤 Кандидаты' }]   : []),
-      ...(canSeeRanking    ? [{ id: 'ranking',     label: '🏆 Ранжирование' }] : []),
-      ...(canSeeAdminUsers ? [{ id: 'admin-users', label: '🛡️ Пользователи' }] : []),
+      ...(canSeeVacancies  ? [{ id: 'vacancies',   label:  <><ClipboardTextIcon size={20} color="#3b82f6" weight="bold" /> Вакансии</>  }]    : []),
+      ...(canSeeOntology   ? [{ id: 'ontology',    label: <><PuzzlePieceIcon size={20} color="#3b82f6" weight="bold" /> Онтология</> }]   : []),
+      ...(canSeeTasks      ? [{ id: 'tasks',        label: <><NotePencilIcon size={20} color="#3b82f6" weight="bold" /> Задания</> }]     : []),
+      ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleGearIcon size={20} color="#3b82f6" weight="bold" /> Кандидаты</> }]   : []),
+      ...(canSeeRanking    ? [{ id: 'ranking',     label: <><RankingIcon size={20} color="#3b82f6" weight="bold" /> Ранжирование</> }] : []),
+      ...(canSeeAdminUsers ? [{ id: 'admin-users', label: <><ShieldCheckeredIcon size={20} color="#3b82f6" weight="fill" /> Пользователи</>  }] : []),
     ],
     [canSeeVacancies, canSeeOntology, canSeeTasks, canSeeRanking, canSeeCandidates, canSeeAdminUsers]
   );

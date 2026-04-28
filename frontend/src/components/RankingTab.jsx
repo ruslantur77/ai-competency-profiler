@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Trophy, User, X } from 'lucide-react';
+import { Trophy, User, X } from 'lucide-react';
 import { getVacancyRankings } from '../api/ranking';
 import { getErrorMessage } from '../api/errors';
 import ForbiddenState from './ForbiddenState';
