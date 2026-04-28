@@ -113,6 +113,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   }, [location.key, canSeeVacancies]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Умный polling: только когда есть pending, вкладка видима и пользователь в табе вакансий.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- allVacancies производная от vacancies, намеренно не в deps
   useEffect(() => {
     const hasPending = allVacancies.some((v) => v.status === 'pending')
     if (
@@ -147,7 +148,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       await createVacancy(data);
       setCreating(false);
       await fetchVacancies();
-      notify(`✅ Вакансия "${data.name}" создана, запущено извлечение компетенций`);
+      notify(`Вакансия "${data.name}" создана, запущено извлечение компетенций`);
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка создания вакансии' }), 'error');
     }
