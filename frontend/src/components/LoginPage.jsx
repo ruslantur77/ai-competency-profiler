@@ -5,6 +5,8 @@ import { Loader2, LogIn } from 'lucide-react';
 import { login } from '../api/auth';
 import { getErrorMessage } from '../api/errors';
 import './LoginPage.css';
+import logo from '../assets/logo.png';
+
 
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
@@ -41,7 +43,8 @@ export default function LoginPage({ onLogin }) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-card__header">
-          <h1>🎯 Competency Profiler</h1>
+        <img src={logo} alt="AI Competency Profiler" className="login-card__logo" />
+          <h1>AI Competency Profiler</h1>
           <p>Формирование компетентностного профиля специалиста</p>
         </div>
 
