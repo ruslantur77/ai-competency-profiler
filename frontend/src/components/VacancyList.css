@@ -216,9 +216,7 @@
   font-weight: 400;
   padding: 0.6rem 1.25rem;
   margin-bottom: -1px;
-  transition:
-    color 0.2s,
-    border-color 0.2s;
+  transition: color 0.3s ease, border-color 0.3s ease;
   border-radius: 6px 6px 0 0;
   flex: 1;
   text-align: center;
@@ -231,6 +229,7 @@
 .vacancy-list__tab:hover {
   color: #f1f5f9;
   background: #1e293b;
+  transition: 0.25s ease;
 }
 
 .vacancy-list__tab--active {

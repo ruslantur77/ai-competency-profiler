@@ -1,8 +1,8 @@
 // frontend/src/components/VacancyList.jsx
-import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleGearIcon, RankingIcon, ShieldCheckeredIcon } from "@phosphor-icons/react";
+import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleGearIcon, RankingIcon, ShieldCheckeredIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Loader2, CheckCircle, AlertCircle, FileEdit } from 'lucide-react';
+import { Loader2, AlertCircle, FileEdit, Trophy } from 'lucide-react';
 import { createVacancy } from '../api/vacancies';
 import { getErrorMessage } from '../api/errors';
 import {
@@ -46,7 +46,7 @@ const STATUS_CONFIG = {
   ready: {
     label: 'Граф финализирован',
     badge: 'ready',
-    icon: (size) => <CheckCircle size={size} />,
+    icon: (size) => <CheckCircleIcon size={size} weight="bold"/>,
   },
   failed: {
     label: 'Ошибка обработки, попробуйте позже',
@@ -89,7 +89,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       ...(canSeeOntology   ? [{ id: 'ontology',    label: <><PuzzlePieceIcon size={20} color="#3b82f6" weight="bold" /> Онтология</> }]   : []),
       ...(canSeeTasks      ? [{ id: 'tasks',        label: <><NotePencilIcon size={20} color="#3b82f6" weight="bold" /> Задания</> }]     : []),
       ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleGearIcon size={20} color="#3b82f6" weight="bold" /> Кандидаты</> }]   : []),
-      ...(canSeeRanking    ? [{ id: 'ranking',     label: <><RankingIcon size={20} color="#3b82f6" weight="bold" /> Ранжирование</> }] : []),
+      ...(canSeeRanking    ? [{ id: 'ranking',     label: <><Trophy size={18} color="#3b82f6" weight="bold" /> Ранжирование</> }] : []),
       ...(canSeeAdminUsers ? [{ id: 'admin-users', label: <><ShieldCheckeredIcon size={20} color="#3b82f6" weight="fill" /> Пользователи</>  }] : []),
     ],
     [canSeeVacancies, canSeeOntology, canSeeTasks, canSeeRanking, canSeeCandidates, canSeeAdminUsers]

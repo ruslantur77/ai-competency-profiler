@@ -5,7 +5,7 @@ export default function VacancyListHeader({ activeTab, canCreate, onCreate, onLo
   return (
     <div className="vacancy-list__header">
       <div className="vacancy-list__title">
-        <h1>🎯AI Competency Profiler</h1>
+        <h1>AI Competency Profiler</h1>
         <p>Формирование компетентностного профиля специалиста</p>
       </div>
       <div className="vacancy-list__header-actions">

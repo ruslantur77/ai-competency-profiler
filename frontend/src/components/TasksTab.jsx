@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import { finalizeTaskGraph, listTasks } from '../api/tasks';
 import { fetchAllPages } from '../api/pagination';
 import { getErrorMessage } from '../api/errors';
@@ -81,8 +82,8 @@ function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
               disabled={finalizing}
               title="Finalize task graph"
             >
-              {finalizing ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-              Finalize
+              {finalizing ? <Loader2 size={14} className="spin" /> : <CheckCircleIcon size={16} weight="bold" />}
+              Финализировать
             </button>
           )}
         </div>

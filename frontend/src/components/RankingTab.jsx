@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Trophy, User, X } from 'lucide-react';
+import { User, X } from 'lucide-react';
+import {RankingIcon } from "@phosphor-icons/react";
 import { getVacancyRankings } from '../api/ranking';
 import { getErrorMessage } from '../api/errors';
 import ForbiddenState from './ForbiddenState';
@@ -153,7 +154,6 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
       {isForbidden && <ForbiddenState hint="Недостаточно прав для просмотра ранжирования." />}
 
       <div className="ranking__select-row">
-        <Trophy size={20} className="ranking__trophy" />
         <select
           className="ranking__select"
           value={selectedVacancyId}
@@ -170,7 +170,7 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
 
       {!selectedVacancyId && (
         <div className="ranking__empty">
-          <Trophy size={48} />
+          <RankingIcon size={52} weight="bold"/>
           <p>Выберите вакансию, чтобы увидеть ранжирование кандидатов</p>
           {vacancyList.length === 0 && (
             <p className="ranking__empty-hint">
