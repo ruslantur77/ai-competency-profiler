@@ -1,5 +1,5 @@
 // frontend/src/components/VacancyList.jsx
-import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleGearIcon, RankingIcon, ShieldCheckeredIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleGearIcon, ShieldCheckeredIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, AlertCircle, FileEdit, Trophy } from 'lucide-react';
