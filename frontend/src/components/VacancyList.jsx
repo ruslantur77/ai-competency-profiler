@@ -85,12 +85,12 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   } = useVacancyLifecycle({ notify, fetchVacancies });
   const tabs = useMemo(
     () => [
-      ...(canSeeVacancies  ? [{ id: 'vacancies',   label:  <><ClipboardTextIcon size={20} color="#3b82f6" weight="bold" /> Вакансии</>  }]    : []),
-      ...(canSeeOntology   ? [{ id: 'ontology',    label: <><PuzzlePieceIcon size={20} color="#3b82f6" weight="bold" /> Онтология</> }]   : []),
-      ...(canSeeTasks      ? [{ id: 'tasks',        label: <><NotePencilIcon size={20} color="#3b82f6" weight="bold" /> Задания</> }]     : []),
-      ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleGearIcon size={20} color="#3b82f6" weight="bold" /> Кандидаты</> }]   : []),
-      ...(canSeeRanking    ? [{ id: 'ranking',     label: <><Trophy size={18} color="#3b82f6" weight="bold" /> Ранжирование</> }] : []),
-      ...(canSeeAdminUsers ? [{ id: 'admin-users', label: <><ShieldCheckeredIcon size={20} color="#3b82f6" weight="fill" /> Пользователи</>  }] : []),
+      ...(canSeeVacancies  ? [{ id: 'vacancies',   label:  <><ClipboardTextIcon size={20} color="#3b82f6" weight="bold" /> <span>Вакансии</span></>  }]    : []),
+      ...(canSeeOntology   ? [{ id: 'ontology',    label: <><PuzzlePieceIcon size={20} color="#3b82f6" weight="bold" /> <span>Онтология</span></> }]   : []),
+      ...(canSeeTasks      ? [{ id: 'tasks',        label: <><NotePencilIcon size={20} color="#3b82f6" weight="bold" /> <span>Задания</span></> }]     : []),
+      ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleGearIcon size={20} color="#3b82f6" weight="bold" /> <span>Кандидаты</span></> }]   : []),
+      ...(canSeeRanking    ? [{ id: 'ranking',     label: <><Trophy size={18} color="#3b82f6" weight="bold" /> <span>Ранжирование</span></> }] : []),
+      ...(canSeeAdminUsers ? [{ id: 'admin-users', label: <><ShieldCheckeredIcon size={20} color="#3b82f6" weight="fill" /> <span>Пользователи</span></>  }] : []),
     ],
     [canSeeVacancies, canSeeOntology, canSeeTasks, canSeeRanking, canSeeCandidates, canSeeAdminUsers]
   );
