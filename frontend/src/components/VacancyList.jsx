@@ -136,7 +136,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       fetchVacancies({ silent: true });
     }, delayMs);
     return () => clearTimeout(timer);
-  }, [vacancies, fetchVacancies, resolvedActiveTab, canSeeVacancies, effectiveVacancyMode]);
+  }, [vacancies, fetchVacancies, resolvedActiveTab, canSeeVacancies, effectiveVacancyMode, allVacancies]);
 
   const handleCreate = async (data) => {
     try {
