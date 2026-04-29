@@ -206,7 +206,7 @@ export default function CandidatesTab({ notify, vacancies, onOpenVacancy, onOpen
                   <User size={18} />
                   <h3>{candidateDetail.external_id}</h3>
                 </div>
-                <span className="candidates-tab__detail-id">{candidateDetail.id}</span>
+                {/* <span className="candidates-tab__detail-id">{candidateDetail.id}</span> */}
               </div>
 
               <div className="candidates-tab__detail-meta">
