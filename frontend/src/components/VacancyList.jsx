@@ -1,5 +1,5 @@
 // frontend/src/components/VacancyList.jsx
-import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleGearIcon, ShieldCheckeredIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleIcon, ShieldCheckeredIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, AlertCircle, FileEdit, Trophy } from 'lucide-react';
@@ -88,7 +88,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       ...(canSeeVacancies  ? [{ id: 'vacancies',   label:  <><ClipboardTextIcon size={20} color="#3b82f6" weight="bold" /> <span>Вакансии</span></>  }]    : []),
       ...(canSeeOntology   ? [{ id: 'ontology',    label: <><PuzzlePieceIcon size={20} color="#3b82f6" weight="bold" /> <span>Онтология</span></> }]   : []),
       ...(canSeeTasks      ? [{ id: 'tasks',        label: <><NotePencilIcon size={20} color="#3b82f6" weight="bold" /> <span>Задания</span></> }]     : []),
-      ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleGearIcon size={20} color="#3b82f6" weight="bold" /> <span>Кандидаты</span></> }]   : []),
+      ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleIcon size={20} color="#3b82f6" weight="bold" /> <span>Кандидаты</span></> }]   : []),
       ...(canSeeRanking    ? [{ id: 'ranking',     label: <><Trophy size={18} color="#3b82f6" weight="bold" /> <span>Ранжирование</span></> }] : []),
       ...(canSeeAdminUsers ? [{ id: 'admin-users', label: <><ShieldCheckeredIcon size={20} color="#3b82f6" weight="fill" /> <span>Пользователи</span></>  }] : []),
     ],
