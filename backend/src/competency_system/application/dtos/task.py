@@ -67,6 +67,7 @@ class TaskListItemDTO(BaseDTO):
     id: UUID
     external_id: str
     title: str
+    description: str
     type: TaskType
     status: TaskStatus
     created_at: datetime

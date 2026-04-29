@@ -234,6 +234,7 @@ def task_list_item_dto_from_domain(task: Task) -> TaskListItemDTO:
         id=task.id,
         external_id=task.external_id,
         title=task.title,
+        description=task.description,
         type=task.type,
         status=task.status,
         created_at=task.created_at,
