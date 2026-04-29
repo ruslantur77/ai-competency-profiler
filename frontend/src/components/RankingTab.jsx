@@ -140,6 +140,11 @@ export default function RankingTab({ vacancies, notify, navigationTarget = null 
   const handleVacancyChange = (e) => {
     const id = e.target.value;
     setSelectedVacancyId(id);
+    if (!id) {
+      setRankings([]);
+      setSelectedCandidate(null);
+      return;
+    }
     loadRankings(id);
   };
 
