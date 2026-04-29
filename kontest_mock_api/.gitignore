@@ -1,0 +1,17 @@
+__pycache__/
+*egg-info
+
+.env*
+!.env*.example
+
+.venv/
+.vscode/
+
+*.log
+
+*.db
+
+.coverage
+
+deploy/**/tag
+deploy/**/active
