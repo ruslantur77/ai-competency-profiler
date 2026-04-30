@@ -1,7 +1,7 @@
 // frontend/src/components/Notification.jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, X } from 'lucide-react';
-import {CheckCircleIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import './Notification.css';
 
 const DEFAULT_DURATION_BY_TYPE = {

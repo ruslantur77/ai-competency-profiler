@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
-import { CheckCircleIcon } from "@phosphor-icons/react";
+import { FileDashedIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { finalizeTaskGraph, listTasks } from '../api/tasks';
 import { fetchAllPages } from '../api/pagination';
 import { getErrorMessage } from '../api/errors';
@@ -18,12 +18,12 @@ const TASK_STATUS_CONFIG = {
   },
   draft: {
     label: 'Черновик графа',
-    icon: (size) => <ExternalLink size={size} />,
+    icon: (size) => <FileDashedIcon size={size+4} weight="bold" />,
     badge: 'draft',
   },
   ready: {
     label: 'Граф готов',
-    icon: (size) => <CheckCircle size={size} />,
+    icon: (size) => <CheckCircleIcon size={size+3} weight="bold" />,
     badge: 'completed',
   },
   failed: {
