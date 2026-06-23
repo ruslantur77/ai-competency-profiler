@@ -23,6 +23,14 @@
   text-align: center;
 }
 
+.login-card__logo {
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 0.5rem;
+  width: 7rem;
+  height: 7rem;
+}
+
 .login-card__header h1 {
   font-size: 1.75rem;
   margin-bottom: 0.5rem;

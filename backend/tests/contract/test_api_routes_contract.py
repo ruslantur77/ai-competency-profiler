@@ -77,7 +77,6 @@ from competency_system.presentation.api.dependencies import (
     get_list_vacancy_candidates_use_case,
     get_list_vacancy_suggestions_use_case,
     get_logout_use_case,
-    get_recalculate_ranking_use_case,
     get_refresh_token_data,
     get_refresh_token_from_cookie,
     get_refresh_token_pair_use_case,
@@ -693,9 +692,6 @@ def test_candidates_and_ranking_routes_contract(
     app.dependency_overrides[get_delete_candidate_use_case] = lambda: _StaticUseCase(
         None
     )
-    app.dependency_overrides[get_recalculate_ranking_use_case] = lambda: _StaticUseCase(
-        ranking
-    )
     app.dependency_overrides[get_get_vacancy_ranking_use_case] = lambda: _StaticUseCase(
         ranking
     )
@@ -720,6 +716,3 @@ def test_candidates_and_ranking_routes_contract(
 
         rankings = client.get(f"/api/v1/vacancies/{vacancy_id}/rankings")
         assert rankings.status_code == 200
-
-        ranking_legacy = client.get(f"/api/v1/vacancies/{vacancy_id}/ranking")
-        assert ranking_legacy.status_code == 200

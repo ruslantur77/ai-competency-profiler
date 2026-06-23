@@ -171,10 +171,10 @@
   font-size: 1.05rem;
 }
 
-.candidates-tab__detail-id {
+/* .candidates-tab__detail-id {
   color: #64748b;
   font-size: 0.75rem;
-}
+} */
 
 .candidates-tab__detail-meta {
   display: grid;

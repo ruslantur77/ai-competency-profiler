@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { FileDashedIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { finalizeTaskGraph, listTasks } from '../api/tasks';
 import { fetchAllPages } from '../api/pagination';
 import { getErrorMessage } from '../api/errors';
@@ -17,12 +18,12 @@ const TASK_STATUS_CONFIG = {
   },
   draft: {
     label: 'Черновик графа',
-    icon: (size) => <ExternalLink size={size} />,
+    icon: (size) => <FileDashedIcon size={size+4} weight="bold" />,
     badge: 'draft',
   },
   ready: {
     label: 'Граф готов',
-    icon: (size) => <CheckCircle size={size} />,
+    icon: (size) => <CheckCircleIcon size={size+3} weight="bold" />,
     badge: 'completed',
   },
   failed: {
@@ -35,6 +36,16 @@ const TASK_STATUS_CONFIG = {
 const TASK_TYPE_LABELS = {
   code: '💻 Код',
   test: '📝 Тест',
+};
+
+const truncateText = (text, maxLength = 70) => {
+  const textStr = String(text || '');
+  
+  if (!textStr || textStr === 'undefined' || textStr === 'null') {
+    return 'Описание не задано';
+  }
+  if (textStr.length <= maxLength) return textStr;
+  return textStr.slice(0, maxLength).trim() + '...';
 };
 
 function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
@@ -71,15 +82,17 @@ function TaskCard({ task, onOpenGraph, onFinalize, finalizing }) {
               disabled={finalizing}
               title="Finalize task graph"
             >
-              {finalizing ? <Loader2 size={14} className="spin" /> : <CheckCircle size={14} />}
-              Finalize
+              {finalizing ? <Loader2 size={14} className="spin" /> : <CheckCircleIcon size={16} weight="bold" />}
+              Финализировать
             </button>
           )}
         </div>
       </div>
 
       <div className="task-card__body">
-        <p className="task-card__description">{task.description || 'Описание не задано'}</p>
+      <p className="task-card__description">
+        {truncateText(task.description, 80)}</p>
+
         <div className="task-card__meta">
           <span>ID: {task.external_id}</span>
           <span>Создано: {createdAtLabel}</span>

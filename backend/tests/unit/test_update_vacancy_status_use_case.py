@@ -66,3 +66,44 @@ async def test_update_vacancy_status_use_case_raises_when_vacancy_not_found(
         await use_case.execute(
             uuid4(), VacancyStatusUpdateDTO(status=VacancyStatus.DRAFT)
         )
+
+
+async def test_update_vacancy_status_use_case_rejects_ready_without_graph(
+    use_case: UpdateVacancyStatusUseCase, mock_uow
+) -> None:
+    vacancy = VacancyFactory().make(
+        {
+            "status": VacancyStatus.DRAFT,
+            "category_nodes": [],
+            "competency_nodes": [],
+            "sub_competency_nodes": [],
+        }
+    )
+    mock_uow.vacancies.get.return_value = vacancy
+
+    with pytest.raises(ValidationError, match="at least one sub-competency"):
+        await use_case.execute(
+            vacancy.id, VacancyStatusUpdateDTO(status=VacancyStatus.READY)
+        )
+
+
+async def test_update_vacancy_status_use_case_allows_ready_noop_without_graph(
+    use_case: UpdateVacancyStatusUseCase, mock_uow
+) -> None:
+    vacancy = VacancyFactory().make(
+        {
+            "status": VacancyStatus.READY,
+            "category_nodes": [],
+            "competency_nodes": [],
+            "sub_competency_nodes": [],
+        }
+    )
+    mock_uow.vacancies.get.return_value = vacancy
+
+    result = await use_case.execute(
+        vacancy.id, VacancyStatusUpdateDTO(status=VacancyStatus.READY)
+    )
+
+    assert result.status == VacancyStatus.READY
+    mock_uow.vacancies.add.assert_awaited_once_with(vacancy)
+    mock_uow.commit.assert_awaited_once()

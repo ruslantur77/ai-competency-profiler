@@ -67,3 +67,42 @@ async def test_update_task_status_use_case_raises_when_task_not_found(
 
     with pytest.raises(NotFoundError, match="not found"):
         await use_case.execute(uuid4(), TaskStatusUpdateDTO(status=TaskStatus.DRAFT))
+
+
+async def test_update_task_status_use_case_rejects_ready_without_graph(
+    use_case: UpdateTaskStatusUseCase, mock_uow
+) -> None:
+    task = TaskFactory().make(
+        {
+            "status": TaskStatus.DRAFT,
+            "category_nodes": [],
+            "competency_nodes": [],
+            "sub_competency_nodes": [],
+        }
+    )
+    mock_uow.tasks.get.return_value = task
+
+    with pytest.raises(ValidationError, match="at least one sub-competency"):
+        await use_case.execute(task.id, TaskStatusUpdateDTO(status=TaskStatus.READY))
+
+
+async def test_update_task_status_use_case_allows_ready_noop_without_graph(
+    use_case: UpdateTaskStatusUseCase, mock_uow
+) -> None:
+    task = TaskFactory().make(
+        {
+            "status": TaskStatus.READY,
+            "category_nodes": [],
+            "competency_nodes": [],
+            "sub_competency_nodes": [],
+        }
+    )
+    mock_uow.tasks.get.return_value = task
+
+    result = await use_case.execute(
+        task.id, TaskStatusUpdateDTO(status=TaskStatus.READY)
+    )
+
+    assert result.status == TaskStatus.READY
+    mock_uow.tasks.add.assert_awaited_once_with(task)
+    mock_uow.commit.assert_awaited_once()

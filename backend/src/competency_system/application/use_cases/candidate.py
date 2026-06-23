@@ -10,11 +10,11 @@ from competency_system.application.dtos.candidate import (
     CandidateListItemDto,
     CandidateProfileDTO,
 )
-from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.mappers import (
     candidate_profile_dto_from_scoring,
     test_result_dto_from_domain,
 )
+from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.task import (
     CandidateTaskAssessmentDTO,
     LLMCodeAssessmentDTO,
@@ -24,7 +24,11 @@ from competency_system.application.dtos.webhooks import (
     WebhookEventPayload,
     WebhookEventStatus,
 )
-from competency_system.application.errors import ConflictError, NotFoundError
+from competency_system.application.errors import (
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+)
 from competency_system.application.llm.llm_dispatch_payload import (
     CodeAssessmentPayload,
 )
@@ -118,11 +122,11 @@ class WebhookEventOperation:
         command: CandidateTaskAssessmentDTO,
     ) -> None:
         if existing.status == WebhookEventStatus.PROCESSING:
-            raise ValueError(f"Webhook event {command.event_id} is processing")
+            raise ConflictError(f"Webhook event {command.event_id} is processing")
         if existing.status != WebhookEventStatus.PROCESSED:
-            raise ValueError(f"Webhook event {command.event_id} already handled")
+            raise ConflictError(f"Webhook event {command.event_id} already handled")
         if existing.candidate_id is None or existing.test_result_id is None:
-            raise ValueError("Stored webhook event references missing result")
+            raise ValidationError("Stored webhook event references missing result")
 
         candidate = await uow.candidates.get(
             existing.candidate_id, include={CandidateInclude.ACHIEVEMENTS}
@@ -135,13 +139,13 @@ class WebhookEventOperation:
             },
         )
         if candidate is None or test_result is None:
-            raise ValueError("Stored webhook event references missing result")
+            raise ValidationError("Stored webhook event references missing result")
 
         vacancy = await uow.vacancies.get(
             existing.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
         )
         if vacancy is None:
-            raise ValueError(f"Vacancy {existing.vacancy_id} not found")
+            raise NotFoundError(f"Vacancy {existing.vacancy_id} not found")
 
         scores = self._scorer.calculate_scores(
             candidate, vacancy.requirement_competencies
@@ -309,7 +313,7 @@ class CandidateScoringOperation:
                 include={TaskInclude.NORMALIZED_GRAPH},
             )
             if task is None:
-                raise ValueError(f"Task {command.task_external_id} not found")
+                raise NotFoundError(f"Task {command.task_external_id} not found")
 
             test_result = self._build_test_result(command, task, candidate.id)
 
@@ -325,7 +329,7 @@ class CandidateScoringOperation:
                 command.vacancy_id, include={VacancyInclude.NORMALIZED_GRAPH}
             )
             if vacancy is None:
-                raise ValueError(f"Vacancy {command.vacancy_id} not found")
+                raise NotFoundError(f"Vacancy {command.vacancy_id} not found")
 
             scores = self._scorer.calculate_scores(
                 candidate, vacancy.requirement_competencies
@@ -417,7 +421,7 @@ class CandidateScoringOperation:
         if candidate.deleted_at is not None:
             raise ConflictError("Candidate is deleted")
         if candidate.vacancy_id != command.vacancy_id:
-            raise ValueError("Candidate is already assigned to another vacancy")
+            raise ConflictError("Candidate is already assigned to another vacancy")
         return candidate
 
     def _build_test_result(

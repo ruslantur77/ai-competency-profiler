@@ -1,7 +1,8 @@
 // frontend/src/components/VacancyList.jsx
+import { ClipboardTextIcon, PuzzlePieceIcon, NotePencilIcon, UserCircleIcon, ShieldCheckeredIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Loader2, CheckCircle, AlertCircle, FileEdit } from 'lucide-react';
+import { Loader2, AlertCircle, FileEdit, Trophy } from 'lucide-react';
 import { createVacancy } from '../api/vacancies';
 import { getErrorMessage } from '../api/errors';
 import {
@@ -45,7 +46,7 @@ const STATUS_CONFIG = {
   ready: {
     label: 'Граф финализирован',
     badge: 'ready',
-    icon: (size) => <CheckCircle size={size} />,
+    icon: (size) => <CheckCircleIcon size={size} weight="bold"/>,
   },
   failed: {
     label: 'Ошибка обработки, попробуйте позже',
@@ -84,12 +85,12 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   } = useVacancyLifecycle({ notify, fetchVacancies });
   const tabs = useMemo(
     () => [
-      ...(canSeeVacancies  ? [{ id: 'vacancies',   label: '📋 Вакансии' }]    : []),
-      ...(canSeeOntology   ? [{ id: 'ontology',    label: '🧩 Онтология' }]   : []),
-      ...(canSeeTasks      ? [{ id: 'tasks',        label: '📝 Задания' }]     : []),
-      ...(canSeeCandidates ? [{ id: 'candidates',  label: '👤 Кандидаты' }]   : []),
-      ...(canSeeRanking    ? [{ id: 'ranking',     label: '🏆 Ранжирование' }] : []),
-      ...(canSeeAdminUsers ? [{ id: 'admin-users', label: '🛡️ Пользователи' }] : []),
+      ...(canSeeVacancies  ? [{ id: 'vacancies',   label:  <><ClipboardTextIcon size={20} color="#3b82f6" weight="bold" /> <span>Вакансии</span></>  }]    : []),
+      ...(canSeeOntology   ? [{ id: 'ontology',    label: <><PuzzlePieceIcon size={20} color="#3b82f6" weight="bold" /> <span>Онтология</span></> }]   : []),
+      ...(canSeeTasks      ? [{ id: 'tasks',        label: <><NotePencilIcon size={20} color="#3b82f6" weight="bold" /> <span>Задания</span></> }]     : []),
+      ...(canSeeCandidates ? [{ id: 'candidates',  label: <><UserCircleIcon size={20} color="#3b82f6" weight="bold" /> <span>Кандидаты</span></> }]   : []),
+      ...(canSeeRanking    ? [{ id: 'ranking',     label: <><Trophy size={18} color="#3b82f6" weight="bold" /> <span>Ранжирование</span></> }] : []),
+      ...(canSeeAdminUsers ? [{ id: 'admin-users', label: <><ShieldCheckeredIcon size={20} color="#3b82f6" weight="fill" /> <span>Пользователи</span></>  }] : []),
     ],
     [canSeeVacancies, canSeeOntology, canSeeTasks, canSeeRanking, canSeeCandidates, canSeeAdminUsers]
   );
@@ -109,7 +110,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
   useEffect(() => {
     if (!canSeeVacancies) return;
     fetchVacancies();
-  }, [location.key, canSeeVacancies]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.key, canSeeVacancies, fetchVacancies]); 
 
   // Умный polling: только когда есть pending, вкладка видима и пользователь в табе вакансий.
   useEffect(() => {
@@ -135,7 +136,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       fetchVacancies({ silent: true });
     }, delayMs);
     return () => clearTimeout(timer);
-  }, [vacancies, fetchVacancies, resolvedActiveTab, canSeeVacancies, effectiveVacancyMode]);
+  }, [vacancies, fetchVacancies, resolvedActiveTab, canSeeVacancies, effectiveVacancyMode, allVacancies]);
 
   const handleCreate = async (data) => {
     try {
@@ -146,7 +147,7 @@ export default function VacancyList({ notify, onLogout, role, currentUser }) {
       await createVacancy(data);
       setCreating(false);
       await fetchVacancies();
-      notify(`✅ Вакансия "${data.name}" создана, запущено извлечение компетенций`);
+      notify(`Вакансия "${data.name}" создана, запущено извлечение компетенций`);
     } catch (error) {
       notify(getErrorMessage(error, { fallback: 'Ошибка создания вакансии' }), 'error');
     }

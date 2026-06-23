@@ -34,6 +34,11 @@ async def test_recalculate_ranking_use_case_creates_snapshot(
     result = await use_case.execute(vacancy.id)
 
     assert result.vacancy_id == vacancy.id
+    if result.rankings:
+        first = result.rankings[0]
+        assert 0.0 <= first.total_score <= 1.0
+        assert 0.0 <= first.required_score <= 1.0
+        assert 0.0 <= first.desired_score <= 1.0
     mock_uow.ranking_snapshots.add.assert_awaited_once()
     mock_uow.commit.assert_awaited_once()
 

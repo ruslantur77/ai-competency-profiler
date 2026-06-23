@@ -1,0 +1,21 @@
+[project]
+name = "competency-adapter"
+version = "0.1.0"
+description = "Adapter: polls testing system progress and forwards to Competency System webhook"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "httpx>=0.27.0",
+    "aiosqlite>=0.20.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.1",
+    "tenacity>=8.2.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

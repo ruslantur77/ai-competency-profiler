@@ -15,10 +15,6 @@ from competency_system.application.dtos.pagination import PaginatedItemsDTO
 from competency_system.application.dtos.task import (
     SyncTasksResultDTO,
     TaskDTO,
-    TaskGraphCategoryInputDTO,
-    TaskGraphCompetencyInputDTO,
-    TaskGraphNodeMode,
-    TaskGraphSubCompetencyInputDTO,
     TaskGraphUpdateDTO,
     TaskListItemDTO,
     TaskStatusUpdateDTO,
@@ -50,6 +46,11 @@ from competency_system.application.ports.repositories import (
     TaskInclude,
 )
 from competency_system.application.ports.uow import UnitOfWork
+from competency_system.application.use_cases.graph_builder import GraphEntityResolver
+from competency_system.application.use_cases.status_transitions import (
+    validate_ready_graph_requirement,
+    validate_status_transition,
+)
 from competency_system.domain.entities import (
     Category,
     Competency,
@@ -72,25 +73,6 @@ class _TaskGraphPayload:
         competency_nodes: list[TaskCompetencyNode],
         sub_competency_nodes: list[TaskSubCompetencyNode],
     ) -> None:
-        self.category_nodes = category_nodes
-        self.competency_nodes = competency_nodes
-        self.sub_competency_nodes = sub_competency_nodes
-
-
-class _TaskGraphSavePayload:
-    def __init__(
-        self,
-        *,
-        categories: list[Category],
-        competencies: list[Competency],
-        sub_competencies: list[SubCompetency],
-        category_nodes: list[TaskCategoryNode],
-        competency_nodes: list[TaskCompetencyNode],
-        sub_competency_nodes: list[TaskSubCompetencyNode],
-    ) -> None:
-        self.categories = categories
-        self.competencies = competencies
-        self.sub_competencies = sub_competencies
         self.category_nodes = category_nodes
         self.competency_nodes = competency_nodes
         self.sub_competency_nodes = sub_competency_nodes
@@ -410,198 +392,57 @@ class SaveTaskGraphUseCase:
             task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
-            payload = await self._build_payload(uow, graph)
+            resolved = await GraphEntityResolver().resolve(uow, graph.categories)
 
-            for node in payload.category_nodes:
-                node.task_id = task.id
-            for node in payload.competency_nodes:
-                node.task_id = task.id
-            for node in payload.sub_competency_nodes:
-                node.task_id = task.id
+            category_nodes = [
+                TaskCategoryNode(
+                    id=uuid4(),
+                    task_id=task.id,
+                    category_id=item.category.id,
+                    position=item.position,
+                )
+                for item in resolved.categories
+            ]
+            competency_nodes = [
+                TaskCompetencyNode(
+                    id=uuid4(),
+                    task_id=task.id,
+                    competency_id=item.competency.id,
+                    category_id=item.category.id,
+                    is_required=item.dto.is_required,
+                    position=item.position,
+                )
+                for item in resolved.competencies
+            ]
+            sub_competency_nodes = [
+                TaskSubCompetencyNode(
+                    id=uuid4(),
+                    task_id=task.id,
+                    sub_competency_id=item.sub_competency.id,
+                    competency_id=item.competency.id,
+                    target_level=item.dto.target_level,
+                    weight=item.dto.weight,
+                    position=item.position,
+                )
+                for item in resolved.sub_competencies
+            ]
 
-            task.category_nodes = payload.category_nodes
-            task.competency_nodes = payload.competency_nodes
-            task.sub_competency_nodes = payload.sub_competency_nodes
+            task.category_nodes = category_nodes
+            task.competency_nodes = competency_nodes
+            task.sub_competency_nodes = sub_competency_nodes
             task.status = TaskStatus.DRAFT
             task.error_message = graph.error_message
 
-            for category in payload.categories:
+            for category in resolved.categories_to_create:
                 await uow.categories.add(category)
-            for competency in payload.competencies:
+            for competency in resolved.competencies_to_create:
                 await uow.competencies.add(competency)
-            for sub_competency in payload.sub_competencies:
+            for sub_competency in resolved.sub_competencies_to_create:
                 await uow.sub_competencies.add(sub_competency)
 
             await uow.tasks.add(task)
             await uow.commit()
             return task_dto_from_domain(task)
-
-    async def _build_payload(
-        self,
-        uow: UnitOfWork,
-        graph: TaskGraphUpdateDTO,
-    ) -> _TaskGraphSavePayload:
-        categories_to_create: list[Category] = []
-        competencies_to_create: list[Competency] = []
-        sub_competencies_to_create: list[SubCompetency] = []
-        category_nodes: list[TaskCategoryNode] = []
-        competency_nodes: list[TaskCompetencyNode] = []
-        sub_nodes: list[TaskSubCompetencyNode] = []
-        used_category_ids: set[UUID] = set()
-        used_competency_ids: set[UUID] = set()
-        used_sub_competency_ids: set[UUID] = set()
-
-        for category_position, category_dto in enumerate(graph.categories):
-            category = await self._resolve_category(uow, category_dto)
-            if category.id in used_category_ids:
-                raise ValidationError(
-                    f"Duplicate category node for category_id={category.id}"
-                )
-            used_category_ids.add(category.id)
-
-            category_nodes.append(
-                TaskCategoryNode(
-                    id=uuid4(),
-                    task_id=UUID(int=0),
-                    category_id=category.id,
-                    position=category_position,
-                )
-            )
-            if category_dto.mode == TaskGraphNodeMode.NEW:
-                categories_to_create.append(category)
-
-            for competency_dto in category_dto.competencies:
-                competency = await self._resolve_competency(
-                    uow,
-                    competency_dto,
-                    category_id=category.id,
-                )
-                if competency.id in used_competency_ids:
-                    raise ValidationError(
-                        f"Duplicate competency node for competency_id={competency.id}"
-                    )
-                used_competency_ids.add(competency.id)
-
-                competency_nodes.append(
-                    TaskCompetencyNode(
-                        id=uuid4(),
-                        task_id=UUID(int=0),
-                        competency_id=competency.id,
-                        category_id=category.id,
-                        is_required=competency_dto.is_required,
-                        position=len(competency_nodes),
-                    )
-                )
-                if competency_dto.mode == TaskGraphNodeMode.NEW:
-                    competencies_to_create.append(competency)
-
-                for subcompetency_dto in competency_dto.sub_competencies:
-                    sub_competency = await self._resolve_sub_competency(
-                        uow,
-                        subcompetency_dto,
-                        competency_id=competency.id,
-                    )
-                    if sub_competency.id in used_sub_competency_ids:
-                        raise ValidationError(
-                            "Duplicate sub-competency node for "
-                            f"sub_competency_id={sub_competency.id}"
-                        )
-                    used_sub_competency_ids.add(sub_competency.id)
-
-                    sub_nodes.append(
-                        TaskSubCompetencyNode(
-                            id=uuid4(),
-                            task_id=UUID(int=0),
-                            sub_competency_id=sub_competency.id,
-                            competency_id=competency.id,
-                            target_level=subcompetency_dto.target_level,
-                            weight=subcompetency_dto.weight,
-                            position=len(sub_nodes),
-                        )
-                    )
-                    if subcompetency_dto.mode == TaskGraphNodeMode.NEW:
-                        sub_competencies_to_create.append(sub_competency)
-
-        return _TaskGraphSavePayload(
-            categories=categories_to_create,
-            competencies=competencies_to_create,
-            sub_competencies=sub_competencies_to_create,
-            category_nodes=category_nodes,
-            competency_nodes=competency_nodes,
-            sub_competency_nodes=sub_nodes,
-        )
-
-    async def _resolve_category(
-        self,
-        uow: UnitOfWork,
-        category_dto: TaskGraphCategoryInputDTO,
-    ) -> Category:
-        if category_dto.mode == TaskGraphNodeMode.EXISTING:
-            if category_dto.id is None:
-                raise ValidationError("Existing category requires id")
-            category = await uow.categories.get(category_dto.id)
-            if category is None:
-                raise NotFoundError(f"Category {category_dto.id} not found")
-            return category
-        return Category(
-            id=uuid4(),
-            name=(category_dto.name or "").strip(),
-            description=category_dto.description or "",
-            emoji=category_dto.emoji or "",
-        )
-
-    async def _resolve_competency(
-        self,
-        uow: UnitOfWork,
-        competency_dto: TaskGraphCompetencyInputDTO,
-        *,
-        category_id: UUID,
-    ) -> Competency:
-        if competency_dto.mode == TaskGraphNodeMode.EXISTING:
-            if competency_dto.id is None:
-                raise ValidationError("Existing competency requires id")
-            competency = await uow.competencies.get(competency_dto.id)
-            if competency is None:
-                raise NotFoundError(f"Competency {competency_dto.id} not found")
-            if competency.category_id != category_id:
-                raise ValidationError(
-                    "Existing competency does not belong to the selected category"
-                )
-            return competency
-        return Competency(
-            id=uuid4(),
-            category_id=category_id,
-            name=(competency_dto.name or "").strip(),
-            description=competency_dto.description or "",
-            sub_competencies=[],
-        )
-
-    async def _resolve_sub_competency(
-        self,
-        uow: UnitOfWork,
-        subcompetency_dto: TaskGraphSubCompetencyInputDTO,
-        *,
-        competency_id: UUID,
-    ) -> SubCompetency:
-        if subcompetency_dto.mode == TaskGraphNodeMode.EXISTING:
-            if subcompetency_dto.id is None:
-                raise ValidationError("Existing sub-competency requires id")
-            sub_competency = await uow.sub_competencies.get(subcompetency_dto.id)
-            if sub_competency is None:
-                raise NotFoundError(f"Sub-competency {subcompetency_dto.id} not found")
-            if sub_competency.competency_id != competency_id:
-                raise ValidationError(
-                    "Existing sub-competency does not belong to the selected competency"
-                )
-            return sub_competency
-        return SubCompetency(
-            id=uuid4(),
-            competency_id=competency_id,
-            name=(subcompetency_dto.name or "").strip(),
-            description=subcompetency_dto.description or "",
-            weight=subcompetency_dto.weight,
-            target_level=subcompetency_dto.target_level,
-        )
 
 
 class FinalizeTaskGraphUseCase:
@@ -676,12 +517,18 @@ class UpdateTaskStatusUseCase:
             task = await uow.tasks.get(task_id, include={TaskInclude.NORMALIZED_GRAPH})
             if task is None:
                 raise NotFoundError(f"Task {task_id} not found")
-            allowed = self._ALLOWED_TRANSITIONS.get(task.status, set())
-            if command.status != task.status and command.status not in allowed:
-                raise ValidationError(
-                    "Invalid status transition: "
-                    f"{task.status.value} -> {command.status.value}"
-                )
+            validate_status_transition(
+                current=task.status,
+                target=command.status,
+                allowed_transitions=self._ALLOWED_TRANSITIONS,
+            )
+            validate_ready_graph_requirement(
+                current=task.status,
+                target=command.status,
+                ready_status=TaskStatus.READY,
+                has_sub_competency_nodes=bool(task.sub_competency_nodes),
+                entity_name="Task",
+            )
             task.status = command.status
             if command.status != TaskStatus.FAILED:
                 task.error_message = None

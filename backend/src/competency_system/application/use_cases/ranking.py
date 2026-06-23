@@ -72,15 +72,7 @@ class RecalculateRankingUseCase:
 
 class GetVacancyRankingUseCase:
     def __init__(self, uow: UnitOfWork) -> None:
-        self._uow = uow
         self._recalculate = RecalculateRankingUseCase(uow)
 
     async def execute(self, vacancy_id: UUID) -> VacancyRankingDTO:
-        async with self._uow as uow:
-            vacancy = await uow.vacancies.get(vacancy_id)
-            if vacancy is None:
-                raise NotFoundError(f"Vacancy {vacancy_id} not found")
-            snapshot = await uow.ranking_snapshots.get_by_vacancy(vacancy_id)
-            if snapshot is not None:
-                return VacancyRankingDTO.model_validate(snapshot.payload.data)
         return await self._recalculate.execute(vacancy_id)

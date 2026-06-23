@@ -1,6 +1,7 @@
 // frontend/src/components/Notification.jsx
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
+import { CheckCircleIcon } from "@phosphor-icons/react";
 import './Notification.css';
 
 const DEFAULT_DURATION_BY_TYPE = {
@@ -27,7 +28,7 @@ export default function Notification({ message, type = 'success', onClose, durat
 
   return (
     <div className={`notification notification--${type} ${closing ? 'notification--closing' : ''}`}>
-      {type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+      {type === 'success' ? <CheckCircleIcon size={24} weight='bold'/> : <AlertCircle size={18} />}
       <span>{message}</span>
       <button onClick={handleClose}>
         <X size={16} />

@@ -21,8 +21,8 @@ from competency_system.application.use_cases.auth import (
 )
 from competency_system.presentation.api.dependencies import (
     get_create_user_use_case,
-    get_list_users_use_case,
     get_current_user,
+    get_list_users_use_case,
     get_update_user_role_use_case,
     get_update_user_status_use_case,
     require_admin_or_system,

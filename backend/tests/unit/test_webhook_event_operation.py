@@ -6,6 +6,11 @@ import pytest
 
 from competency_system.application.dtos.task import CandidateTaskAssessmentDTO
 from competency_system.application.dtos.webhooks import WebhookEvent, WebhookEventStatus
+from competency_system.application.errors import (
+    ConflictError,
+    NotFoundError,
+    ValidationError,
+)
 from competency_system.application.use_cases.candidate import (
     WebhookEventOperation,
     _DuplicateWebhookEvent,
@@ -56,7 +61,7 @@ async def test_webhook_event_operation_rejects_processing_duplicate(
         status=WebhookEventStatus.PROCESSING,
     )
 
-    with pytest.raises(ValueError, match="is processing"):
+    with pytest.raises(ConflictError, match="is processing"):
         await operation.ensure_processing(command)
 
 
@@ -72,7 +77,7 @@ async def test_webhook_event_operation_rejects_already_handled_event(
         status=WebhookEventStatus.FAILED,
     )
 
-    with pytest.raises(ValueError, match="already handled"):
+    with pytest.raises(ConflictError, match="already handled"):
         await operation.ensure_processing(command)
 
 
@@ -159,7 +164,7 @@ async def test_webhook_event_operation_rejects_processed_event_with_missing_refe
         test_result_id=uuid4(),
     )
 
-    with pytest.raises(ValueError, match="missing result"):
+    with pytest.raises(ValidationError, match="missing result"):
         await operation.ensure_processing(command)
 
 
@@ -180,7 +185,7 @@ async def test_webhook_event_operation_rejects_processed_event_with_missing_enti
     mock_uow.candidates.get.return_value = None
     mock_uow.test_results.get.return_value = None
 
-    with pytest.raises(ValueError, match="missing result"):
+    with pytest.raises(ValidationError, match="missing result"):
         await operation.ensure_processing(command)
 
 
@@ -204,5 +209,5 @@ async def test_webhook_event_operation_rejects_when_vacancy_not_found(
     mock_uow.test_results.get.return_value = test_result
     mock_uow.vacancies.get.return_value = None
 
-    with pytest.raises(ValueError, match="Vacancy"):
+    with pytest.raises(NotFoundError, match="Vacancy"):
         await operation.ensure_processing(command)
