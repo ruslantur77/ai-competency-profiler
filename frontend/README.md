@@ -1,6 +1,6 @@
 # Frontend: AI Competency Profiler
 
-SPA на React + Vite для управления вакансиями, графом компетенций, suggestions и ранжированием кандидатов.
+Клиентское приложение на React + Vite для управления вакансиями, графом компетенций, suggestions и ранжированием кандидатов.
 
 ## Быстрый старт
 
@@ -46,7 +46,7 @@ npm run build
 | -------------------------------------- | ------------------------------------- | ------ | ----- |
 | Vacancies list/read                    | ✅                                    | ✅     | ✅    |
 | Create vacancy                         | ❌                                    | ✅     | ✅    |
-| Open vacancy editor                    | ✅ (read-only outside mutate actions) | ✅     | ✅    |
+| Open vacancy editor                    | ✅                                    | ✅     | ✅    |
 | Graph mutations (add/edit/delete/save) | ❌                                    | ✅     | ✅    |
 | Suggestions decisions                  | ❌                                    | ✅     | ✅    |
 | Tasks tab                              | ❌                                    | ✅     | ✅    |
@@ -58,6 +58,4 @@ npm run build
 - Для `403` используется явный `ForbiddenState` вместо generic ошибки.
 - Уведомления централизованы через `notify(message, type, { duration })`.
 
-## Smoke checklist
 
-Ручной smoke regression: `FRONTEND_SMOKE_CHECKLIST.md`.
