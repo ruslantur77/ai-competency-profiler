@@ -1,3 +1,10 @@
+<div align="center">
+  <picture>
+      <img  src="https://github.com/user-attachments/assets/e8d9640b-4ffc-4dfe-9a46-dda06184dc53" width="25%"/>
+  </picture>
+</div>
+
+
 # AI Competency Profiler
 
 AI Competency Profiler помогает строить компетентностный профиль специалиста по тексту вакансии. Система извлекает требования, группирует их в структуру компетенций и дает интерфейс для экспертной проверки и ручной корректировки результата.
